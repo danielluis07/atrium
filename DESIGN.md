@@ -19,7 +19,7 @@ Modernist concrete Houses standing in Arctic snow at blue hour, with warm amber 
 
 The reference is summer. In the **Scene** the same buildings stand in snow: snow on the roofs and terraces, and landscaping replaced by snowdrifts and sparse pines.
 
-Houses are **built procedurally** in react-three-fiber from shared parts (volume, slab, glazing, fascia, stone mass). Each Project describes its House as data: volumes, levels, cantilevers and glazing faces. All four Houses share one language and differ in composition, not style.
+Houses are **assembled from shared parts** (volume, slab, glazing, fascia, stone mass) and baked offline in headless Blender, then rendered in react-three-fiber (see `docs/adr/0001-houses-baked-offline-in-headless-blender.md`). Each Project describes its House as data: volumes, levels, cantilevers and glazing faces. The ground is plain snow, so detail goes into the Houses. All four Houses share one language and differ in composition, not style.
 
 ## Scene
 
