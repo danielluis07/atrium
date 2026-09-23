@@ -8,6 +8,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+# What this is
+
+Atrium is the website of a fictional architecture studio based in northern Norway. The home page hero is an interactive 3D Scene: four modernist Houses on a snowy slope above a fjord at blue hour. Each House is one of the studio's Projects, and selecting it opens a Project Panel with a link to the Project's own page. Below the Scene, the site continues on light "snow paper" with the studio's sections: Studio, Projects, Approach and Contact.
+
+It is a showcase site. It has no backend or auth, and Project content lives in local data.
+
+- Vocabulary: `CONTEXT.md`. Use its terms (Project, House, Scene, Project Panel, Project Index, Whiteout).
+- Visual direction, fonts, palette, Scene and motion rules: `DESIGN.md`.
+- Components: shadcn (`base-nova` style, built on Base UI) is the base for all UI.
+
 # Runtime
 
 Use Bun
