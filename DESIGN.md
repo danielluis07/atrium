@@ -28,10 +28,10 @@ Houses are **assembled from shared parts** (volume, slab, glazing, fascia, stone
 - **Camera:** limited orbit on rails (no free-fly), slow idle drift. The camera never goes below the terrain or behind the mountains.
 - **Hover:** the House's windows brighten and a small mono label with the Project name appears in the Scene. The cursor changes to a pointer.
 - **Select:** the camera flies to the House (about 1.5s, ease-in-out), the other Houses dim, and the **Project Panel** opens. Esc or a click on empty snow closes the panel and flies the camera back.
-- **Whiteout:** scrolling past the hero thickens the fog and lightens it to the exact paper color, so the Scene turns into the page. The paper background below must match the final fog color exactly, with no seam.
+- **Section Cut:** scrolling past the hero drops the camera toward the ground, and the snow surface becomes a crisp ink **section line** across the viewport, with the dark Scene above and snow paper below. Right under the line runs a narrow band of section hatch (snow strata). The line scrolls up and away, and the page continues below grade. It is a cut, not a fade, so no fog has to match the paper color. If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). See `docs/adr/0002-section-cut-replaces-whiteout.md`.
 - **Degradation:**
   - Mobile or low-power devices get a lighter live Scene: fewer snow particles, no real-time shadows, reduced camera motion.
-  - `prefers-reduced-motion` or no WebGL gets a pre-rendered still of the Scene.
+  - `prefers-reduced-motion` or no WebGL gets a pre-rendered still of the Scene, cropped so its snow line sits on the same section line and hatch band (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
   - The **Project Index** is always there, so no Project depends on 3D to be reached.
 
 ## Theme
@@ -42,7 +42,7 @@ Map these onto shadcn's CSS variables in `app/globals.css` (`:root`), and remove
 
 | Role | Token | Value | Notes |
 | --- | --- | --- | --- |
-| Snow paper | `--background` | `oklch(0.975 0.004 240)` | Cool white with a hint of blue-grey. Also the final fog color of the Whiteout. |
+| Snow paper | `--background` | `oklch(0.975 0.004 240)` | Cool white with a hint of blue-grey. The page "below grade", under the Section Cut. |
 | Sheet | `--card`, `--popover` | `oklch(0.99 0.002 240)` | Project Panel and raised surfaces. |
 | Basalt ink | `--foreground`, `--primary` | `oklch(0.2 0.01 250)` | Text and primary buttons. Never pure black. |
 | Ink on basalt | `--primary-foreground` | `oklch(0.975 0.004 240)` | |
@@ -87,7 +87,7 @@ shadcn `base-nova` (Base UI primitives) is the base for all UI. Add components w
 
 - **Radius 0.** Set `--radius: 0`. Every corner is sharp.
 - **Hairlines, no shadows.** Separate surfaces with 1px `--border` and whitespace, never with drop shadows.
-- **A visible grid.** Use a 12-column layout with generous gutters. Hairline rules can mark the grid, like the grid on a drawing sheet.
+- **A visible grid.** A 12-column layout with generous gutters. Columns 1–2 are the **margin rail** for mono labels (Depth markers, data labels, figure numbers). Content sits in columns 3–12: running text in columns 3–8 (about 65ch), with data or images beside it in 9–12. Three faint full-height hairline guides mark the page edges and the rail edge, like the frame of a drawing sheet. On mobile the rail folds into a label above each block, and only the page-edge guides remain.
 - **Buttons:** ink fill with paper text for primary, a hairline outline for secondary. No gradients.
 - **Icons:** lucide at a 1.5px stroke, used sparingly.
 
@@ -103,9 +103,36 @@ A paper sheet (`--card`) that slides in over the Scene, set out like the **title
 
 ## Site structure
 
-- `/`: the Scene (hero), then the Whiteout, then Studio (manifesto), Project Index, Approach (site, light, material) and Contact.
-- `/projects/[slug]`: the full Project page, with its data block, write-up and imagery (renders of its House).
-- No People or team section.
+Routes: `/`, `/projects/[slug]` and a styled 404. Nothing else: no `/projects` page (the Project Index lives on the home page), no legal page, no People or team section.
+
+### Header and footer
+
+- **Header:** fixed and quiet: the wordmark on the left, anchor links (Projects, Studio, Approach, Contact) in mono 12px uppercase, and the current Depth on the right (`±0.00` over the Scene, then `▽ −2.00` etc.), which replaces an active-link underline. Over the Scene it is paper-colored. It cuts to ink with no fade when the section line crosses its baseline. On Project pages the links go to `/#…`. On mobile the links collapse into a shadcn `Sheet`.
+- **Footer:** shared by every page, a hairline-topped strip like the edge of a drawing sheet: the wordmark, the studio's location and coordinates in mono, the contact email, and the line "Atrium is a fictional studio."
+
+### Home (`/`)
+
+The Scene is at grade (`±0.00`). Below the **Section Cut**, each section is a **Depth**, labelled in the margin rail as `▽ −1.00 · PROJECTS`. The labels are the only depth effect: no parallax earth layers, and no darkening as you go deeper.
+
+1. **Scene** (`±0.00`), then the **Section Cut**.
+2. **Project Index** (`−1.00`): a schedule, one hairline-separated row per Project: the name in Newsreader, then location, coordinates, year and m² in mono columns. A small render thumbnail appears on row hover. On mobile the rows stack: the name, then one mono line of data.
+3. **Studio** (`−2.00`): one Newsreader statement (the display moment), 2–3 short paragraphs in columns 3–8, and a mono data block in 9–12 (Founded, Based: Tromsø with coordinates, Projects: 4). No image.
+4. **Approach** (`−3.00`): three rows, Site, Light and Material. Each has its rail label (`01 SITE`), a short Newsreader head, a paragraph, and a detail crop from a House render on the right (the snow plinth, a glowing window, board-formed concrete).
+5. **Contact** (`−4.00`): one Newsreader line, the email as the primary `mailto:` link, and address and coordinates in a data block. No form and no map. The footer follows.
+
+### Project page (`/projects/[slug]`)
+
+Paper from the top, like unfolding the Project Panel into the full sheet:
+
+1. **Title block:** the Project name in Newsreader and the full data grid (a larger Project Panel).
+2. The first render.
+3. The write-up in three parts, **Site, Light, Material** (mirroring Approach), alternating with renders.
+4. **Drawings:** a plan and a section of the House, drawn as SVG from its House data.
+5. A next-Project row ("Next project: Senja House →", wrapping around), then the footer.
+
+### 404
+
+A paper page with the header and footer, a rail label `▽ −∞`, one Newsreader line ("Nothing is built here."), and a link to the Project Index. No Scene.
 
 ## Motion
 

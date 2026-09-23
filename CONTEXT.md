@@ -24,14 +24,22 @@ _Avoid_: world, canvas, 3D view
 The 3D representation of a Project inside the Scene. Selecting a House reveals its Project.
 _Avoid_: model, building, mesh
 
+**Level**:
+One floor of a House.
+_Avoid_: storey, floor (in data), Depth
+
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
 _Avoid_: modal, popup, card, drawer
 
 **Project Index**:
-The plain list of all Projects outside the Scene. It is the way to reach Projects without 3D.
+The plain list of all Projects outside the Scene, set out like a schedule on a drawing: one row per Project. It is the way to reach Projects without 3D.
 _Avoid_: gallery, portfolio, grid
 
-**Whiteout**:
-The scroll transition where fog in the Scene thickens into the paper color, carrying the visitor from the dark Scene into the light page.
-_Avoid_: fade, transition
+**Section Cut**:
+The scroll transition out of the Scene: the camera drops toward the ground and the snow surface becomes a section line, with the Scene above it and the paper page below it, "below grade", divided into Depths.
+_Avoid_: Whiteout, fade, transition
+
+**Depth**:
+A home page section below the Section Cut, marked with how far below grade it sits (e.g. −1.00 Projects, −2.00 Studio), like a level mark on a section drawing.
+_Avoid_: Level, layer, chapter
