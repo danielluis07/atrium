@@ -6,26 +6,40 @@ import { preload } from "react-dom";
 
 import type { SceneLayout } from "@/content/schema";
 import { sceneDownloads } from "@/lib/scene/assets";
-import { chooseScenePath, sceneOverride, type ScenePath } from "@/lib/scene/policy";
+import { classifyGpu } from "@/lib/scene/gpu";
+import { readLowestRung, rememberRung } from "@/lib/scene/memory";
+import {
+  chooseScenePath,
+  chooseWithoutGpu,
+  sceneOverride,
+  type SceneCapabilities,
+  type SceneChoice,
+} from "@/lib/scene/policy";
 import { cn } from "@/lib/utils";
 
 const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
 
 /**
- * The live Scene over the still. Picks the Scene path once per session;
- * on a live path it starts the Scene's code and downloads together, and
- * fades the Canvas in over the still once its first frame is drawn. Renders
- * only while the stage is on screen and the tab is visible.
+ * The live Scene over the still. Picks the Scene path once per session: when
+ * the GPU's tier decides it, the Scene's downloads start while detect-gpu
+ * classifies, and the Canvas mounts only once the path and start rung are
+ * known, so the pipeline compiles once. The Canvas fades in over the still
+ * once its first frame is drawn, renders only while the stage is on screen
+ * and the tab is visible, and steps down the ladder when frames run long.
  */
 export function LiveScene({ layout }: { layout: SceneLayout }) {
-  const path = useSyncExternalStore(noSubscription, scenePath, () => null);
+  const decision = useSyncExternalStore(onDecision, getDecision, () => undefined);
   const tabVisible = useSyncExternalStore(onVisibilityChange, isTabVisible, () => true);
   const [onScreen, setOnScreen] = useState(true);
   const [ready, setReady] = useState(false);
+  const [stepped, setStepped] = useState<number>();
   const ref = useRef<HTMLDivElement>(null);
-  const live = path === "lean";
+  const choice = decision?.choice;
+  // the mobile Scene isn't built yet, so touch keeps the still
+  const live = choice && (choice.path === "target" || choice.path === "lean") ? choice : undefined;
+  const rung = live && (stepped ?? live.rung);
 
-  if (live) {
+  if (live || decision?.preload) {
     for (const url of sceneDownloads(Object.keys(layout.houses))) {
       preload(url, { as: "fetch", crossOrigin: "anonymous" });
     }
@@ -39,23 +53,36 @@ export function LiveScene({ layout }: { layout: SceneLayout }) {
     return () => observer.disconnect();
   }, [live]);
 
-  const rendering = live && onScreen && tabVisible;
+  const rendering = !!live && onScreen && tabVisible;
+
+  const stepDown = (next: number) => {
+    setStepped(next);
+    if (!decision?.forced) rememberRung("desktop", next);
+  };
 
   return (
     <div
       ref={ref}
       aria-hidden="true"
       data-slot="live-scene"
-      data-scene-path={path ?? undefined}
+      data-scene-path={choice?.path}
+      data-scene-rung={rung}
       data-scene-ready={live ? ready : undefined}
       data-rendering={live ? rendering : undefined}
       className={cn(
         "absolute inset-0 transition-opacity duration-400 ease-in-out",
         ready ? "opacity-100" : "opacity-0",
       )}>
-      {live && (
+      {live && rung && (
         <StillOnError>
-          <Scene layout={layout} active={rendering} onReady={() => setReady(true)} />
+          <Scene
+            layout={layout}
+            ladder="desktop"
+            rung={rung}
+            onStepDown={stepDown}
+            active={rendering}
+            onReady={() => setReady(true)}
+          />
         </StillOnError>
       )}
     </div>
@@ -81,22 +108,51 @@ class StillOnError extends Component<{ children: ReactNode }, { failed: boolean 
 
 // ---------------------------------------------------------------- the path, chosen once per session
 
-let chosen: ScenePath | undefined;
+type Decision = {
+  /** Undefined while the GPU's tier is being classified. */
+  choice?: SceneChoice;
+  /** Whether `?scene=` forced the path; a forced session leaves no memory. */
+  forced: boolean;
+  /** Whether the desktop Scene's downloads are worth starting before the tier is in. */
+  preload: boolean;
+};
 
-function scenePath(): ScenePath {
-  return (chosen ??= chooseScenePath(capabilities()));
+let caps: SceneCapabilities | undefined;
+let decision: Decision | undefined;
+let classifying: Promise<void> | undefined;
+const listeners = new Set<() => void>();
+
+function getDecision(): Decision {
+  if (decision) return decision;
+  caps = capabilities();
+  const settled = chooseWithoutGpu(caps);
+  decision = { choice: settled, forced: !!caps.override, preload: !settled && !caps.touchPrimary };
+  return decision;
 }
 
-const noSubscription = () => () => {};
+/** Starts the GPU classification on the first subscriber, when the path waits on it. */
+function onDecision(callback: () => void) {
+  listeners.add(callback);
+  if (!getDecision().choice && !classifying) {
+    classifying = classifyGpu().then((gpu) => {
+      const lowest = { desktop: readLowestRung("desktop"), mobile: readLowestRung("mobile") };
+      decision = { ...getDecision(), choice: chooseScenePath({ ...caps!, gpu, lowest }) };
+      for (const listener of listeners) listener();
+    });
+  }
+  return () => {
+    listeners.delete(callback);
+  };
+}
 
-function capabilities() {
+function capabilities(): SceneCapabilities {
   const media = (query: string) => window.matchMedia(query).matches;
   const override = sceneOverride(window.location.search);
   if (override) return { override, reducedMotion: false, touchPrimary: false, webgl2: true };
   const reducedMotion = media("(prefers-reduced-motion: reduce)");
   const touchPrimary = media("(pointer: coarse)") && !media("(hover: hover)");
   // only probe the GPU when nothing else has decided
-  if (reducedMotion || touchPrimary) return { reducedMotion, touchPrimary, webgl2: true };
+  if (reducedMotion) return { reducedMotion, touchPrimary, webgl2: true };
   return { reducedMotion, touchPrimary, ...probeWebGL() };
 }
 

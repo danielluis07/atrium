@@ -15,6 +15,71 @@ test("with ?scene=still the stage shows only the still", async ({ page }) => {
   await expect(stage(page).locator("canvas")).toHaveCount(0);
 });
 
+/**
+ * Makes SwiftShader report a discrete NVIDIA part, so the page would take the
+ * Target Scene unless something else rules it out.
+ */
+async function pretendDiscreteGpu(page: Page) {
+  await page.addInitScript(() => {
+    const RENDERER = 0x1f01;
+    const UNMASKED_RENDERER = 0x9246;
+    const name = "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)";
+    for (const proto of [WebGLRenderingContext.prototype, WebGL2RenderingContext.prototype]) {
+      const getParameter = proto.getParameter;
+      proto.getParameter = function (this: WebGLRenderingContext, p: number) {
+        return p === RENDERER || p === UNMASKED_RENDERER ? name : getParameter.call(this, p);
+      };
+    }
+  });
+}
+
+async function expectOnlyTheStill(page: Page) {
+  await expect(liveScene(page)).toHaveAttribute("data-scene-path", "still");
+  await expect(stage(page).getByRole("img", { name: /Four concrete houses/ })).toBeVisible();
+  await expect(stage(page).locator("canvas")).toHaveCount(0);
+}
+
+test.describe("on a discrete GPU", () => {
+  test.skip(({ isMobile }) => isMobile, "desktop only");
+  test.use({ viewport: { width: 640, height: 400 } });
+  test.beforeEach(({ page }) => pretendDiscreteGpu(page));
+
+  test("the Target Scene is classified from self-hosted benchmarks, with no third-party request", async ({
+    page,
+    baseURL,
+  }) => {
+    const requests: string[] = [];
+    page.on("request", (r) => requests.push(r.url()));
+
+    await page.goto("/");
+    await expect(liveScene(page)).toHaveAttribute("data-scene-path", "target");
+    await expect(liveScene(page)).toHaveAttribute("data-scene-rung", "1");
+    await expect(stage(page).locator("canvas")).toHaveCount(1, { timeout: 30_000 });
+
+    const origins = new Set(requests.filter((u) => /^https?:/.test(u)).map((u) => new URL(u).origin));
+    expect([...origins]).toEqual([new URL(baseURL!).origin]);
+    expect(requests.some((u) => new URL(u).pathname.startsWith("/detect-gpu/"))).toBe(true);
+  });
+
+  test("reduced motion still gets the still", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await expectOnlyTheStill(page);
+  });
+
+  test("no WebGL gets the still", async ({ page }) => {
+    await page.addInitScript(() => {
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+        if (/webgl/.test(type)) return null;
+        return getContext.call(this, type as "2d", ...(rest as []));
+      } as typeof getContext;
+    });
+    await page.goto("/");
+    await expectOnlyTheStill(page);
+  });
+});
+
 test.describe("the Lean Scene", () => {
   test.skip(({ isMobile }) => isMobile, "desktop only");
   // a software renderer takes a while over the first frame; fewer pixels help it

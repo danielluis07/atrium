@@ -35,6 +35,9 @@ export const BASIS_FILES = ["basis_transcoder.js", "basis_transcoder.wasm"] as c
 export const DRACO_PATH = "/decoders/draco/";
 export const DRACO_FILES = ["draco_decoder.wasm", "draco_wasm_wrapper.js"] as const;
 
+/** detect-gpu's benchmark data, copied from `detect-gpu/dist/benchmarks`. */
+export const GPU_BENCHMARKS_PATH = "/detect-gpu";
+
 /**
  * Everything the Lean Scene downloads before its first frame, so the
  * downloads can start the moment the path is chosen, alongside the Scene's

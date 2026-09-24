@@ -1,10 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { projectOrder } from "@/content/projects";
 import { readGlb, type HouseExtras } from "@/lib/house/glb-contract";
-import { BASIS_FILES, BASIS_PATH, DRACO_FILES, DRACO_PATH, houseAssets, sceneDownloads } from "@/lib/scene/assets";
+import {
+  BASIS_FILES,
+  BASIS_PATH,
+  DRACO_FILES,
+  DRACO_PATH,
+  GPU_BENCHMARKS_PATH,
+  houseAssets,
+  sceneDownloads,
+} from "@/lib/scene/assets";
 
 const publicFile = (url: string) => join("public", url);
 
@@ -39,6 +47,17 @@ describe("the Scene's assets", () => {
     for (const [served, shipped] of pairs) {
       const same = readFileSync(publicFile(served)).equals(readFileSync(shipped));
       expect({ served, same }).toEqual({ served, same: true });
+    }
+  });
+
+  test("the self-hosted GPU benchmarks are the ones detect-gpu ships", () => {
+    const shipped = "node_modules/detect-gpu/dist/benchmarks";
+    const files = readdirSync(shipped).filter((f) => f.endsWith(".json"));
+    expect(files.length).toBeGreaterThan(0);
+    expect(readdirSync(publicFile(GPU_BENCHMARKS_PATH)).sort()).toEqual(files.sort());
+    for (const f of files) {
+      const same = readFileSync(publicFile(`${GPU_BENCHMARKS_PATH}/${f}`)).equals(readFileSync(join(shipped, f)));
+      expect({ f, same }).toEqual({ f, same: true });
     }
   });
 });
