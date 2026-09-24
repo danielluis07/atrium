@@ -17,3 +17,8 @@ export function formatLevel(metres: number): string {
   if (rounded === 0) return "±0.00";
   return `${rounded < 0 ? MINUS : "+"}${Math.abs(rounded).toFixed(2)}`;
 }
+
+/** An item's number on the sheet, in two digits: `01`. */
+export function formatIndex(n: number): string {
+  return String(n).padStart(2, "0");
+}

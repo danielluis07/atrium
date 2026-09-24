@@ -10,7 +10,7 @@ import { getNextProject, getProject, getProjects } from "@/content";
 import type { Project } from "@/content/schema";
 import { studio } from "@/content/site";
 import { planSvg, sectionSvg } from "@/lib/drawings";
-import { formatArea, formatElevation } from "@/lib/format";
+import { formatArea, formatElevation, formatIndex } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Only the Projects in Content have a page; any other slug is the 404. */
@@ -52,7 +52,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
     <main className="page-frame flex-1">
       <header data-slot="title-block" className="page-grid gap-y-8 pt-16 pb-12 md:pt-24 md:pb-16">
         <RailLabel className="md:pt-4">
-          Project {pad(number)} / {pad(projects.length)}
+          Project {formatIndex(number)} / {formatIndex(projects.length)}
         </RailLabel>
         <div className="col-span-12 md:col-span-6 md:col-start-3">
           <h1 className="text-display">{project.name}</h1>
@@ -141,7 +141,7 @@ function Part({
   return (
     <section aria-labelledby={id} className="page-grid gap-y-8 md:gap-y-16">
       <h2 id={id} className={cn(labelClass, "col-span-12 md:col-span-2 md:row-start-1 md:pt-1.5")}>
-        {pad(n)} {title}
+        {formatIndex(n)} {title}
       </h2>
       <div
         className={cn(
@@ -193,7 +193,7 @@ function Drawings({ project }: { project: Project }) {
   return (
     <section aria-labelledby="drawings" className="page-grid gap-y-8 md:gap-y-16">
       <h2 id="drawings" className={cn(labelClass, "col-span-12 md:col-span-2 md:row-start-1 md:pt-1.5")}>
-        {pad(4)} Drawings
+        {formatIndex(4)} Drawings
       </h2>
       {drawings.map(({ slot, caption, label, svg }, i) => (
         <figure
@@ -213,4 +213,3 @@ function Drawings({ project }: { project: Project }) {
   );
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");

@@ -16,7 +16,8 @@ import { shadowMaskPars, type ShadowUniforms } from "@/components/scene/shadow";
 /**
  * The Houses' materials. Light is baked (ADR 0001): every opaque surface
  * reads its base and window-spill lightmaps as `base + k·spill`, with `k` per
- * House so hover can brighten its windows later. Warm light comes only from
+ * House so hover can brighten its windows, and a per-House dim for the
+ * Houses left unselected. Warm light comes only from
  * the glazing, which looks into lit rooms (interior mapping), and the
  * soffit downlights, both bright enough to bloom.
  */
@@ -29,7 +30,8 @@ if (!ShaderChunk.lights_fragment_maps.includes(LIGHTMAP_READ)) {
   throw new Error("three's lights_fragment_maps changed: the Scene's lightmap patch no longer applies");
 }
 
-export type SpillUniforms = { spillK: { value: number } };
+/** One House's baked light: `spillK` weighs the window spill, and `lightDim` scales it all. */
+export type LightUniforms = { spillK: { value: number }; lightDim: { value: number } };
 
 /** A world plan position for the shadow mask, from the vertex shader. */
 function withShadow(shader: WebGLProgramParametersWithUniforms, shadow: ShadowUniforms) {
@@ -54,21 +56,25 @@ function withShadow(shader: WebGLProgramParametersWithUniforms, shadow: ShadowUn
 export function patchLightmap(
   material: MeshStandardMaterial,
   spill: Texture,
-  uniforms: SpillUniforms,
+  uniforms: LightUniforms,
   { edgeFade = false, shadow }: { edgeFade?: boolean; shadow?: ShadowUniforms } = {},
 ) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.spillMap = { value: spill };
     shader.uniforms.spillK = uniforms.spillK;
+    shader.uniforms.lightDim = uniforms.lightDim;
     shader.uniforms.openSnow = { value: OPEN_SNOW };
     if (shadow) withShadow(shader, shadow);
     shader.fragmentShader = shader.fragmentShader
-      .replace("void main() {", "uniform sampler2D spillMap;\nuniform float spillK;\nuniform vec3 openSnow;\nvoid main() {")
+      .replace(
+        "void main() {",
+        "uniform sampler2D spillMap;\nuniform float spillK;\nuniform float lightDim;\nuniform vec3 openSnow;\nvoid main() {",
+      )
       .replace(
         "#include <lights_fragment_maps>",
         ShaderChunk.lights_fragment_maps.replace(
           LIGHTMAP_READ,
-          /* glsl */ `vec4 lightMapTexel = texture2D( lightMap, vLightMapUv ) + spillK * texture2D( spillMap, vLightMapUv );
+          /* glsl */ `vec4 lightMapTexel = ( texture2D( lightMap, vLightMapUv ) + spillK * texture2D( spillMap, vLightMapUv ) ) * lightDim;
           ${
             edgeFade
               ? /* glsl */ `vec2 lightMapEdge = min( vLightMapUv, 1.0 - vLightMapUv );

@@ -1,4 +1,5 @@
-import type { SceneLayout } from "@/content/schema";
+import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
+import { fromHouseFrame, heroCamera } from "@/lib/house/cameras";
 
 /** The overview's vertical field of view on a wide screen, degrees. */
 export const OVERVIEW_FOV = 35;
@@ -91,6 +92,81 @@ export function overviewPose(overview: Overview, rig: OverviewRig): CameraPose {
     lookAt: add(overview.lookAt, scale(right, LEAN.look.across * leanX), scale(up, LEAN.look.up * leanY)),
   };
 }
+
+// ---------------------------------------------------------------- the fly-to
+
+/** How far the pointer may move between press and release and still click, CSS pixels; more is a drag. */
+export const CLICK_SLOP = 5;
+
+/** Where the camera is headed, or at rest: the drifting overview, or a House's hero angle. */
+export type Shot = "overview" | CameraPose;
+
+/** A flight under way, from the pose the camera left toward its shot. Seconds. */
+export type Flight = { from: CameraPose; elapsed: number; duration: number };
+
+/** The whole camera: the overview's drift and lean, the shot, and the flight to it if there is one. */
+export type Rig = { overview: OverviewRig; shot: Shot; flight?: Flight };
+
+/**
+ * A flight's length (`DESIGN.md` § Motion): the shortest hop takes the
+ * least time, and anything as far as `reach` metres or more the most.
+ */
+const FLY = { min: 1.2, max: 2, reach: 150 };
+
+/** The camera at rest at overview. */
+export const startRig = (): Rig => ({ overview: startOverview(), shot: "overview" });
+
+/** A House's hero angle, from its camera block, in the layout frame. */
+export function heroPose(camera: CameraBlock, placement: Placement): CameraPose {
+  return {
+    position: fromHouseFrame(heroCamera(camera), placement),
+    lookAt: fromHouseFrame(camera.lookAt, placement),
+  };
+}
+
+/**
+ * Sets the camera flying from wherever it is, mid-flight included, toward
+ * `shot`. Under reduced motion it cuts there instead.
+ */
+export function flyTo(overview: Overview, rig: Rig, shot: Shot, { reducedMotion = false } = {}): Rig {
+  if (reducedMotion) return { overview: rig.overview, shot };
+  const from = rigPose(overview, rig);
+  const duration = flyDuration(from, shotPose(overview, rig.overview, shot));
+  return { overview: rig.overview, shot, flight: { from, elapsed: 0, duration } };
+}
+
+/** The camera one frame on. The cursor leans it only when it is at or headed for overview. */
+export function stepRig(rig: Rig, input: OverviewInput): Rig {
+  const overview = stepOverview(rig.overview, rig.shot === "overview" ? input : { dt: input.dt });
+  const flight = rig.flight && { ...rig.flight, elapsed: rig.flight.elapsed + Math.min(input.dt, MAX_STEP) };
+  return { overview, shot: rig.shot, flight: flight && flight.elapsed < flight.duration ? flight : undefined };
+}
+
+/** Where the camera is: on its shot, or eased along the way there. */
+export function rigPose(overview: Overview, rig: Rig): CameraPose {
+  const to = shotPose(overview, rig.overview, rig.shot);
+  if (!rig.flight) return to;
+  const { from, elapsed, duration } = rig.flight;
+  const s = easeInOut(elapsed / duration);
+  return { position: mix(from.position, to.position, s), lookAt: mix(from.lookAt, to.lookAt, s) };
+}
+
+const shotPose = (overview: Overview, rig: OverviewRig, shot: Shot): CameraPose =>
+  shot === "overview" ? overviewPose(overview, rig) : shot;
+
+function flyDuration(from: CameraPose, to: CameraPose): number {
+  const travel = Math.hypot(...sub(to.position, from.position));
+  return FLY.min + (FLY.max - FLY.min) * Math.min(1, travel / FLY.reach);
+}
+
+/** Cubic ease-in-out: slow and heavy at both ends. */
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (2 - 2 * t) ** 3 / 2);
+
+const mix = (a: Point, b: Point, s: number): Vec3 => [
+  a[0] + (b[0] - a[0]) * s,
+  a[1] + (b[1] - a[1]) * s,
+  a[2] + (b[2] - a[2]) * s,
+];
 
 /** The overview camera's right and up, in the layout frame (z up). */
 function basis({ position, lookAt }: Overview): { right: Vec3; up: Vec3 } {
