@@ -7,6 +7,7 @@ import {
   glazingFaces,
   grossFloorArea,
   levelElevations,
+  openingRecess,
   unionArea,
 } from "@/lib/house/derive";
 
@@ -70,5 +71,36 @@ describe("gross floor area", () => {
 
   test("Lyngen: three volumes on L0, the frame on L1, the double-height room once", () => {
     expect(grossFloorArea(lyngen.house)).toBeCloseTo(68.4 + 75.2 + 57.12 + 79.04, 6);
+  });
+});
+
+describe("opening recesses", () => {
+  const recess = (name: string) => openingRecess(lyngen.house, lyngen.house.openings.find((o) => o.name === name)!);
+
+  test("a front opening runs from the face's left edge (−x) and cuts in toward +y", () => {
+    const { rect, back } = recess("living-front");
+    expect(rect.x0).toBeCloseTo(-2.6);
+    expect(rect.x1).toBeCloseTo(4.0);
+    expect(rect.y0).toBeCloseTo(-4.4);
+    expect(rect.y1).toBeCloseTo(-4.1);
+    expect(back[0][1]).toBeCloseTo(-4.1);
+    expect(back[1][1]).toBeCloseTo(-4.1);
+  });
+
+  test("a left opening runs from the face's left edge seen from outside (+y) and cuts in toward +x", () => {
+    const { rect, back } = recess("living-side");
+    expect(rect.x0).toBeCloseTo(-3.4);
+    expect(rect.x1).toBeCloseTo(-3.15);
+    expect(rect.y0).toBeCloseTo(2.2);
+    expect(rect.y1).toBeCloseTo(4.6);
+    expect(back[0]).toEqual([-3.15, 4.6]);
+  });
+
+  test("a right opening runs from −y and cuts in toward −x", () => {
+    const { rect } = recess("study-side");
+    expect(rect.x0).toBeCloseTo(12.35);
+    expect(rect.x1).toBeCloseTo(12.6);
+    expect(rect.y0).toBeCloseTo(-2.0);
+    expect(rect.y1).toBeCloseTo(4.0);
   });
 });

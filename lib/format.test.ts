@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatArea, formatElevation } from "@/lib/format";
+import { formatArea, formatElevation, formatLevel } from "@/lib/format";
 
 describe("formatElevation", () => {
   test("above sea level carries a plus sign", () => {
@@ -19,5 +19,17 @@ describe("formatElevation", () => {
 describe("formatArea", () => {
   test("reads in square metres", () => {
     expect(formatArea(290)).toBe("290 m²");
+  });
+});
+
+describe("formatLevel", () => {
+  test("the datum reads ±0.00", () => {
+    expect(formatLevel(0)).toBe("±0.00");
+    expect(formatLevel(-0.001)).toBe("±0.00");
+  });
+
+  test("Levels above and below carry a sign and two decimals", () => {
+    expect(formatLevel(3.5)).toBe("+3.50");
+    expect(formatLevel(-3.2)).toBe("−3.20");
   });
 });
