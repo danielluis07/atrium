@@ -3,22 +3,24 @@
 // the fog chunks must be replaced before anything compiles
 import "@/components/scene/fog";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer, N8AO, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
-import type { PerspectiveCamera } from "three";
 
 import { Atmosphere } from "@/components/scene/atmosphere";
+import { CameraRig } from "@/components/scene/camera-rig";
 import { Houses } from "@/components/scene/houses";
+import { Mountains } from "@/components/scene/mountains";
+import { Snowfall } from "@/components/scene/snowfall";
 import type { SceneLayout } from "@/content/schema";
-import { overviewFov } from "@/lib/scene/camera";
-import { toThree } from "@/lib/scene/frame";
 import { monitor, startMonitor, type MonitorEvent } from "@/lib/scene/monitor";
 import { ladderOf, renderConfig, type Ladder } from "@/lib/scene/rungs";
 
 /** Exposure into the AgX tone mapper, tuned on the one-House prototype. */
 const EXPOSURE = 0.8;
+/** Snowflakes in the air around the camera: the mobile Scene gets fewer. */
+const SNOWFLAKES = { desktop: 6000, mobile: 2000 } as const;
 
 export type SceneProps = {
   layout: SceneLayout;
@@ -34,8 +36,9 @@ export type SceneProps = {
 };
 
 /**
- * The live Scene: the blue-hour sky and fog, the snow slope, the fjord and
- * the four baked Houses, seen from the overview camera, rendered at the
+ * The live Scene: the blue-hour sky and fog, the snow slope with its sparse
+ * pines, the fjord, the distant mountains, the four baked Houses and the
+ * falling snow, seen from the drifting overview camera, rendered at the
  * rung's config (DPR, MSAA, SMAA, N8AO, bloom). Client-only; the home page
  * loads it with SSR off.
  */
@@ -50,12 +53,15 @@ export default function Scene({ layout, ladder, rung, onStepDown, active, onRead
       onCreated={({ gl }) => {
         gl.toneMappingExposure = EXPOSURE;
       }}>
-      <OverviewCamera overview={layout.overview} />
+      <CameraRig overview={layout.overview} />
       <Atmosphere north={layout.north} />
+      <Mountains />
+      <Snowfall count={SNOWFLAKES[ladder]} />
       {/* Loaders suspend inside the Canvas: a suspension that reached the page would unmount the
           Canvas, and R3F would dispose the renderer with it. */}
       <Suspense fallback={null}>
-        <Houses layout={layout} />
+        {/* the mobile Scene has no shadow */}
+        <Houses layout={layout} shadows={ladder === "desktop"} />
         <FirstFrame onReady={onReady} />
         <RungMonitor ladder={ladder} rung={rung} active={active} onStepDown={onStepDown} />
       </Suspense>
@@ -79,20 +85,6 @@ export default function Scene({ layout, ladder, rung, onStepDown, active, onRead
       </EffectComposer>
     </Canvas>
   );
-}
-
-/** Stands the camera at the layout's overview, widening the lens on narrow viewports. */
-function OverviewCamera({ overview }: { overview: SceneLayout["overview"] }) {
-  const get = useThree((s) => s.get);
-  const aspect = useThree((s) => s.size.width / s.size.height);
-  useLayoutEffect(() => {
-    const camera = get().camera as PerspectiveCamera;
-    camera.position.set(...toThree(overview.position));
-    camera.lookAt(...toThree(overview.lookAt));
-    camera.fov = overviewFov(aspect);
-    camera.updateProjectionMatrix();
-  }, [get, overview, aspect]);
-  return null;
 }
 
 /** Reports ready on the frame after the first one with the Houses in it. */

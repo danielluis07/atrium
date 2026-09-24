@@ -27,6 +27,8 @@ import {
   type SpillUniforms,
 } from "@/components/scene/materials";
 import { WINDOW } from "@/components/scene/palette";
+import { Pines } from "@/components/scene/pines";
+import { CASTER_LAYER, shadowUniforms, type ShadowUniforms } from "@/components/scene/shadow";
 import { Terrain } from "@/components/scene/terrain";
 import type { SceneLayout } from "@/content/schema";
 import type { HouseExtras } from "@/lib/house/glb-contract";
@@ -38,6 +40,8 @@ import { plinthHeight, type PlinthRect } from "@/lib/scene/platform";
 const DIELECTRIC_ENVIRONMENT = 0.35;
 /** Soffit downlights: small and far over the bloom threshold, so they read as points of light. */
 const DOWNLIGHT = WINDOW.clone().multiplyScalar(14);
+/** Parts that cast no shadow on the snow: the see-through glass, the lights, and the plinth, which is the snow. */
+const UNSHADOWED = new Set(["balustrade", "downlight", "plinth"]);
 
 let draco: DRACOLoader | undefined;
 const dracoLoader = () => (draco ??= new DRACOLoader().setDecoderPath(DRACO_PATH));
@@ -54,10 +58,12 @@ type PreparedHouse = {
 
 /**
  * The four baked Houses, placed from the Scene layout, standing on the live
- * terrain. Everything loads inside the Canvas's `<Suspense>`.
+ * terrain among the pines. With `shadows`, they and the pines cast the baked
+ * shadow over the snow. Everything loads inside the Canvas's `<Suspense>`.
  */
-export function Houses({ layout }: { layout: SceneLayout }) {
+export function Houses({ layout, shadows }: { layout: SceneLayout; shadows: boolean }) {
   const gl = useThree((s) => s.gl);
+  const shadow = useMemo(() => shadowUniforms(), []);
   const slugs = Object.keys(layout.houses);
   const assets = slugs.map(houseAssets);
 
@@ -80,17 +86,23 @@ export function Houses({ layout }: { layout: SceneLayout }) {
   const houses = useMemo(() => {
     const prepared = slugs.map((slug, i) => {
       const [shellBase, shellSpill, plinthBase, plinthSpill] = textures.slice(i * 4, i * 4 + 4).map(asLightmap);
-      return prepareHouse(slug, gltfs[i].scene, layout, {
-        shell: { base: shellBase, spill: shellSpill },
-        plinth: { base: plinthBase, spill: plinthSpill },
-      });
+      return prepareHouse(
+        slug,
+        gltfs[i].scene,
+        layout,
+        {
+          shell: { base: shellBase, spill: shellSpill },
+          plinth: { base: plinthBase, spill: plinthSpill },
+        },
+        shadows ? shadow : undefined,
+      );
     });
     const rects = prepared.map((h) => h.rect);
     prepared.forEach((h, i) => fitPlinth(h.plinth, rects, i));
     return prepared;
     // slugs follow the layout
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gltfs, textures, layout]);
+  }, [gltfs, textures, layout, shadow, shadows]);
 
   useEffect(
     () => () => {
@@ -109,7 +121,8 @@ export function Houses({ layout }: { layout: SceneLayout }) {
       {houses.map((h) => (
         <primitive key={h.slug} object={h.root} dispose={null} />
       ))}
-      <Terrain plinths={rects} />
+      <Terrain plinths={rects} north={layout.north} shadow={shadows ? shadow : undefined} />
+      <Pines plinths={rects} overview={layout.overview} />
     </>
   );
 }
@@ -132,7 +145,13 @@ function asLightmap(texture: Texture): Texture {
  * A fresh copy of a loaded House (the loader's cache outlives the Canvas),
  * placed, with its materials swapped by name for baked-light ones.
  */
-function prepareHouse(slug: string, scene: Object3D, layout: SceneLayout, lightmaps: Lightmaps): PreparedHouse {
+function prepareHouse(
+  slug: string,
+  scene: Object3D,
+  layout: SceneLayout,
+  lightmaps: Lightmaps,
+  shadow: ShadowUniforms | undefined,
+): PreparedHouse {
   const root = scene.clone(true);
   const { position, rotationY } = houseTransform(layout.houses[slug]);
   root.position.set(...position);
@@ -154,7 +173,7 @@ function prepareHouse(slug: string, scene: Object3D, layout: SceneLayout, lightm
   const material = (name: string, source: Material): Material => {
     let m = byName.get(name);
     if (!m) {
-      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, shellSpill, plinthSpill, toHouse);
+      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, shellSpill, plinthSpill, toHouse, shadow);
       byName.set(name, m);
     }
     return m;
@@ -165,6 +184,7 @@ function prepareHouse(slug: string, scene: Object3D, layout: SceneLayout, lightm
     if (!(o instanceof Mesh)) return;
     const source = o.material as Material;
     o.material = material(source.name, source);
+    if (!UNSHADOWED.has(source.name)) o.layers.enable(CASTER_LAYER);
     if (source.name === "plinth") plinth = o;
   });
   if (!plinth) throw new Error(`${slug}.glb has no plinth`);
@@ -196,6 +216,7 @@ function makeMaterial(
   shellSpill: SpillUniforms,
   plinthSpill: SpillUniforms,
   toHouse: Matrix4,
+  shadow: ShadowUniforms | undefined,
 ): Material {
   switch (name) {
     case "glazing":
@@ -216,7 +237,7 @@ function makeMaterial(
       m.polygonOffset = true;
       m.polygonOffsetFactor = -1;
       m.polygonOffsetUnits = -4;
-      patchLightmap(m, lightmaps.plinth.spill, plinthSpill, { edgeFade: true });
+      patchLightmap(m, lightmaps.plinth.spill, plinthSpill, { edgeFade: true, shadow });
       return m;
     }
     default: {
