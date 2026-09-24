@@ -25,12 +25,16 @@ Houses are **assembled from shared parts** (volume, slab, glazing, fascia, stone
 
 - **Setting:** four Houses spread across a snowy slope above a fjord. Sparse pines, mountains fading into fog, light snowfall.
 - **Light:** blue hour. A deep-blue sky that fades toward the horizon. Snow in cool blue shadow. The only warm light in the Scene comes from the windows and soffit downlights.
-- **Camera:** limited orbit on rails (no free-fly), slow idle drift. The camera never goes below the terrain or behind the mountains.
+- **Camera:** no free-fly, and the camera never goes below the terrain or behind the mountains. At overview there is no drag: a slow idle drift plus a slight parallax toward the cursor. The wheel always scrolls the page, and there is no zoom anywhere.
+  - **At a selected House:** dragging orbits along an arc of about ±50° around the House's authored hero angle (a House may narrow it), with pitch held between 8° and 30° and a fixed distance. On release the camera stays where it was left (damped) and the idle drift sways around that angle. Selecting the House again starts from the hero angle. With the Scene focused, ←/→ step the orbit by about 10°.
+  - Each Project's record carries a camera block (azimuth, pitch, distance, look-at offset, arc). The Project Panel opens on the right, so the look-at is offset to keep the House in the left ~55–60% of the viewport across the whole arc.
+  - Movement under ~5 px is a click, anything more an orbit, and a drag never closes the Panel. Over the Scene, the cursor shows `grab`/`grabbing` while a House is selected. A dragging pointer doesn't hover or select other Houses.
+  - **Detail budget:** only the overview and each House's arc can see a House, so the builder samples those cameras and marks faces as seen or unseen. Unseen faces (the back, and the sides beyond the arc) keep their bevels and bake at about ¼ of the lightmap texel density, with no interior mapping, and their glazing needs no design.
 - **Hover:** the House's windows brighten and a small mono label with the Project name appears in the Scene. The cursor changes to a pointer.
-- **Select:** the camera flies to the House (about 1.5s, ease-in-out), the other Houses dim, and the **Project Panel** opens. Esc or a click on empty snow closes the panel and flies the camera back.
+- **Select:** the camera flies to the House's hero angle (about 1.5s, ease-in-out), the other Houses dim, and the **Project Panel** slides in from the right. Clicking another House flies straight to it. Esc or a click on empty snow closes the panel and flies the camera back.
 - **Section Cut:** scrolling past the hero drops the camera toward the ground, and the snow surface becomes a crisp ink **section line** across the viewport, with the dark Scene above and snow paper below. Right under the line runs a narrow band of section hatch (snow strata). The line scrolls up and away, and the page continues below grade. It is a cut, not a fade, so no fog has to match the paper color. If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). See `docs/adr/0002-section-cut-replaces-whiteout.md`.
 - **Degradation:**
-  - Mobile or low-power devices get a lighter live Scene: fewer snow particles, no real-time shadows, reduced camera motion.
+  - Mobile or low-power devices get a lighter live Scene: fewer snow particles, no real-time shadows, reduced camera motion. Touch has no orbit: a selected House holds its hero angle, and swipes always scroll.
   - `prefers-reduced-motion` or no WebGL gets a pre-rendered still of the Scene, cropped so its snow line sits on the same section line and hatch band (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
   - The **Project Index** is always there, so no Project depends on 3D to be reached.
 
