@@ -4,9 +4,9 @@
 import "@/components/scene/fog";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
+import { Bloom, EffectComposer, N8AO, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense, useLayoutEffect, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
 import type { PerspectiveCamera } from "three";
 
 import { Atmosphere } from "@/components/scene/atmosphere";
@@ -14,12 +14,19 @@ import { Houses } from "@/components/scene/houses";
 import type { SceneLayout } from "@/content/schema";
 import { overviewFov } from "@/lib/scene/camera";
 import { toThree } from "@/lib/scene/frame";
+import { monitor, startMonitor, type MonitorEvent } from "@/lib/scene/monitor";
+import { ladderOf, renderConfig, type Ladder } from "@/lib/scene/rungs";
 
 /** Exposure into the AgX tone mapper, tuned on the one-House prototype. */
 const EXPOSURE = 0.8;
 
 export type SceneProps = {
   layout: SceneLayout;
+  ladder: Ladder;
+  /** The rung the Scene renders at; it only ever moves down, through `onStepDown`. */
+  rung: number;
+  /** Called with the next rung when frames run long. */
+  onStepDown: (rung: number) => void;
   /** Whether to render: false while the stage is off screen or the tab is hidden. */
   active: boolean;
   /** Called once the Houses have rendered their first frame. */
@@ -27,14 +34,16 @@ export type SceneProps = {
 };
 
 /**
- * The live Scene at the Lean look (MSAA 4x + bloom at DPR 1): the blue-hour
- * sky and fog, the snow slope, the fjord and the four baked Houses, seen
- * from the overview camera. Client-only; the home page loads it with SSR off.
+ * The live Scene: the blue-hour sky and fog, the snow slope, the fjord and
+ * the four baked Houses, seen from the overview camera, rendered at the
+ * rung's config (DPR, MSAA, SMAA, N8AO, bloom). Client-only; the home page
+ * loads it with SSR off.
  */
-export default function Scene({ layout, active, onReady }: SceneProps) {
+export default function Scene({ layout, ladder, rung, onStepDown, active, onReady }: SceneProps) {
+  const config = renderConfig(ladder, rung);
   return (
     <Canvas
-      dpr={1}
+      dpr={config.dpr}
       frameloop={active ? "always" : "never"}
       gl={{ antialias: false, stencil: false, powerPreference: "high-performance" }}
       camera={{ near: 0.5, far: 4000 }}
@@ -48,10 +57,25 @@ export default function Scene({ layout, active, onReady }: SceneProps) {
       <Suspense fallback={null}>
         <Houses layout={layout} />
         <FirstFrame onReady={onReady} />
+        <RungMonitor ladder={ladder} rung={rung} active={active} onStepDown={onStepDown} />
       </Suspense>
-      <EffectComposer multisampling={4} enableNormalPass={false}>
-        <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={0.55} radius={0.6} />
+      {/* keyed by rung: the composer sizes its buffers from the canvas's CSS size, so a new DPR needs
+          a new composer */}
+      <EffectComposer key={rung} multisampling={config.msaa} enableNormalPass={false}>
+        {config.ao && (
+          <N8AO
+            halfRes={config.ao === "half"}
+            quality="medium"
+            aoRadius={2}
+            distanceFalloff={1}
+            intensity={2}
+          />
+        )}
+        {config.bloom && (
+          <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={0.55} radius={0.6} />
+        )}
         <ToneMapping mode={ToneMappingMode.AGX} />
+        {config.smaa && <SMAA />}
       </EffectComposer>
     </Canvas>
   );
@@ -77,6 +101,49 @@ function FirstFrame({ onReady }: { onReady: () => void }) {
   useFrame(() => {
     frames.current += 1;
     if (frames.current === 2) onReady();
+  });
+  return null;
+}
+
+/** Frames drawn before the monitor counts: the shader compile after load. */
+const COMPILE_FRAMES = 3;
+
+/**
+ * Times every frame and steps the Scene down the ladder when they run long
+ * (`lib/scene/monitor.ts`). Mounted with the Houses, so the loading and the
+ * first compile are behind it.
+ */
+function RungMonitor({ ladder, rung, active, onStepDown }: Omit<SceneProps, "layout" | "onReady">) {
+  const state = useRef(startMonitor(rung, ladderOf(ladder).length));
+  const frames = useRef(0);
+  const last = useRef<number>(undefined);
+  const onStep = useRef(onStepDown);
+  useLayoutEffect(() => {
+    onStep.current = onStepDown;
+  });
+
+  const dispatch = (event: MonitorEvent) => {
+    const before = state.current.rung;
+    state.current = monitor(state.current, event);
+    if (state.current.rung !== before) onStep.current(state.current.rung);
+  };
+
+  useEffect(() => {
+    dispatch({ type: "compile", compiling: true });
+  }, []);
+
+  useEffect(() => {
+    dispatch({ type: "visible", visible: active });
+    if (!active) last.current = undefined;
+  }, [active]);
+
+  useFrame(() => {
+    const t = performance.now();
+    const previous = last.current;
+    last.current = t;
+    frames.current += 1;
+    if (frames.current === COMPILE_FRAMES) dispatch({ type: "compile", compiling: false });
+    if (previous !== undefined) dispatch({ type: "frame", t, ms: t - previous });
   });
   return null;
 }

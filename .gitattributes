@@ -1,2 +1,4 @@
 # decoders copied verbatim from three (lib/scene/assets.ts): keep their bytes exact
 public/decoders/** binary
+# detect-gpu's benchmarks copied verbatim (lib/scene/assets.ts): keep their bytes exact
+public/detect-gpu/** binary
