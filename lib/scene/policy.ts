@@ -87,10 +87,12 @@ export function chooseScenePath(c: SceneCapabilities): SceneChoice {
   return onRung(ladder, rung);
 }
 
-/** Only a discrete desktop GPU starts on Target; a timeout, an error or anything unknown starts on Lean. */
+/**
+ * Only a discrete GPU at tier 2 or above starts on Target. An integrated one
+ * (a laptop iGPU, Apple silicon) starts on Lean even at tier 3, as does a
+ * timeout, an error or anything unknown.
+ */
 function startRung(gpu: GpuClass): number {
-  if (typeof gpu !== "object") return DESKTOP_LEAN;
-  if (gpu.tier >= 3) return 1;
-  if (gpu.tier === 2 && gpu.gpu && isDiscreteGpu(gpu.gpu)) return 1;
-  return DESKTOP_LEAN;
+  if (typeof gpu !== "object" || !gpu.gpu) return DESKTOP_LEAN;
+  return gpu.tier >= 2 && isDiscreteGpu(gpu.gpu) ? 1 : DESKTOP_LEAN;
 }

@@ -98,6 +98,13 @@ describe("chooseScenePath", () => {
     expect(chooseScenePath({ ...desktop, gpu: { tier: 2 } })).toEqual(LEAN);
   });
 
+  test("an integrated GPU starts on Lean even at tier 3", () => {
+    for (const gpu of ["apple m2 max", "apple gpu", "intel iris xe graphics", "amd radeon 780m"]) {
+      expect({ gpu, choice: chooseScenePath({ ...desktop, gpu: { tier: 3, gpu } }) }).toEqual({ gpu, choice: LEAN });
+    }
+    expect(chooseScenePath({ ...desktop, gpu: { tier: 3 } })).toEqual(LEAN);
+  });
+
   test("a detect-gpu timeout or error falls back to Lean", () => {
     expect(chooseScenePath({ ...desktop, gpu: "timeout" })).toEqual(LEAN);
     expect(chooseScenePath({ ...desktop, gpu: "error" })).toEqual(LEAN);
