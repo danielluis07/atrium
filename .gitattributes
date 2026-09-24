@@ -1,0 +1,2 @@
+# decoders copied verbatim from three (lib/scene/assets.ts): keep their bytes exact
+public/decoders/** binary

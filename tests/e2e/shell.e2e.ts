@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { expectReachableByTab } from "./keyboard";
+import { HOME } from "./paths";
 
 const pages = [
-  { name: "home", path: "/" },
+  { name: "home", path: HOME },
   { name: "Project", path: "/projects/lyngen" },
   { name: "404", path: "/nothing-here" },
 ];
@@ -68,7 +69,7 @@ test.describe("mobile header", () => {
   test.skip(({ isMobile }) => !isMobile, "mobile only");
 
   test("the links open in a Sheet", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(HOME);
     const banner = page.getByRole("banner");
     await expect(banner.getByRole("link", { name: "Projects" })).toBeHidden();
 

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectReachableByTab } from "./keyboard";
+import { HOME, openHomeOnStill } from "./paths";
 
 const projects = [
   { name: "Lyngen House", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "290 m²"] },
@@ -23,7 +24,7 @@ const indexRows = (page: Page) => page.locator("#projects").getByRole("listitem"
 const readout = (page: Page) => page.locator('[data-slot="depth-readout"]');
 
 test("the Project Index lists every Project in order, each linking to its page", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(HOME);
   const rows = indexRows(page);
   await expect(rows).toHaveCount(projects.length);
 
@@ -36,7 +37,7 @@ test("the Project Index lists every Project in order, each linking to its page",
 });
 
 test("each Depth is labelled in the margin rail", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(HOME);
   for (const { label, id, readout } of depths) {
     await expect(page.locator(`#${id}`).getByRole("heading", { level: 2 })).toHaveText(
       `${readout} · ${label}`,
@@ -45,7 +46,7 @@ test("each Depth is labelled in the margin rail", async ({ page }) => {
 });
 
 test("the Studio, Approach and Contact Depths carry their content", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(HOME);
   const studio = page.locator("#studio");
   await expect(studio.getByText(statement)).toBeVisible();
   for (const [label, value] of [
@@ -71,7 +72,7 @@ test("the Studio, Approach and Contact Depths carry their content", async ({ pag
 });
 
 test("the home description is the Studio statement", async ({ page }) => {
-  await page.goto("/");
+  await page.goto(HOME);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", statement);
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute("content", statement);
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /opengraph-image/);
@@ -81,7 +82,7 @@ test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "desktop only");
 
   test("header anchors scroll to each Depth and the readout follows", async ({ page }) => {
-    await page.goto("/");
+    await openHomeOnStill(page);
     await expect(readout(page)).toHaveText("±0.00");
     const nav = page.getByRole("banner").getByRole("navigation", { name: "Site" });
 
@@ -96,7 +97,7 @@ test.describe("desktop", () => {
   });
 
   test("the header and the Index are keyboard reachable", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(HOME);
     const nav = page.getByRole("banner").getByRole("navigation", { name: "Site" });
     for (const { label } of depths) {
       await expectReachableByTab(page, nav.getByRole("link", { name: label }));
@@ -107,7 +108,7 @@ test.describe("desktop", () => {
   });
 
   test("a row shows its thumbnail on hover", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(HOME);
     const row = indexRows(page).nth(1);
     const thumbnail = row.locator('[data-slot="index-thumbnail"]');
     await row.scrollIntoViewIfNeeded();
@@ -118,7 +119,7 @@ test.describe("desktop", () => {
   });
 
   test("a row sets its data in columns beside the name", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(HOME);
     const link = indexRows(page).first().getByRole("link");
     const name = await link.getByText("Lyngen House").boundingBox();
     const year = await link.getByText("2021").boundingBox();
@@ -130,7 +131,7 @@ test.describe("mobile", () => {
   test.skip(({ isMobile }) => !isMobile, "mobile only");
 
   test("a row stacks the name over one line of data, with no thumbnail", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(HOME);
     const row = indexRows(page).first();
     await expect(row.locator('[data-slot="index-thumbnail"]')).toBeHidden();
     const name = await row.getByText("Lyngen House").boundingBox();
@@ -141,7 +142,7 @@ test.describe("mobile", () => {
   });
 
   test("the menu's links scroll to each Depth and the readout follows", async ({ page }) => {
-    await page.goto("/");
+    await openHomeOnStill(page);
     await expect(readout(page)).toHaveText("±0.00");
     const banner = page.getByRole("banner");
     for (const depth of depths) {
@@ -153,7 +154,7 @@ test.describe("mobile", () => {
   });
 
   test("the menu and the Index are keyboard reachable", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(HOME);
     await expectReachableByTab(page, page.getByRole("banner").getByRole("button", { name: "Menu" }));
     for (const { name } of projects) {
       await expectReachableByTab(page, indexRows(page).getByRole("link", { name }));
