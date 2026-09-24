@@ -17,7 +17,7 @@ import {
   type SceneCapabilities,
   type SceneChoice,
 } from "@/lib/scene/policy";
-import { createSelectionStore } from "@/lib/scene/selection";
+import { createSelectionStore, type Selection } from "@/lib/scene/selection";
 import { cn } from "@/lib/utils";
 
 const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
@@ -39,7 +39,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const [ready, setReady] = useState(false);
   const [stepped, setStepped] = useState<number>();
   const [store] = useState(createSelectionStore);
-  const hovered = useSelection(store, (s) => !!s.hovered);
+  const cursor = useSelection(store, sceneCursor);
   const ref = useRef<HTMLDivElement>(null);
   const choice = decision?.choice;
   // the mobile Scene isn't built yet, so touch keeps the still
@@ -83,7 +83,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
       className={cn(
         "absolute inset-0 outline-none transition-opacity focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-background duration-400 ease-in-out",
         ready ? "opacity-100" : "opacity-0",
-        hovered && "cursor-pointer",
+        cursor,
       )}>
       {live && rung && (
         <StillOnError>
@@ -102,6 +102,13 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
       )}
     </div>
   );
+}
+
+/** Over the Scene: grabbing while a drag orbits, a pointer over a House, and grab while a House is selected. */
+function sceneCursor({ dragging, hovered, selected }: Selection): string | undefined {
+  if (dragging) return "cursor-grabbing";
+  if (hovered) return "cursor-pointer";
+  if (selected) return "cursor-grab";
 }
 
 /** A Scene that fails leaves the still in place rather than taking the page down with it. */

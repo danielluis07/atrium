@@ -6,6 +6,7 @@ import { heroCamera, toHouseFrame } from "@/lib/house/cameras";
 import {
   flyTo,
   heroPose,
+  houseShot,
   overviewPose,
   rigPose,
   startOverview,
@@ -116,6 +117,7 @@ describe("the fly-to", () => {
     const p = getProject(slug)!;
     return heroPose(p.camera, getPlacement(slug));
   };
+  const shot = (slug: string) => houseShot(getProject(slug)!.camera, getPlacement(slug));
 
   /** Steps `rig` a frame at a time until its flight lands, returning each frame's pose and the seconds it took. */
   function land(rig: Rig, pointer?: [number, number]): { rig: Rig; poses: CameraPose[]; seconds: number } {
@@ -130,7 +132,7 @@ describe("the fly-to", () => {
     return { rig, poses: out, seconds };
   }
 
-  const at = (slug: string) => land(flyTo(overview, startRig(), hero(slug))).rig;
+  const at = (slug: string) => land(flyTo(overview, startRig(), shot(slug))).rig;
 
   const expectPose = (actual: CameraPose, expected: CameraPose) => {
     for (const k of ["position", "lookAt"] as const) {
@@ -143,13 +145,15 @@ describe("the fly-to", () => {
       const pose = hero(p.slug);
       const placement = getPlacement(p.slug);
       toHouseFrame(pose.position, placement).forEach((v, i) => expect(v).toBeCloseTo(heroCamera(p.camera)[i], 3));
-      toHouseFrame(pose.lookAt, placement).forEach((v, i) => expect(v).toBeCloseTo(p.camera.lookAt[i], 3));
+      // looking past the camera block's look-at point, at its height
+      const lookAt = toHouseFrame(pose.lookAt, placement);
+      expect(lookAt[2]).toBeCloseTo(p.camera.lookAt[2], 3);
     }
   });
 
   test("flies from overview to each House's hero angle in 1.2–2 s and lands exactly on it", () => {
     for (const p of projects) {
-      const { rig, poses, seconds } = land(flyTo(overview, startRig(), hero(p.slug)));
+      const { rig, poses, seconds } = land(flyTo(overview, startRig(), shot(p.slug)));
       expect(seconds).toBeGreaterThanOrEqual(1.2);
       expect(seconds).toBeLessThanOrEqual(2 + FRAME);
       expectPose(poses.at(-1)!, hero(p.slug));
@@ -161,7 +165,7 @@ describe("the fly-to", () => {
     for (const a of projects) {
       for (const b of projects) {
         if (a === b) continue;
-        const { poses, seconds } = land(flyTo(overview, at(a.slug), hero(b.slug)));
+        const { poses, seconds } = land(flyTo(overview, at(a.slug), shot(b.slug)));
         expect(seconds).toBeGreaterThanOrEqual(1.2);
         expect(seconds).toBeLessThanOrEqual(2 + FRAME);
         expectPose(poses.at(-1)!, hero(b.slug));
@@ -172,7 +176,7 @@ describe("the fly-to", () => {
   test("starts where the camera is and eases in and out: slow at both ends, fastest in the middle", () => {
     const rig = stepRig(startRig(), { dt: 7 });
     const before = rigPose(overview, rig);
-    const flying = flyTo(overview, rig, hero("reine"));
+    const flying = flyTo(overview, rig, shot("reine"));
     expectPose(rigPose(overview, flying), before);
 
     const { poses } = land(flying);
@@ -185,10 +189,10 @@ describe("the fly-to", () => {
   });
 
   test("a new flight mid-flight turns from where the camera is, without a jump", () => {
-    let rig = flyTo(overview, startRig(), hero("lyngen"));
+    let rig = flyTo(overview, startRig(), shot("lyngen"));
     for (let i = 0; i < 40; i++) rig = stepRig(rig, { dt: FRAME });
     const before = rigPose(overview, rig);
-    const turned = flyTo(overview, rig, hero("kvaloya"));
+    const turned = flyTo(overview, rig, shot("kvaloya"));
     expectPose(rigPose(overview, turned), before);
     expectPose(land(turned).poses.at(-1)!, hero("kvaloya"));
   });
@@ -203,14 +207,24 @@ describe("the fly-to", () => {
     expect(distance(rigPose(overview, next).position, rigPose(overview, rig).position)).toBeLessThan(0.03);
   });
 
-  test("holds the hero angle at a House, and the cursor doesn't lean it", () => {
+  test("sways gently around the hero angle at a House, and the cursor doesn't lean it", () => {
     let rig = at("lyngen");
-    for (let i = 0; i < 600; i++) rig = stepRig(rig, { dt: FRAME, pointer: [1, 1] });
-    expectPose(rigPose(overview, rig), hero("lyngen"));
+    const rest = hero("lyngen");
+    let moved = 0;
+    for (let i = 0; i < 60 * 30; i++) {
+      const before = rigPose(overview, rig);
+      rig = stepRig(rig, { dt: FRAME, pointer: [1, 1] });
+      const pose = rigPose(overview, rig);
+      moved = Math.max(moved, distance(pose.position, rest.position));
+      // slow and heavy: no more than a few centimetres a frame, and never far from the hero angle
+      expect(distance(pose.position, before.position)).toBeLessThan(0.03);
+      expect(distance(pose.position, rest.position)).toBeLessThan(1.5);
+    }
+    expect(moved).toBeGreaterThan(0.3);
   });
 
   test("cuts instead of flying under reduced motion", () => {
-    const rig = flyTo(overview, startRig(), hero("reine"), { reducedMotion: true });
+    const rig = flyTo(overview, startRig(), shot("reine"), { reducedMotion: true });
     expect(rig.flight).toBeUndefined();
     expectPose(rigPose(overview, rig), hero("reine"));
     const back = flyTo(overview, rig, "overview", { reducedMotion: true });
@@ -220,9 +234,9 @@ describe("the fly-to", () => {
 
   test("stays well above the snow on every flight", () => {
     const flights = [
-      ...projects.map((p) => land(flyTo(overview, startRig(), hero(p.slug)))),
+      ...projects.map((p) => land(flyTo(overview, startRig(), shot(p.slug)))),
       ...projects.map((p) => land(flyTo(overview, at(p.slug), "overview"))),
-      ...projects.flatMap((a) => projects.filter((b) => b !== a).map((b) => land(flyTo(overview, at(a.slug), hero(b.slug))))),
+      ...projects.flatMap((a) => projects.filter((b) => b !== a).map((b) => land(flyTo(overview, at(a.slug), shot(b.slug))))),
     ];
     for (const { poses } of flights) {
       for (const { position: [x, y, z] } of poses) expect(z).toBeGreaterThan(groundHeight(x, y) + 3);

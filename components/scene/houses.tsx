@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import {
   Box3,
   Float32BufferAttribute,
@@ -35,8 +35,8 @@ import { Terrain } from "@/components/scene/terrain";
 import type { SceneLayout } from "@/content/schema";
 import type { HouseExtras } from "@/lib/house/glb-contract";
 import { BASIS_PATH, DRACO_PATH, houseAssets, type HouseAssets } from "@/lib/scene/assets";
-import { CLICK_SLOP } from "@/lib/scene/camera";
 import { houseTransform } from "@/lib/scene/frame";
+import type { Gesture } from "@/lib/scene/gesture";
 import { plinthHeight, type PlinthRect } from "@/lib/scene/platform";
 import type { SelectionStore } from "@/lib/scene/selection";
 
@@ -84,18 +84,22 @@ type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glazing" | "downl
  *
  * Only a House's shell and glazing pick. Hovering a House brightens its
  * windows, and every frame `onLabel` gets the point on screen its label
- * points at (none when it is behind the camera). Clicking a House selects
- * it, and the Houses left unselected dim.
+ * points at (none when it is behind the camera). Pressing a House marks it
+ * on the press under way, so a click selects it (the camera rig reads the
+ * press), and the Houses left unselected dim.
  */
 export function Houses({
   layout,
   shadows,
   store,
+  gesture,
   onLabel,
 }: {
   layout: SceneLayout;
   shadows: boolean;
   store: SelectionStore;
+  /** The press under way, which the camera rig starts and resolves. */
+  gesture: RefObject<Gesture | undefined>;
   /** Where the hovered House's label goes. */
   onLabel: (at: LabelPoint | undefined) => void;
 }) {
@@ -185,9 +189,9 @@ export function Houses({
     onPointerOut: () => {
       if (store.get().hovered === slug) store.dispatch({ type: "hover" });
     },
-    onClick: (e: ThreeEvent<MouseEvent>) => {
+    onPointerDown: (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
-      if (e.delta <= CLICK_SLOP) store.dispatch({ type: "select", slug });
+      if (gesture.current) gesture.current = { ...gesture.current, slug };
     },
   });
 

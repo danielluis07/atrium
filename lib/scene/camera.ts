@@ -1,5 +1,5 @@
 import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
-import { fromHouseFrame, heroCamera } from "@/lib/house/cameras";
+import { clampAngle, heroAngle, orbitPose, type OrbitAngle } from "@/lib/scene/orbit";
 
 /** The overview's vertical field of view on a wide screen, degrees. */
 export const OVERVIEW_FOV = 35;
@@ -95,11 +95,23 @@ export function overviewPose(overview: Overview, rig: OverviewRig): CameraPose {
 
 // ---------------------------------------------------------------- the fly-to
 
-/** How far the pointer may move between press and release and still click, CSS pixels; more is a drag. */
-export const CLICK_SLOP = 5;
+/**
+ * A selected House's shot: the camera on its orbit (`lib/scene/orbit.ts`),
+ * easing toward where a drag or ←/→ last put it, and swaying there.
+ */
+export type HouseShot = {
+  camera: CameraBlock;
+  placement: Placement;
+  /** Where the drag or the keys put the camera. */
+  target: OrbitAngle;
+  /** Where the camera is, damped after the target. */
+  angle: OrbitAngle;
+  /** Seconds of sway so far; it starts once the camera arrives. */
+  time: number;
+};
 
-/** Where the camera is headed, or at rest: the drifting overview, or a House's hero angle. */
-export type Shot = "overview" | CameraPose;
+/** Where the camera is headed, or at rest: the drifting overview, or a House on its orbit. */
+export type Shot = "overview" | HouseShot;
 
 /** A flight under way, from the pose the camera left toward its shot. Seconds. */
 export type Flight = { from: CameraPose; elapsed: number; duration: number };
@@ -116,12 +128,32 @@ const FLY = { min: 1.2, max: 2, reach: 150 };
 /** The camera at rest at overview. */
 export const startRig = (): Rig => ({ overview: startOverview(), shot: "overview" });
 
+/**
+ * The idle drift at a House: the camera sways along its orbit around where
+ * it was left, on the overview drift's periods. Degrees.
+ */
+const SWAY = { azimuth: 1.5, pitch: 0.5 };
+/** How slowly the orbit follows a drag or a key: the time constant of its easing, seconds. */
+const ORBIT_LAG = 0.15;
+
 /** A House's hero angle, from its camera block, in the layout frame. */
-export function heroPose(camera: CameraBlock, placement: Placement): CameraPose {
-  return {
-    position: fromHouseFrame(heroCamera(camera), placement),
-    lookAt: fromHouseFrame(camera.lookAt, placement),
-  };
+export const heroPose = (camera: CameraBlock, placement: Placement): CameraPose =>
+  orbitPose(camera, placement, heroAngle(camera));
+
+/** A House's shot at its hero angle: where selecting it, or selecting it again, takes the camera. */
+export function houseShot(camera: CameraBlock, placement: Placement): HouseShot {
+  const hero = heroAngle(camera);
+  return { camera, placement, target: hero, angle: hero, time: 0 };
+}
+
+/**
+ * The camera with its orbit target turned by `turn` (a drag or a step, from
+ * `lib/scene/orbit.ts`). Only at a House: at overview or in flight there is
+ * no orbit.
+ */
+export function orbitRig(rig: Rig, turn: (camera: CameraBlock, target: OrbitAngle) => OrbitAngle): Rig {
+  if (rig.shot === "overview" || rig.flight) return rig;
+  return { ...rig, shot: { ...rig.shot, target: turn(rig.shot.camera, rig.shot.target) } };
 }
 
 /**
@@ -135,11 +167,38 @@ export function flyTo(overview: Overview, rig: Rig, shot: Shot, { reducedMotion 
   return { overview: rig.overview, shot, flight: { from, elapsed: 0, duration } };
 }
 
-/** The camera one frame on. The cursor leans it only when it is at or headed for overview. */
+/**
+ * The camera one frame on. The cursor leans it only when it is at or headed
+ * for overview; at a House, the orbit eases after its target and sways.
+ */
 export function stepRig(rig: Rig, input: OverviewInput): Rig {
+  const dt = Math.min(input.dt, MAX_STEP);
   const overview = stepOverview(rig.overview, rig.shot === "overview" ? input : { dt: input.dt });
-  const flight = rig.flight && { ...rig.flight, elapsed: rig.flight.elapsed + Math.min(input.dt, MAX_STEP) };
-  return { overview, shot: rig.shot, flight: flight && flight.elapsed < flight.duration ? flight : undefined };
+  const flight = rig.flight && { ...rig.flight, elapsed: rig.flight.elapsed + dt };
+  const shot = rig.shot === "overview" || rig.flight ? rig.shot : stepOrbit(rig.shot, dt);
+  return { overview, shot, flight: flight && flight.elapsed < flight.duration ? flight : undefined };
+}
+
+function stepOrbit(shot: HouseShot, dt: number): HouseShot {
+  const k = 1 - Math.exp(-dt / ORBIT_LAG);
+  const { angle, target } = shot;
+  return {
+    ...shot,
+    angle: {
+      azimuth: angle.azimuth + (target.azimuth - angle.azimuth) * k,
+      pitch: angle.pitch + (target.pitch - angle.pitch) * k,
+    },
+    time: shot.time + dt,
+  };
+}
+
+/** A House shot's pose: its angle, swayed and held to the orbit's limits. */
+function housePose({ camera, placement, angle, time }: HouseShot): CameraPose {
+  const swayed = {
+    azimuth: angle.azimuth + SWAY.azimuth * Math.sin((2 * Math.PI * time) / DRIFT.acrossPeriod),
+    pitch: angle.pitch + SWAY.pitch * Math.sin((2 * Math.PI * time) / DRIFT.upPeriod),
+  };
+  return orbitPose(camera, placement, clampAngle(camera, swayed));
 }
 
 /** Where the camera is: on its shot, or eased along the way there. */
@@ -152,7 +211,7 @@ export function rigPose(overview: Overview, rig: Rig): CameraPose {
 }
 
 const shotPose = (overview: Overview, rig: OverviewRig, shot: Shot): CameraPose =>
-  shot === "overview" ? overviewPose(overview, rig) : shot;
+  shot === "overview" ? overviewPose(overview, rig) : housePose(shot);
 
 function flyDuration(from: CameraPose, to: CameraPose): number {
   const travel = Math.hypot(...sub(to.position, from.position));

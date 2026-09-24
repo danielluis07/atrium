@@ -1,13 +1,18 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { PerspectiveCamera } from "three";
 
-import type { SceneLayout } from "@/content/schema";
-import { flyTo, overviewFov, rigPose, startRig, stepRig, type CameraPose } from "@/lib/scene/camera";
+import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
+import { flyTo, houseShot, orbitRig, overviewFov, rigPose, startRig, stepRig } from "@/lib/scene/camera";
 import { toThree } from "@/lib/scene/frame";
+import { moveGesture, pressGesture, releaseGesture, type Gesture } from "@/lib/scene/gesture";
+import { dragAngle, stepAngle } from "@/lib/scene/orbit";
 import { isFlying, type SelectionStore } from "@/lib/scene/selection";
+
+/** What the rig needs of a House: its camera block and where it stands. */
+export type HouseCamera = { camera: CameraBlock; placement: Placement };
 
 /**
  * Moves the camera (`lib/scene/camera.ts`). At overview: the slow idle drift
@@ -17,16 +22,24 @@ import { isFlying, type SelectionStore } from "@/lib/scene/selection";
  * landing; while it flies, the Houses under a still pointer are picked
  * again. The lens widens on narrow viewports. The wheel is left alone, so
  * it always scrolls the page.
+ *
+ * It also reads every press on the Scene (`lib/scene/gesture.ts`): a click
+ * selects the House pressed (the Houses mark it in `gesture`) or closes, and
+ * a mouse or pen drag at a selected House orbits it. With the Scene focused,
+ * ←/→ step the orbit.
  */
 export function CameraRig({
   overview,
-  heroes,
+  houses,
   store,
+  gesture,
 }: {
   overview: SceneLayout["overview"];
-  /** Each House's hero angle, by Project slug. */
-  heroes: Record<string, CameraPose>;
+  /** Each House's camera block and placement, by Project slug. */
+  houses: Record<string, HouseCamera>;
   store: SelectionStore;
+  /** The press under way, shared with the Houses. */
+  gesture: RefObject<Gesture | undefined>;
 }) {
   const get = useThree((s) => s.get);
   const canvas = useThree((s) => s.gl.domElement);
@@ -42,31 +55,81 @@ export function CameraRig({
   }, [get, aspect]);
 
   useEffect(() => {
+    const down = (e: PointerEvent) => {
+      if (!e.isPrimary || e.button !== 0) return;
+      gesture.current = pressGesture(e.clientX, e.clientY);
+    };
     const move = (e: PointerEvent) => {
-      if (e.pointerType === "touch") return;
-      const r = canvas.getBoundingClientRect();
-      pointer.current = [((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2];
+      if (e.pointerType !== "touch") {
+        const r = canvas.getBoundingClientRect();
+        pointer.current = [((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2];
+      }
+      if (!gesture.current || !e.isPrimary) return;
+      const { gesture: next, drag } = moveGesture(gesture.current, e.clientX, e.clientY);
+      const started = next.dragging && !gesture.current.dragging;
+      gesture.current = next;
+      // touch has no orbit: its drags scroll the page
+      if (!drag || e.pointerType === "touch") return;
+      if (started) {
+        store.dispatch({ type: "drag", dragging: true });
+        if (store.get().dragging) canvas.setPointerCapture(e.pointerId);
+      }
+      if (store.get().dragging) rig.current = orbitRig(rig.current, (camera, t) => dragAngle(camera, t, ...drag));
+    };
+    const up = (e: PointerEvent) => {
+      const g = gesture.current;
+      if (!g || !e.isPrimary) return;
+      gesture.current = undefined;
+      store.dispatch({ type: "drag", dragging: false });
+      const release = releaseGesture(g);
+      if (release.type !== "none") store.dispatch(release);
+    };
+    const cancel = () => {
+      gesture.current = undefined;
+      store.dispatch({ type: "drag", dragging: false });
     };
     const leave = () => {
       pointer.current = undefined;
     };
-    canvas.addEventListener("pointermove", move);
-    canvas.addEventListener("pointerleave", leave);
-    return () => {
-      canvas.removeEventListener("pointermove", move);
-      canvas.removeEventListener("pointerleave", leave);
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      // the Scene is focused: the element that holds the canvas, not the page (the body holds it too) or
+      // a control inside the Project Panel
+      const focused = document.activeElement;
+      const onScene = !!focused && focused !== document.body && focused !== document.documentElement;
+      if (!onScene || !focused.contains(canvas) || store.get().phase !== "at-house") return;
+      e.preventDefault();
+      const direction = e.key === "ArrowLeft" ? -1 : 1;
+      rig.current = orbitRig(rig.current, (camera, t) => stepAngle(camera, t, direction));
     };
-  }, [canvas]);
+    canvas.addEventListener("pointerdown", down);
+    canvas.addEventListener("pointermove", move);
+    canvas.addEventListener("pointerup", up);
+    canvas.addEventListener("pointercancel", cancel);
+    canvas.addEventListener("pointerleave", leave);
+    window.addEventListener("keydown", key);
+    return () => {
+      canvas.removeEventListener("pointerdown", down);
+      canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerup", up);
+      canvas.removeEventListener("pointercancel", cancel);
+      canvas.removeEventListener("pointerleave", leave);
+      window.removeEventListener("keydown", key);
+    };
+  }, [canvas, store, gesture]);
 
   useEffect(
     () =>
       store.subscribe((next, prev) => {
         if (next.flight === prev.flight) return;
-        const shot = next.selected ? heroes[next.selected] : "overview";
+        const house = next.selected ? houses[next.selected] : undefined;
+        // a new shot each time, so selecting the House again starts from its hero angle
+        const shot = house ? houseShot(house.camera, house.placement) : "overview";
         const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         rig.current = flyTo(overview, rig.current, shot, { reducedMotion });
       }),
-    [store, overview, heroes],
+    [store, overview, houses],
   );
 
   useFrame(({ camera }, dt) => {
