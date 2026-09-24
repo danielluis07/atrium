@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 export default function NotFound() {
   return (
-    <main className="page-frame flex-1">
+    <main data-depth={-Infinity} className="page-frame flex-1">
       <div className="page-grid gap-y-6 py-24 md:py-40">
         <RailLabel className="md:pt-4">{formatDepth(-Infinity)}</RailLabel>
         <div className="col-span-12 md:col-span-8 md:col-start-3">

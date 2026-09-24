@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 
 import {
   createContent,
@@ -58,6 +59,23 @@ describe("the site's Content", () => {
 
   test("serves the site copy", () => {
     expect(getSiteCopy().studio.email).toBe("studio@atrium.example");
+  });
+
+  test("every Approach crop is cut from an image of a real Project", () => {
+    for (const { label, crop } of getSiteCopy().approach) {
+      const image = getProject(crop.project)?.images[crop.image];
+      expect([label, image?.src.startsWith(`/projects/${crop.project}/`)]).toEqual([label, true]);
+    }
+  });
+
+  test("the images the home page shows are on disk", () => {
+    const srcs = [
+      ...getProjects().map((p) => p.images.hero.src),
+      ...getSiteCopy().approach.map(({ crop }) => getProject(crop.project)!.images[crop.image].src),
+    ];
+    for (const src of srcs) {
+      expect([src, existsSync(`public${src}`)]).toEqual([src, true]);
+    }
   });
 });
 

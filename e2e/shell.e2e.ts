@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { expectReachableByTab } from "./keyboard";
+
 const pages = [
   { name: "home", path: "/" },
   { name: "404", path: "/nothing-here" },
@@ -80,15 +82,3 @@ test.describe("mobile header", () => {
     await expect(sheet).toBeHidden();
   });
 });
-
-async function expectReachableByTab(
-  page: import("@playwright/test").Page,
-  target: import("@playwright/test").Locator,
-) {
-  await page.locator("body").focus();
-  for (let i = 0; i < 20; i++) {
-    await page.keyboard.press("Tab");
-    if (await target.evaluate((el) => el === document.activeElement)) return;
-  }
-  throw new Error("target was not reached by Tab within 20 presses");
-}
