@@ -34,9 +34,23 @@ Houses are **assembled from shared parts** (volume, stone mass, slab, opening, b
 - **Select:** the camera flies to the House's hero angle (about 1.5s, ease-in-out), the other Houses dim, and the **Project Panel** slides in from the right. Clicking another House flies straight to it. Esc or a click on empty snow closes the panel and flies the camera back.
 - **Section Cut:** scrolling past the hero drops the camera toward the ground, and the snow surface becomes a crisp ink **section line** across the viewport, with the dark Scene above and snow paper below. Right under the line runs a narrow band of section hatch (snow strata). The line scrolls up and away, and the page continues below grade. It is a cut, not a fade, so no fog has to match the paper color. If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). See `docs/adr/0002-section-cut-replaces-whiteout.md`.
 - **Degradation:**
-  - Mobile or low-power devices get a lighter live Scene: fewer snow particles, no real-time shadows, reduced camera motion. Touch has no orbit: a selected House holds its hero angle, and swipes always scroll.
-  - `prefers-reduced-motion` or no WebGL gets a pre-rendered still of the Scene, cropped so its snow line sits on the same section line and hatch band (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
+  - Touch-primary devices (`(pointer: coarse)` without `(hover: hover)`) get a lighter live Scene, the mobile Scene: fewer snow particles, no real-time shadows, reduced camera motion. Touch has no orbit: a selected House holds its hero angle, and swipes always scroll. The choice follows input, not GPU power, so a mouse on a weak laptop still gets orbit.
+  - `prefers-reduced-motion`, no WebGL, a software renderer (SwiftShader, llvmpipe, or `failIfMajorPerformanceCaveat` failing) or a `detect-gpu` tier 0 gets a pre-rendered still of the Scene, cropped so its snow line sits on the same section line and hatch band (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
   - The **Project Index** is always there, so no Project depends on 3D to be reached.
+- **Render tiers:** the desktop Scene runs on a ladder of rungs, cheapest visual loss first:
+  1. *Target* at DPR 2 (MSAA 4x + SMAA + N8AO + bloom)
+  2. *Target* at DPR 1.5
+  3. *Target* with N8AO at half resolution
+  4. *Lean* (MSAA 4x + bloom, DPR 1)
+  5. *Lean* at DPR 0.75
+  6. *Lean* without bloom (the floor)
+
+  The mobile Scene has its own short ladder: DPR 1.5 → 1 → 0.75.
+  - **Start rung:** pmndrs `detect-gpu`, with its benchmark JSON self-hosted under `public/` so there is no third-party request. A desktop at tier 3, or tier 2 with a discrete vendor (NVIDIA, AMD "RX", Radeon Pro), starts at rung 1. Everything else starts at rung 4: laptop iGPUs, "Apple GPU", unknown renderers. The Canvas waits for the tier before mounting, so the pipeline compiles once. The classifier runs alongside the GLB and KTX2 downloads, and on a 1.5 s timeout or an error the Scene falls back to Lean.
+  - **Stepping down:** frame time is judged against a fixed 16.7 ms budget, whatever the display's refresh rate. When the p90 frame time over a rolling 3 s window is above 18 ms, the Scene steps down one rung, then waits 3 s before judging again. It never steps up, so the image never flickers between looks. The monitor ignores shader compile after load, the first frame after the tab becomes visible, and the first 500 ms of a fly-to. It pauses while the Scene is off screen or the tab is hidden. At the floor it stops. The Scene never switches to the mobile Scene or the still mid-session.
+  - **Memory:** the lowest rung reached is kept in `sessionStorage` (read in try/catch), so returning from a Project page doesn't stutter down the ladder again. Nothing persists across visits.
+  - **Override:** `?scene=target|lean|mobile|still` forces a path, for testing, screenshots and capturing the pre-rendered still. There is no visible quality control.
+  - The rung costs were measured on a Vega 10 iGPU only. The `detect-gpu` cut-offs and the thresholds are build-time tuning, to be checked on a discrete GPU during execution.
 
 ## Theme
 
