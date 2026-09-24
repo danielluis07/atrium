@@ -1,6 +1,10 @@
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
-export const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+export const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  axes: ["opsz"],
+});
 
 export const geistSans = Geist({
   variable: "--font-geist-sans",
