@@ -33,7 +33,7 @@ void main() {
   float h = clamp( d.y, 0.0, 1.0 );
   vec3 c = mix( uHorizon, uZenith, pow( h, 0.55 ) );
   c += uHorizon * 0.9 * pow( max( dot( d, uAfterglow ), 0.0 ), 6.0 ) * ( 1.0 - h );
-  c = d.y < 0.0 ? mix( uHorizon, uGround, smoothstep( 0.0, -0.08, d.y ) ) : c;
+  c = d.y < 0.0 ? mix( uHorizon, uGround, 1.0 - smoothstep( -0.08, 0.0, d.y ) ) : c;
   gl_FragColor = vec4( c, 1.0 );
 }`;
 

@@ -141,7 +141,7 @@ void main() {
   } else if ( tm == tt.y ) {
     // ceiling with recessed lights
     vec2 g = fract( h.xz * 2.0 ) - 0.5;
-    float spot = smoothstep( 0.06, 0.03, length( g * vec2( 1.0, 2.5 ) ) );
+    float spot = 1.0 - smoothstep( 0.03, 0.06, length( g * vec2( 1.0, 2.5 ) ) );
     c = vec3( 0.75 ) * warm * 0.5 + warm * spot * 5.0;
   } else if ( tm == tt.z ) {
     // back wall: plaster, a low dark sofa, a lit artwork
