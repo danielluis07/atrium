@@ -37,7 +37,7 @@ The preflight names whichever of these is missing before a bake starts.
 
 ## Layout
 
-- `builder/build.py`: the House compiler, promoted from the one-House prototype (#6). It reads the exported JSON, builds the shared parts, derives fascias, snow, downlights, clipped soffits and the snow plinth, culls buried faces, bevels, marks seen and unseen faces, unwraps lightmap UVs, bakes base and window-spill lightmaps with Cycles, and exports the raw GLB with the contract extras.
+- `builder/build.py`: the House compiler, promoted from the one-House prototype (#6). It reads the exported JSON, builds the shared parts, derives fascias, snow, downlights, clipped soffits and the snow plinth (stepped for a House set into the slope), culls buried faces, bevels, marks seen and unseen faces, unwraps lightmap UVs, bakes base and window-spill lightmaps with Cycles, and exports the raw GLB with the contract extras.
 - `builder/denoise.py`: OIDN denoise of one lightmap through the compositor, run by `build.py` in a fresh process.
 - `builder/config.py`: every builder-wide constant (detail sizes, bevels, light, materials, bake modes, the unseen texel ratio).
 - `builder/pyproject.toml`: its `version` is the builder version in every bake hash. Bump it when a builder change alters what it bakes.
