@@ -94,8 +94,11 @@ export function CameraRig({
     const key = (e: KeyboardEvent) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      // the Scene is focused: the element that holds the canvas, not a control inside the Project Panel
-      if (!document.activeElement?.contains(canvas) || store.get().phase !== "at-house") return;
+      // the Scene is focused: the element that holds the canvas, not the page (the body holds it too) or
+      // a control inside the Project Panel
+      const focused = document.activeElement;
+      const onScene = !!focused && focused !== document.body && focused !== document.documentElement;
+      if (!onScene || !focused.contains(canvas) || store.get().phase !== "at-house") return;
       e.preventDefault();
       const direction = e.key === "ArrowLeft" ? -1 : 1;
       rig.current = orbitRig(rig.current, (camera, t) => stepAngle(camera, t, direction));
