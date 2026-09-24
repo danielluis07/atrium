@@ -11,7 +11,7 @@ The fictional architecture studio this site presents. It is based in northern No
 _Avoid_: the firm, the agency, the company
 
 **Project**:
-One house the studio designed, named "<Place> House" after the real Arctic place it stands in (e.g. Lyngen House). It has a location, coordinates, year, floor area and a write-up. Each Project is shown as exactly one House in the Scene.
+One house the studio designed, named "<Place> House" after the real Arctic place it stands in (e.g. Lyngen House). It has a location, elevation, year, floor area, a one-sentence lede and a write-up in three parts: Site, Light and Material. It has no coordinates. Each Project is shown as exactly one House in the Scene.
 _Avoid_: work, case study, build, property
 
 ### Site
