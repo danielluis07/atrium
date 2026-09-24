@@ -4,7 +4,9 @@ import dynamic from "next/dynamic";
 import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { preload } from "react-dom";
 
-import type { SceneLayout } from "@/content/schema";
+import { ProjectPanel } from "@/components/home/project-panel";
+import { useSelection } from "@/components/scene/use-selection";
+import type { SceneLayout, SceneProject } from "@/content/schema";
 import { sceneDownloads } from "@/lib/scene/assets";
 import { classifyGpu } from "@/lib/scene/gpu";
 import { readLowestRung, rememberRung } from "@/lib/scene/memory";
@@ -15,6 +17,7 @@ import {
   type SceneCapabilities,
   type SceneChoice,
 } from "@/lib/scene/policy";
+import { createSelectionStore } from "@/lib/scene/selection";
 import { cn } from "@/lib/utils";
 
 const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
@@ -26,13 +29,17 @@ const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
  * known, so the pipeline compiles once. The Canvas fades in over the still
  * once its first frame is drawn, renders only while the stage is on screen
  * and the tab is visible, and steps down the ladder when frames run long.
+ * Selecting a House opens its Project Panel beside it; the selection lives
+ * here, so every visit starts at overview.
  */
-export function LiveScene({ layout }: { layout: SceneLayout }) {
+export function LiveScene({ layout, projects }: { layout: SceneLayout; projects: SceneProject[] }) {
   const decision = useSyncExternalStore(onDecision, getDecision, () => undefined);
   const tabVisible = useSyncExternalStore(onVisibilityChange, isTabVisible, () => true);
   const [onScreen, setOnScreen] = useState(true);
   const [ready, setReady] = useState(false);
   const [stepped, setStepped] = useState<number>();
+  const [store] = useState(createSelectionStore);
+  const hovered = useSelection(store, (s) => !!s.hovered);
   const ref = useRef<HTMLDivElement>(null);
   const choice = decision?.choice;
   // the mobile Scene isn't built yet, so touch keeps the still
@@ -61,28 +68,36 @@ export function LiveScene({ layout }: { layout: SceneLayout }) {
   };
 
   return (
+    // focusable so the Project Panel can hand focus back to the Scene
     <div
       ref={ref}
-      aria-hidden="true"
+      tabIndex={live ? -1 : undefined}
+      aria-label={live ? "Scene" : undefined}
+      aria-hidden={live ? undefined : "true"}
+      role={live ? "group" : undefined}
       data-slot="live-scene"
       data-scene-path={choice?.path}
       data-scene-rung={rung}
       data-scene-ready={live ? ready : undefined}
       data-rendering={live ? rendering : undefined}
       className={cn(
-        "absolute inset-0 transition-opacity duration-400 ease-in-out",
+        "absolute inset-0 outline-none transition-opacity focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-background duration-400 ease-in-out",
         ready ? "opacity-100" : "opacity-0",
+        hovered && "cursor-pointer",
       )}>
       {live && rung && (
         <StillOnError>
           <Scene
             layout={layout}
+            projects={projects}
+            store={store}
             ladder="desktop"
             rung={rung}
             onStepDown={stepDown}
             active={rendering}
             onReady={() => setReady(true)}
           />
+          <ProjectPanel store={store} projects={projects} scene={ref} />
         </StillOnError>
       )}
     </div>

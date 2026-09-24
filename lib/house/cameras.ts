@@ -55,6 +55,13 @@ export function toHouseFrame([x, y, z]: readonly number[], placement: Placement)
   return [round(dx * Math.cos(r) + dy * Math.sin(r)), round(-dx * Math.sin(r) + dy * Math.cos(r)), round(z - placement.ground)];
 }
 
+/** A point in a House's frame in the layout frame: `toHouseFrame` undone. */
+export function fromHouseFrame([x, y, z]: readonly number[], placement: Placement): Point {
+  const [px, py] = placement.position;
+  const r = rad(placement.rotation);
+  return [px + x * Math.cos(r) - y * Math.sin(r), py + x * Math.sin(r) + y * Math.cos(r), z + placement.ground];
+}
+
 /** Every point a House can be seen from: the overview camera, then its arc cameras. */
 export function viewpoints(camera: CameraBlock, placement: Placement, layout: Pick<SceneLayout, "overview">): Point[] {
   return [toHouseFrame(layout.overview.position, placement), ...arcCameras(camera)];

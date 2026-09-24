@@ -1,7 +1,8 @@
 import Image from "next/image";
 
 import { LiveScene } from "@/components/home/live-scene";
-import { getSceneLayout } from "@/content";
+import { getProjects, getSceneLayout } from "@/content";
+import { sceneProject } from "@/content/schema";
 
 /**
  * The Scene at grade (±0.00): a stage held under the header while the
@@ -24,8 +25,9 @@ export function SceneStage() {
           sizes="100vw"
           className="object-cover object-bottom"
         />
-        <LiveScene layout={getSceneLayout()} />
+        <LiveScene layout={getSceneLayout()} projects={getProjects().map(sceneProject)} />
       </div>
     </section>
   );
 }
+

@@ -80,8 +80,22 @@ export const SceneLayout = z.object({
 
 export type CameraBlock = z.infer<typeof CameraBlock>;
 export type Project = z.infer<typeof Project>;
+/** What the Scene and its Project Panel know of a Project: its title block and camera block, without the House. */
+export type SceneProject = ReturnType<typeof sceneProject>;
 export type Placement = z.infer<typeof Placement>;
 export type SceneLayout = z.infer<typeof SceneLayout>;
+
+/** A Project as the client Scene gets it: none of its House, write-up or images. */
+export const sceneProject = ({ slug, name, location, elevation, year, floorArea, lede, camera }: Project) => ({
+  slug,
+  name,
+  location,
+  elevation,
+  year,
+  floorArea,
+  lede,
+  camera,
+});
 
 /** Everything `validateHouse` checks, plus the parts of the record that point into the House. */
 export function validateProject(project: Project): HouseIssue[] {

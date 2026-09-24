@@ -4,6 +4,7 @@ import { Depth, sectionHeadClass } from "@/components/home/depth";
 import { labelClass } from "@/components/site/label";
 import { getProject } from "@/content";
 import { approach } from "@/content/site";
+import { formatIndex } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,7 +20,7 @@ export function Approach() {
           return (
             <li key={label} className="page-grid gap-y-6">
               <p className={cn(labelClass, "col-span-12 md:col-span-2 md:pt-3")}>
-                {String(i + 1).padStart(2, "0")} {label}
+                {formatIndex(i + 1)} {label}
               </p>
               <div className="col-span-12 md:col-span-5 md:col-start-3">
                 <h3 className={sectionHeadClass}>{head}</h3>
