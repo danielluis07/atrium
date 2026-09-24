@@ -31,6 +31,15 @@ Also on the House: `section`, one authored cut (axis and offset) for the section
 
 Out of the vocabulary on purpose: steps, landscape walls, flues, timber wall cladding, interior walls and rooms.
 
+Field-level choices (the zod schema in `lib/house/schema.ts` is the reference):
+
+- Exactly one Level sits at elevation 0: the entrance Level.
+- A volume or the stone mass runs from the floor of `from` to the top of `to` (elevation plus height), unless `top` overrides it. A double-height room is one volume on one Level with a raised `top`, so it counts once in the gross floor area.
+- A slab's underside sits at the top of its `level`, and it rises by `thickness`.
+- An opening's `sill` and `head` are measured up from the floor of its `level`. It spans up to `to` when given.
+- `section` is `{ axis, at }`: the cut plane `axis = at`.
+- Only `glazing` openings are Glazing Faces. A Project's interior image names one.
+
 ## Derived by the builder, never authored
 
 - Fascia geometry around slabs and frame tops.
