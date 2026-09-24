@@ -20,13 +20,25 @@ export const WINDOW = oklch(0.82, 0.12, 70);
  */
 export const OPEN_SNOW = SKY_HORIZON.clone().multiplyScalar(1 / 3).add(SKY_ZENITH.clone().multiplyScalar(2 / 3));
 
+/** The afterglow's compass bearing, where the builder's sky puts it (`AFTERGLOW_BEARING` in its config). */
+const AFTERGLOW_BEARING = 245;
+
 /**
  * The afterglow low in the west-southwest, where the builder's sky puts it
  * (`AFTERGLOW_BEARING` and `AFTERGLOW_ELEVATION` in its config).
  */
-export function afterglowDirection(north: number): Vector3 {
-  const bearing = 245;
-  const elevation = (3 * Math.PI) / 180;
+export const afterglowDirection = (north: number) => skyDirection(north, AFTERGLOW_BEARING, 3);
+
+/**
+ * Where the baked shadow on the snow falls from (`components/scene/shadow.ts`):
+ * the bright sky above the afterglow, high enough that the pines' and Houses'
+ * shadows lie across the slope rather than down its whole length.
+ */
+export const keyDirection = (north: number) => skyDirection(north, AFTERGLOW_BEARING, 28);
+
+/** A unit vector toward a point of the sky at a compass bearing and an elevation in degrees, in three.js axes. */
+function skyDirection(north: number, bearing: number, elevationDeg: number): Vector3 {
+  const elevation = (elevationDeg * Math.PI) / 180;
   // a compass bearing is clockwise from north; the layout's north is counter-clockwise from +y
   const theta = ((north - bearing) * Math.PI) / 180;
   const flat = Math.cos(elevation);

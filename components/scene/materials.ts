@@ -7,9 +7,11 @@ import {
   UniformsLib,
   UniformsUtils,
   type Texture,
+  type WebGLProgramParametersWithUniforms,
 } from "three";
 
 import { OPEN_SNOW, SKY_HORIZON, SKY_ZENITH, SNOW_SHADOW, WINDOW } from "@/components/scene/palette";
+import { shadowMaskPars, type ShadowUniforms } from "@/components/scene/shadow";
 
 /**
  * The Houses' materials. Light is baked (ADR 0001): every opaque surface
@@ -29,20 +31,37 @@ if (!ShaderChunk.lights_fragment_maps.includes(LIGHTMAP_READ)) {
 
 export type SpillUniforms = { spillK: { value: number } };
 
+/** A world plan position for the shadow mask, from the vertex shader. */
+function withShadow(shader: WebGLProgramParametersWithUniforms, shadow: ShadowUniforms) {
+  Object.assign(shader.uniforms, shadow);
+  shader.vertexShader = shader.vertexShader
+    .replace("void main() {", "varying vec2 vShadowXZ;\nvoid main() {")
+    .replace(
+      "#include <begin_vertex>",
+      "#include <begin_vertex>\nvShadowXZ = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;",
+    );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    "void main() {",
+    `varying vec2 vShadowXZ;\n${shadowMaskPars}\nvoid main() {`,
+  );
+}
+
 /**
  * Adds the spill layer to a lightmapped material. On the plinth the baked
- * light fades to open snow toward its edge, where it meets the live terrain.
+ * light fades to open snow toward its edge, where it meets the live terrain,
+ * and takes the same baked shadows as the terrain, so they cross the edge.
  */
 export function patchLightmap(
   material: MeshStandardMaterial,
   spill: Texture,
   uniforms: SpillUniforms,
-  { edgeFade = false } = {},
+  { edgeFade = false, shadow }: { edgeFade?: boolean; shadow?: ShadowUniforms } = {},
 ) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.spillMap = { value: spill };
     shader.uniforms.spillK = uniforms.spillK;
     shader.uniforms.openSnow = { value: OPEN_SNOW };
+    if (shadow) withShadow(shader, shadow);
     shader.fragmentShader = shader.fragmentShader
       .replace("void main() {", "uniform sampler2D spillMap;\nuniform float spillK;\nuniform vec3 openSnow;\nvoid main() {")
       .replace(
@@ -55,19 +74,26 @@ export function patchLightmap(
               ? /* glsl */ `vec2 lightMapEdge = min( vLightMapUv, 1.0 - vLightMapUv );
           lightMapTexel.rgb = mix( openSnow, lightMapTexel.rgb, smoothstep( 0.0, 0.16, min( lightMapEdge.x, lightMapEdge.y ) ) );`
               : ""
-          }`,
+          }
+          ${shadow ? "lightMapTexel.rgb *= shadowLight( vShadowXZ );" : ""}`,
         ),
       );
   };
-  material.customProgramCacheKey = () => (edgeFade ? "lightmap-edge" : "lightmap");
+  const key = `lightmap${edgeFade ? "-edge" : ""}${shadow ? "-shadow" : ""}`;
+  material.customProgramCacheKey = () => key;
 }
 
-/** Open snow: lit as the plinth's baked edge is, a little darker where the slope turns from the sky. */
-export function openSnowMaterial(color: Color): MeshStandardMaterial {
+/**
+ * Lit by the open sky as the plinth's baked edge is, a little darker where a
+ * surface turns from the sky: the snow, and the pines and mountains on it.
+ * With `shadow`, the open snow takes the baked shadows of the Houses and pines.
+ */
+export function skyLitMaterial(color: Color, shadow?: ShadowUniforms): MeshStandardMaterial {
   const material = new MeshStandardMaterial({ color, roughness: 0.8, envMapIntensity: 0 });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.openSnow = { value: OPEN_SNOW };
     shader.uniforms.openSnowIntensity = { value: LIGHTMAP_INTENSITY };
+    if (shadow) withShadow(shader, shadow);
     shader.vertexShader = shader.vertexShader
       .replace("void main() {", "varying float vSkyward;\nvoid main() {")
       .replace(
@@ -78,10 +104,11 @@ export function openSnowMaterial(color: Color): MeshStandardMaterial {
       .replace("void main() {", "uniform vec3 openSnow;\nuniform float openSnowIntensity;\nvarying float vSkyward;\nvoid main() {")
       .replace(
         "#include <lights_fragment_maps>",
-        "#include <lights_fragment_maps>\nirradiance += openSnow * openSnowIntensity * mix( 0.6, 1.0, vSkyward );",
+        `#include <lights_fragment_maps>\nirradiance += openSnow * openSnowIntensity * mix( 0.6, 1.0, vSkyward )${shadow ? " * shadowLight( vShadowXZ )" : ""};`,
       );
   };
-  material.customProgramCacheKey = () => "open-snow";
+  const key = shadow ? "sky-lit-shadow" : "sky-lit";
+  material.customProgramCacheKey = () => key;
   return material;
 }
 

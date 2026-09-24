@@ -1,0 +1,102 @@
+import { describe, expect, test } from "bun:test";
+
+import { sceneLayout } from "@/content/scene";
+import {
+  overviewPose,
+  startOverview,
+  stepOverview,
+  type CameraPose,
+  type OverviewInput,
+  type OverviewRig,
+} from "@/lib/scene/camera";
+
+const overview = sceneLayout.overview;
+const FRAME = 1 / 60;
+
+const distance = (a: readonly number[], b: readonly number[]) => Math.hypot(...a.map((v, i) => v - b[i]));
+
+/** The pose after each frame of `inputs`, from `rig`. */
+function poses(inputs: OverviewInput[], rig: OverviewRig = startOverview()): CameraPose[] {
+  return inputs.map((input) => {
+    rig = stepOverview(rig, input);
+    return overviewPose(overview, rig);
+  });
+}
+
+const idle = (seconds: number): OverviewInput[] => Array.from({ length: seconds * 60 }, () => ({ dt: FRAME }));
+
+describe("the overview camera", () => {
+  test("starts exactly on the layout's overview, so the live Scene takes over from the still without a jump", () => {
+    const pose = overviewPose(overview, startOverview());
+    expect(pose.position).toEqual([...overview.position]);
+    expect(pose.lookAt).toEqual([...overview.lookAt]);
+  });
+
+  test("drifts slowly with no cursor, still looking at the Houses", () => {
+    const drift = poses(idle(20));
+    const moved = Math.max(...drift.map((p) => distance(p.position, overview.position)));
+    expect(moved).toBeGreaterThan(0.5);
+    for (const [i, p] of drift.entries()) {
+      expect(p.lookAt).toEqual([...overview.lookAt]);
+      // slow and heavy: no more than a few centimetres a frame
+      const before = i === 0 ? overview.position : drift[i - 1].position;
+      expect(distance(p.position, before)).toBeLessThan(0.03);
+    }
+  });
+
+  // the overview looks up the slope along +y, so its right is +x and its up is roughly +z
+  test("leans toward the cursor", () => {
+    const hold = (pointer: [number, number]) => poses(idle(5).map((f) => ({ ...f, pointer }))).at(-1)!;
+    const right = hold([1, 0]);
+    const left = hold([-1, 0]);
+    const high = hold([0, 1]);
+    const low = hold([0, -1]);
+    expect(right.lookAt[0]).toBeGreaterThan(overview.lookAt[0] + 1);
+    expect(left.lookAt[0]).toBeLessThan(overview.lookAt[0] - 1);
+    expect(high.lookAt[2]).toBeGreaterThan(overview.lookAt[2] + 0.5);
+    expect(low.lookAt[2]).toBeLessThan(overview.lookAt[2] - 0.5);
+  });
+
+  test("eases toward the cursor, and back to rest when the cursor leaves", () => {
+    const toRight = poses(idle(3).map((f) => ({ ...f, pointer: [1, 0] as const })));
+    const first = toRight[0].lookAt[0] - overview.lookAt[0];
+    const settled = toRight.at(-1)!.lookAt[0] - overview.lookAt[0];
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(settled / 20);
+
+    const rig = idle(3).reduce<OverviewRig>((r, f) => stepOverview(r, { ...f, pointer: [1, 0] }), startOverview());
+    const away = poses(idle(5), rig).at(-1)!;
+    expect(Math.abs(away.lookAt[0] - overview.lookAt[0])).toBeLessThan(0.05);
+  });
+
+  test("stays within a few metres of the overview, whatever the cursor does", () => {
+    // a seeded walk: the cursor jumps, wanders past the viewport's edges and leaves; frames stutter
+    let seed = 7;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const inputs: OverviewInput[] = Array.from({ length: 60 * 600 }, (_, i) => ({
+      dt: random() < 0.01 ? 0.25 : FRAME,
+      pointer: i % 900 < 600 ? [random() * 3 - 1.5, random() * 3 - 1.5] : undefined,
+    }));
+    const forward = (p: CameraPose) => {
+      const d = p.lookAt.map((v, i) => v - p.position[i]);
+      const n = Math.hypot(...d);
+      return d.map((v) => v / n);
+    };
+    const rest = forward(overviewPose(overview, startOverview()));
+    for (const pose of poses(inputs)) {
+      // slight: under 4% of the camera's 130 m to the Houses, and the view turned under 3°
+      expect(distance(pose.position, overview.position)).toBeLessThan(5);
+      expect(distance(pose.lookAt, overview.lookAt)).toBeLessThan(4);
+      const cos = forward(pose).reduce((s, v, i) => s + v * rest[i], 0);
+      expect((Math.acos(Math.min(1, cos)) * 180) / Math.PI).toBeLessThan(3);
+    }
+  });
+
+  test("picks up where it was after the Scene pauses, rather than jumping", () => {
+    const before = poses(idle(10));
+    const rig = before.reduce<OverviewRig>((r) => stepOverview(r, { dt: FRAME }), startOverview());
+    // the tab was hidden for half a minute
+    const [resumed] = poses([{ dt: 30 }], rig);
+    expect(distance(resumed.position, before.at(-1)!.position)).toBeLessThan(0.03);
+  });
+});

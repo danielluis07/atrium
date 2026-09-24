@@ -1,9 +1,11 @@
 "use client";
 
+import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
 
-import { openSnowMaterial } from "@/components/scene/materials";
+import { skyLitMaterial } from "@/components/scene/materials";
+import { bakeShadow, type ShadowUniforms } from "@/components/scene/shadow";
 import { terrainHeight, type PlinthRect } from "@/lib/scene/platform";
 import { WATER_LEVEL } from "@/lib/scene/terrain";
 
@@ -45,13 +47,24 @@ function terrainGeometry(plinths: PlinthRect[]): BufferGeometry {
   return geometry;
 }
 
-/** The live snow slope, carved to each House's plinth, and the fjord below it. */
-export function Terrain({ plinths }: { plinths: PlinthRect[] }) {
+/**
+ * The live snow slope, carved to each House's plinth, and the fjord below it.
+ * With `shadow`, it bakes the shadow of the Houses and pines once they are in,
+ * and takes it.
+ */
+export function Terrain({ plinths, north, shadow }: { plinths: PlinthRect[]; north: number; shadow?: ShadowUniforms }) {
+  const get = useThree((s) => s.get);
   const geometry = useMemo(() => terrainGeometry(plinths), [plinths]);
-  const snow = useMemo(() => openSnowMaterial(SNOW), []);
+  const snow = useMemo(() => skyLitMaterial(SNOW, shadow), [shadow]);
   const water = useMemo(() => new MeshStandardMaterial({ color: WATER, roughness: 0.08 }), []);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
+  // passive effects run after every layout effect, so the pines are placed by now
+  useEffect(() => {
+    if (!shadow) return;
+    const { gl, scene } = get();
+    return bakeShadow(gl, scene, geometry, north, shadow);
+  }, [get, geometry, north, shadow]);
   useEffect(
     () => () => {
       snow.dispose();
