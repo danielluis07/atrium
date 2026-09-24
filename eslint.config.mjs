@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "test-results/**",
     "playwright-report/**",
+    // Decoders copied verbatim from three (lib/scene/assets.ts)
+    "public/decoders/**",
   ]),
 ]);
 

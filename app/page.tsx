@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 import { Approach } from "@/components/home/approach";
 import { Contact } from "@/components/home/contact";
-import { HeroStill } from "@/components/home/hero-still";
 import { ProjectIndex } from "@/components/home/project-index";
+import { SceneStage } from "@/components/home/scene-stage";
 import { Studio } from "@/components/home/studio";
 import { studio } from "@/content/site";
 
@@ -16,7 +16,7 @@ export default function Home() {
   return (
     <main className="flex-1">
       <h1 className="sr-only">{studio.name}</h1>
-      <HeroStill />
+      <SceneStage />
       <ProjectIndex />
       <Studio />
       <Approach />
