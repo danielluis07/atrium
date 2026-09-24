@@ -78,6 +78,13 @@ One GLB per House:
 
 The Project page's plan and section are **massing drawings**: volume outlines as poché, glazing as thin lines, the stone mass hatched, slab overhangs dashed, no rooms. The plan is cut at the entrance Level; the section follows the House's `section` field and marks ±0.00 and each Level.
 
+`lib/drawings` writes them as SVG strings, server-rendered, no client JS. The conventions:
+
+- The plan cuts 1.2 m above ±0.00 (`PLAN_CUT`), with the front facing down the sheet. Whatever the plane crosses is cut: volumes as poché, the stone mass hatched. Anything wholly above is dashed (slabs, upper volumes), and anything wholly below is outlined. A chain line marks the section's cut, A–A.
+- The section always looks along +x or +y: cut across x, it looks toward +x with the front on the right; cut across y, it looks toward the back, like the front elevation. Cut parts are poché. Parts beyond the plane are outlined, including the rest of each cut volume, which shows through a `void`. Parts behind the viewer are left out.
+- An opening the drawing cuts leaves its recess (`depth`) open in the poché, and a thin line marks where its fill sits (`glazing`, `door` or `terrace`; a `void` has none). The recess placement comes from `openingRecess` in `lib/house/derive.ts`, which mirrors the builder's `FaceFrame`.
+- The poché is a concrete tone of ink rather than solid ink, so the glazing lines on its edges still read. Strokes are 1px hairlines at any size. Both drawings print at one scale (28 px/m), shrinking to fit.
+
 ## The four Houses
 
 The same parts in four compositions. Dimensions are written when each record is authored; the validator keeps them within the m² range.

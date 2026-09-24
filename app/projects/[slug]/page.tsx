@@ -9,6 +9,7 @@ import { focusClass, labelClass, RailLabel } from "@/components/site/label";
 import { getNextProject, getProject, getProjects } from "@/content";
 import type { Project } from "@/content/schema";
 import { studio } from "@/content/site";
+import { planSvg, sectionSvg } from "@/lib/drawings";
 import { formatArea, formatElevation } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }: PageProps<"/projects/[slug]">
 /**
  * A Project page: the Project Panel unfolded into a full sheet. The title
  * block, the hero image, the Site / Light / Material write-up alternating
- * with its images, then the next Project.
+ * with its images, the drawings, then the next Project.
  */
 export default async function ProjectPage({ params }: PageProps<"/projects/[slug]">) {
   const { slug } = await params;
@@ -92,6 +93,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
         <Part n={3} title="Material" paragraphs={writeUp.material}>
           <Figure image={images.material} className="md:col-span-5 md:col-start-8 md:row-start-1 md:aspect-4/5" />
         </Part>
+        <Drawings project={project} />
       </div>
 
       <nav aria-label="Next project" className="page-grid border-t">
@@ -166,6 +168,48 @@ function Figure({ image, className }: { image: Project["images"]["hero"]; classN
         className="object-cover"
       />
     </figure>
+  );
+}
+
+/**
+ * The massing plan and section, drawn from the House on the server. The
+ * SVG is ours, written from Content, so it goes into the page as markup.
+ */
+function Drawings({ project }: { project: Project }) {
+  const drawings = [
+    {
+      slot: "plan",
+      caption: "Plan at ±0.00",
+      label: `Massing plan of ${project.name}, cut at the entrance Level`,
+      svg: planSvg(project.house),
+    },
+    {
+      slot: "section",
+      caption: "Section A–A",
+      label: `Section through ${project.name}, marking each Level`,
+      svg: sectionSvg(project.house),
+    },
+  ];
+  return (
+    <section aria-labelledby="drawings" className="page-grid gap-y-8 md:gap-y-16">
+      <h2 id="drawings" className={cn(labelClass, "col-span-12 md:col-span-2 md:row-start-1 md:pt-1.5")}>
+        {pad(4)} Drawings
+      </h2>
+      {drawings.map(({ slot, caption, label, svg }, i) => (
+        <figure
+          key={slot}
+          data-slot={`drawing-${slot}`}
+          className={cn("col-span-12 md:col-span-10 md:col-start-3", i === 0 && "md:row-start-1")}>
+          <div
+            role="img"
+            aria-label={label}
+            className="[&_svg]:h-auto [&_svg]:max-w-full"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+          <figcaption className={cn(labelClass, "mt-4 border-t pt-3")}>{caption}</figcaption>
+        </figure>
+      ))}
+    </section>
   );
 }
 

@@ -45,6 +45,21 @@ for (const [i, { name, slug, data }] of projects.entries()) {
       await expect(section.getByRole("img")).toHaveCount(count);
     }
   });
+
+  test(`the ${name} page has its massing plan and section`, async ({ page }) => {
+    await page.goto(`/projects/${slug}`);
+    const drawings = page.getByRole("region", { name: "04 Drawings" });
+    for (const [label, caption] of [
+      [`Massing plan of ${name}, cut at the entrance Level`, "Plan at ±0.00"],
+      [`Section through ${name}, marking each Level`, "Section A–A"],
+    ]) {
+      const figure = drawings.getByRole("figure", { name: caption });
+      const drawing = figure.getByRole("img", { name: label });
+      await expect(drawing).toBeVisible();
+      await expect(drawing.locator('svg [data-part="volume"]').first()).toBeAttached();
+    }
+    await expect(drawings.locator('svg [data-part="level"]')).toHaveCount(copy(slug).house.levels.length);
+  });
 }
 
 test("the next-Project row follows the Project order and wraps from the last to the first", async ({ page }) => {
