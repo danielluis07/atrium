@@ -22,12 +22,16 @@ export type Selection = {
   phase: CameraPhase;
   /** Which flight the camera is on: every new flight gets a new number, so a superseded one can't arrive. */
   flight: number;
+  /** Whether a drag is orbiting the selected House; while it does, nothing hovers. */
+  dragging?: boolean;
 };
 
 export type SelectionEvent =
   | { type: "hover"; slug?: string }
   | { type: "select"; slug: string }
   | { type: "close" }
+  /** A drag starts or stops orbiting; one only starts at a House. */
+  | { type: "drag"; dragging: boolean }
   /** The camera finished `flight`. */
   | { type: "arrive"; flight: number };
 
@@ -37,14 +41,18 @@ const START: Selection = { phase: "overview", flight: 0 };
 export function reduceSelection(s: Selection, e: SelectionEvent): Selection {
   switch (e.type) {
     case "hover":
-      return s.hovered === e.slug ? s : { ...s, hovered: e.slug };
+      return s.hovered === e.slug || s.dragging ? s : { ...s, hovered: e.slug };
+    case "drag":
+      if (!!s.dragging === e.dragging) return s;
+      if (e.dragging && s.phase !== "at-house") return s;
+      return { ...s, dragging: e.dragging, hovered: e.dragging ? undefined : s.hovered };
     case "select":
       // already on its way there; at the House, selecting it again returns to its hero angle
       if (s.selected === e.slug && s.phase === "flying-in") return s;
       return { ...s, selected: e.slug, phase: "flying-in", flight: s.flight + 1 };
     case "close":
       if (!s.selected) return s;
-      return { ...s, selected: undefined, phase: "flying-out", flight: s.flight + 1 };
+      return { ...s, selected: undefined, phase: "flying-out", flight: s.flight + 1, dragging: false };
     case "arrive":
       if (e.flight !== s.flight) return s;
       if (s.phase === "flying-in") return { ...s, phase: "at-house" };

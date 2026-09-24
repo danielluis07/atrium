@@ -9,13 +9,13 @@ import { ToneMappingMode } from "postprocessing";
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Atmosphere } from "@/components/scene/atmosphere";
-import { CameraRig } from "@/components/scene/camera-rig";
+import { CameraRig, type HouseCamera } from "@/components/scene/camera-rig";
 import { HoverLabel, type LabelPoint } from "@/components/scene/hover-label";
 import { Houses } from "@/components/scene/houses";
 import { Mountains } from "@/components/scene/mountains";
 import { Snowfall } from "@/components/scene/snowfall";
 import type { SceneLayout, SceneProject } from "@/content/schema";
-import { heroPose } from "@/lib/scene/camera";
+import type { Gesture } from "@/lib/scene/gesture";
 import { monitor, startMonitor, type MonitorEvent } from "@/lib/scene/monitor";
 import { ladderOf, renderConfig, type Ladder } from "@/lib/scene/rungs";
 import type { SelectionStore } from "@/lib/scene/selection";
@@ -47,14 +47,19 @@ export type SceneProps = {
  * pines, the fjord, the distant mountains, the four baked Houses and the
  * falling snow, seen from the drifting overview camera, rendered at the
  * rung's config (DPR, MSAA, SMAA, N8AO, bloom). Hovering a House names it;
- * clicking one selects it and flies to its hero angle, and a click on empty
- * snow closes it. Client-only; the home page loads it with SSR off.
+ * clicking one selects it and flies to its hero angle, where a drag or ←/→
+ * orbits it, and a click on empty snow closes it. Client-only; the home
+ * page loads it with SSR off.
  */
 export default function Scene({ layout, projects, store, ladder, rung, onStepDown, active, onReady }: SceneProps) {
   const config = renderConfig(ladder, rung);
   const label = useRef<HTMLDivElement>(null);
-  const heroes = useMemo(
-    () => Object.fromEntries(projects.map((p) => [p.slug, heroPose(p.camera, layout.houses[p.slug])])),
+  const gesture = useRef<Gesture>(undefined);
+  const houses = useMemo(
+    () =>
+      Object.fromEntries(
+        projects.map((p): [string, HouseCamera] => [p.slug, { camera: p.camera, placement: layout.houses[p.slug] }]),
+      ),
     [projects, layout],
   );
   const placeLabel = (at: LabelPoint | undefined) => {
@@ -72,9 +77,8 @@ export default function Scene({ layout, projects, store, ladder, rung, onStepDow
         camera={{ near: 0.5, far: 4000 }}
         onCreated={({ gl }) => {
           gl.toneMappingExposure = EXPOSURE;
-        }}
-        onPointerMissed={() => store.dispatch({ type: "close" })}>
-        <CameraRig overview={layout.overview} heroes={heroes} store={store} />
+        }}>
+        <CameraRig overview={layout.overview} houses={houses} store={store} gesture={gesture} />
         <Atmosphere north={layout.north} />
         <Mountains />
         <Snowfall count={SNOWFLAKES[ladder]} />
@@ -82,7 +86,13 @@ export default function Scene({ layout, projects, store, ladder, rung, onStepDow
             Canvas, and R3F would dispose the renderer with it. */}
         <Suspense fallback={null}>
           {/* the mobile Scene has no shadow */}
-          <Houses layout={layout} shadows={ladder === "desktop"} store={store} onLabel={placeLabel} />
+          <Houses
+            layout={layout}
+            shadows={ladder === "desktop"}
+            store={store}
+            gesture={gesture}
+            onLabel={placeLabel}
+          />
           <FirstFrame onReady={onReady} />
           <RungMonitor ladder={ladder} rung={rung} active={active} onStepDown={onStepDown} store={store} />
         </Suspense>

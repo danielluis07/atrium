@@ -97,6 +97,33 @@ describe("the selection store", () => {
     expect(store.get()).toMatchObject({ selected: "senja", phase: "at-house" });
   });
 
+  test("a drag orbits only at a House, and while it does nothing hovers", () => {
+    const store = after({ type: "hover", slug: "reine" }, { type: "drag", dragging: true });
+    expect(store.get().dragging).toBeFalsy();
+    store.dispatch({ type: "select", slug: "lyngen" });
+    store.dispatch({ type: "drag", dragging: true });
+    // flying in: no orbit yet
+    expect(store.get().dragging).toBeFalsy();
+
+    store.dispatch(arrive(store.get()));
+    store.dispatch({ type: "drag", dragging: true });
+    expect(store.get()).toMatchObject({ dragging: true, hovered: undefined, selected: "lyngen" });
+    store.dispatch({ type: "hover", slug: "senja" });
+    expect(store.get().hovered).toBeUndefined();
+
+    store.dispatch({ type: "drag", dragging: false });
+    store.dispatch({ type: "hover", slug: "senja" });
+    expect(store.get()).toMatchObject({ dragging: false, hovered: "senja", selected: "lyngen", phase: "at-house" });
+  });
+
+  test("closing ends a drag", () => {
+    const store = after({ type: "select", slug: "lyngen" });
+    store.dispatch(arrive(store.get()));
+    store.dispatch({ type: "drag", dragging: true });
+    store.dispatch({ type: "close" });
+    expect(store.get()).toMatchObject({ dragging: false, phase: "flying-out" });
+  });
+
   test("closing at overview changes nothing", () => {
     const store = createSelectionStore();
     const before = store.get();
