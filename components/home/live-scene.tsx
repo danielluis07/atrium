@@ -1,7 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  Component,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { preload } from "react-dom";
 
 import { ProjectPanel } from "@/components/home/project-panel";
@@ -31,6 +40,12 @@ const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
  * and the tab is visible, and steps down the ladder when frames run long.
  * Selecting a House opens its Project Panel beside it; the selection lives
  * here, so every visit starts at overview.
+ *
+ * To the keyboard and assistive tech the Scene is a listbox of the four
+ * Projects: Tab reaches it, ↑/↓ (and Home/End) move between the Houses,
+ * lighting and naming the one the keyboard is on, and Enter or Space
+ * selects it. ←/→ stay free to orbit a selected House. A status beside the
+ * Scene announces the open Project.
  */
 export function LiveScene({ layout, projects }: { layout: SceneLayout; projects: SceneProject[] }) {
   const decision = useSyncExternalStore(onDecision, getDecision, () => undefined);
@@ -40,6 +55,18 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const [stepped, setStepped] = useState<number>();
   const [store] = useState(createSelectionStore);
   const cursor = useSelection(store, sceneCursor);
+  const selected = useSelection(store, (s) => s.selected);
+  // the House the keyboard is on; a House the pointer selects becomes it too
+  const [active, setActive] = useState(0);
+  const [seen, setSeen] = useState(selected);
+  if (selected !== seen) {
+    setSeen(selected);
+    const i = projects.findIndex((p) => p.slug === selected);
+    if (i >= 0) setActive(i);
+  }
+  const id = useId();
+  const optionId = (slug: string) => `${id}-${slug}`;
+  const open = projects.find((p) => p.slug === selected);
   const ref = useRef<HTMLDivElement>(null);
   const choice = decision?.choice;
   // the mobile Scene isn't built yet, so touch keeps the still
@@ -67,40 +94,100 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
     if (!decision?.forced) rememberRung("desktop", next);
   };
 
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const last = projects.length - 1;
+    const moves: Record<string, number> = {
+      ArrowDown: active === last ? 0 : active + 1,
+      ArrowUp: active === 0 ? last : active - 1,
+      Home: 0,
+      End: last,
+    };
+    const move = moves[e.key];
+    if (move !== undefined) {
+      e.preventDefault();
+      setActive(move);
+      store.dispatch({ type: "focus", slug: projects[move].slug });
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      store.dispatch({ type: "focus", slug: projects[active].slug });
+      store.dispatch({ type: "select", slug: projects[active].slug });
+    }
+  };
+
   return (
-    // focusable so the Project Panel can hand focus back to the Scene
-    <div
-      ref={ref}
-      tabIndex={live ? -1 : undefined}
-      aria-label={live ? "Scene" : undefined}
-      aria-hidden={live ? undefined : "true"}
-      role={live ? "group" : undefined}
-      data-slot="live-scene"
-      data-scene-path={choice?.path}
-      data-scene-rung={rung}
-      data-scene-ready={live ? ready : undefined}
-      data-rendering={live ? rendering : undefined}
-      className={cn(
-        "absolute inset-0 outline-none transition-opacity focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-background duration-400 ease-in-out",
-        ready ? "opacity-100" : "opacity-0",
-        cursor,
-      )}>
-      {live && rung && (
-        <StillOnError>
-          <Scene
-            layout={layout}
-            projects={projects}
-            store={store}
-            ladder="desktop"
-            rung={rung}
-            onStepDown={stepDown}
-            active={rendering}
-            onReady={() => setReady(true)}
-          />
+    <>
+      {/* tabbable once its first frame is in; the Project Panel hands focus back to it */}
+      <div
+        ref={ref}
+        tabIndex={live ? (ready ? 0 : -1) : undefined}
+        role={live ? "listbox" : undefined}
+        aria-label={live ? "Projects in the Scene" : undefined}
+        aria-describedby={live ? `${id}-keys` : undefined}
+        aria-activedescendant={live ? optionId(projects[active].slug) : undefined}
+        aria-hidden={live ? undefined : "true"}
+        onKeyDown={live ? onKeyDown : undefined}
+        onFocus={(e) => {
+          // a click on the Scene is the pointer's; Tab, or focus handed back by the Panel, lights a House
+          if (e.target === e.currentTarget && e.currentTarget.matches(":focus-visible")) {
+            store.dispatch({ type: "focus", slug: projects[active].slug });
+          }
+        }}
+        onBlur={(e) => {
+          if (e.target === e.currentTarget) store.dispatch({ type: "focus" });
+        }}
+        data-slot="live-scene"
+        data-scene-path={choice?.path}
+        data-scene-rung={rung}
+        data-scene-ready={live ? ready : undefined}
+        data-rendering={live ? rendering : undefined}
+        className={cn(
+          "absolute inset-0 outline-none transition-opacity focus-visible:outline-1 focus-visible:-outline-offset-4 focus-visible:outline-background duration-400 ease-in-out",
+          ready ? "opacity-100" : "opacity-0",
+          cursor,
+        )}>
+        {live &&
+          projects.map((p) => (
+            // what assistive tech lists and selects; the Houses themselves are drawn in the Canvas
+            <div
+              key={p.slug}
+              id={optionId(p.slug)}
+              role="option"
+              aria-selected={p.slug === selected}
+              onClick={() => store.dispatch({ type: "select", slug: p.slug })}
+              className="sr-only">
+              {p.name}
+            </div>
+          ))}
+        {live && rung && (
+          <StillOnError>
+            <Scene
+              layout={layout}
+              projects={projects}
+              store={store}
+              ladder="desktop"
+              rung={rung}
+              onStepDown={stepDown}
+              active={rendering}
+              onReady={() => setReady(true)}
+            />
+          </StillOnError>
+        )}
+      </div>
+      {live && (
+        <>
+          {/* beside the listbox, not in it: the non-modal Panel is owned (`aria-owns`) and tabbed to where it renders */}
           <ProjectPanel store={store} projects={projects} scene={ref} />
-        </StillOnError>
+          <p id={`${id}-keys`} hidden>
+            Up and down arrows move between the Houses, and Enter opens one. At an open House, left and right
+            arrows turn around it.
+          </p>
+          <p role="status" className="sr-only">
+            {open && `${open.name} is open.`}
+          </p>
+        </>
       )}
-    </div>
+    </>
   );
 }
 

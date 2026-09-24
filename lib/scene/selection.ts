@@ -1,6 +1,6 @@
 /**
- * The Scene's selection: which House is selected and which is hovered, and
- * where the camera is between overview and the selected House. It is the
+ * The Scene's selection: which House is selected, which is hovered and which
+ * has the keyboard's focus, and where the camera is between overview and the selected House. It is the
  * one seam between the DOM UI (the Project Panel, later the Section Cut)
  * and the Scene. Selection is not in the URL.
  */
@@ -19,6 +19,8 @@ export type Selection = {
   selected?: string;
   /** The House under the pointer. */
   hovered?: string;
+  /** The House the keyboard is on while the Scene has visible focus; it lights like a hovered one. */
+  focused?: string;
   phase: CameraPhase;
   /** Which flight the camera is on: every new flight gets a new number, so a superseded one can't arrive. */
   flight: number;
@@ -28,6 +30,8 @@ export type Selection = {
 
 export type SelectionEvent =
   | { type: "hover"; slug?: string }
+  /** The keyboard moves onto a House, or leaves the Scene. */
+  | { type: "focus"; slug?: string }
   | { type: "select"; slug: string }
   | { type: "close" }
   /** A drag starts or stops orbiting; one only starts at a House. */
@@ -42,6 +46,8 @@ export function reduceSelection(s: Selection, e: SelectionEvent): Selection {
   switch (e.type) {
     case "hover":
       return s.hovered === e.slug || s.dragging ? s : { ...s, hovered: e.slug };
+    case "focus":
+      return s.focused === e.slug ? s : { ...s, focused: e.slug };
     case "drag":
       if (!!s.dragging === e.dragging) return s;
       if (e.dragging && s.phase !== "at-house") return s;

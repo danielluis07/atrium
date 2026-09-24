@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils";
 export type LabelPoint = { x: number; y: number };
 
 /**
- * The hovered House's Project name, in mono over the Scene, with a hairline
- * leader down to its roof. The Houses place it every frame through `ref`;
+ * The hovered House's Project name (or, with no House under the pointer,
+ * the keyboard's), in mono over the Scene, with a hairline leader down to
+ * its roof. The Houses place it every frame through `ref`;
  * it never takes the pointer.
  */
 export function HoverLabel({
@@ -25,8 +26,8 @@ export function HoverLabel({
   projects: SceneProject[];
   ref: Ref<HTMLDivElement>;
 }) {
-  const hovered = useSelection(store, (s) => s.hovered);
-  const name = projects.find((p) => p.slug === hovered)?.name;
+  const named = useSelection(store, (s) => s.hovered ?? s.focused);
+  const name = projects.find((p) => p.slug === named)?.name;
   return (
     <div ref={ref} aria-hidden="true" data-slot="scene-label" className="pointer-events-none absolute top-0 left-0">
       <div

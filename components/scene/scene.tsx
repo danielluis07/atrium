@@ -70,7 +70,9 @@ export default function Scene({ layout, projects, store, ladder, rung, onStepDow
   };
   return (
     <>
+      {/* hidden from assistive tech: the Scene around it lists the Projects */}
       <Canvas
+        aria-hidden="true"
         dpr={config.dpr}
         frameloop={active ? "always" : "never"}
         gl={{ antialias: false, stencil: false, powerPreference: "high-performance" }}
