@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { projectOrder } from "@/content/projects";
 import { lyngen } from "@/content/projects/lyngen";
 import { sceneLayout } from "@/content/scene";
 import type { Project } from "@/content/schema";
@@ -26,6 +27,9 @@ function reversed<T>(value: T): T {
   }
   return value;
 }
+
+/** The Scene layout with only Lyngen placed, for exporting Lyngen on its own. */
+const lyngenOnly = { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } };
 
 const withBadOpening = (): Project => {
   const project = structuredClone(lyngen) as Project;
@@ -63,15 +67,18 @@ describe("exportHouse", () => {
 describe("the export command", () => {
   test("writes one JSON file per House and exits 0", () => {
     const outDir = tempDir();
-    const code = runExport({ records: [lyngen], layout: sceneLayout, outDir }, () => {});
+    const code = runExport({ records: projectOrder, layout: sceneLayout, outDir }, () => {});
     expect(code).toBe(0);
-    expect(readFileSync(join(outDir, "lyngen.json"), "utf8")).toBe(exportHouse(lyngen, sceneLayout));
+    expect(readdirSync(outDir).sort()).toEqual(["kvaloya.json", "lyngen.json", "reine.json", "senja.json"]);
+    for (const project of projectOrder) {
+      expect(readFileSync(join(outDir, `${project.slug}.json`), "utf8")).toBe(exportHouse(project, sceneLayout));
+    }
   });
 
   test("exits non-zero, writes nothing and names the part when a House is invalid", () => {
     const outDir = join(tempDir(), "out");
     const lines: string[] = [];
-    const code = runExport({ records: [withBadOpening()], layout: sceneLayout, outDir }, (l) => lines.push(l));
+    const code = runExport({ records: [withBadOpening()], layout: lyngenOnly, outDir }, (l) => lines.push(l));
     expect(code).toBe(1);
     expect(existsSync(outDir)).toBe(false);
     expect(lines.join("\n")).toMatch(/Lyngen House:\n {2}opening garage: runs/);
@@ -79,7 +86,7 @@ describe("the export command", () => {
 
   test("exits non-zero for an unknown slug", () => {
     const code = runExport(
-      { records: [lyngen], layout: sceneLayout, outDir: tempDir(), slugs: ["tromso"] },
+      { records: [lyngen], layout: lyngenOnly, outDir: tempDir(), slugs: ["tromso"] },
       () => {},
     );
     expect(code).toBe(1);

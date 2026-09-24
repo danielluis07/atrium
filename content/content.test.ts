@@ -11,29 +11,48 @@ import {
 } from "@/content";
 import { lyngen } from "@/content/projects/lyngen";
 import { sceneLayout } from "@/content/scene";
+import { validateHouse } from "@/lib/house/validate";
 
 describe("the site's Content", () => {
   test("lists the Projects in order", () => {
-    expect(getProjects().map((p) => p.slug)).toEqual(["lyngen"]);
+    expect(getProjects().map((p) => p.slug)).toEqual(["lyngen", "senja", "kvaloya", "reine"]);
   });
 
-  test("the Lyngen record parses", () => {
-    const project = getProject("lyngen");
-    expect(project?.name).toBe("Lyngen House");
-    expect(project?.location).toBe("Lyngen, Troms");
-    expect(project?.images.interior.glazingFace).toBe("living-front");
+  test("every record parses", () => {
+    expect(getProjects().map((p) => [p.name, p.location])).toEqual([
+      ["Lyngen House", "Lyngen, Troms"],
+      ["Senja House", "Senja, Troms"],
+      ["Kvaløya House", "Kvaløya, Troms"],
+      ["Reine House", "Reine, Nordland"],
+    ]);
+  });
+
+  test("every House passes validateHouse", () => {
+    for (const p of getProjects()) {
+      expect([p.name, validateHouse(p.house, { floorArea: p.floorArea })]).toEqual([p.name, []]);
+    }
+  });
+
+  test("every interior image looks out through a Glazing Face of its House", () => {
+    for (const p of getProjects()) {
+      const face = p.house.openings.find((o) => o.name === p.images.interior.glazingFace);
+      expect([p.name, face?.fill]).toEqual([p.name, "glazing"]);
+    }
   });
 
   test("an unknown slug has no Project", () => {
     expect(getProject("tromso")).toBeUndefined();
   });
 
-  test("with one Project, the next Project wraps to itself", () => {
-    expect(getNextProject("lyngen").slug).toBe("lyngen");
+  test("the next Project follows the order and wraps from the last to the first", () => {
+    const next = getProjects().map((p) => getNextProject(p.slug).slug);
+    expect(next).toEqual(["senja", "kvaloya", "reine", "lyngen"]);
   });
 
-  test("places every Project in the Scene", () => {
-    expect(getSceneLayout().north).toBe(180);
+  test("places every House in the Scene, and nothing else, with north down the slope", () => {
+    const layout = getSceneLayout();
+    expect(layout.north).toBe(180);
+    expect(Object.keys(layout.houses)).toEqual(getProjects().map((p) => p.slug));
     expect(getPlacement("lyngen")).toEqual({ position: [0, 0], rotation: 10, ground: 0 });
   });
 
