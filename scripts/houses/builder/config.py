@@ -10,6 +10,7 @@ import math
 # res: shell lightmap size; plinth_res: snow plinth lightmap size; samples: Cycles spp
 MODES = {
     "draft": {"res": 512, "plinth_res": 256, "samples": 64},
+    "final": {"res": 1024, "plinth_res": 512, "samples": 256},
 }
 
 # ---------------------------------------------------------------- openings
@@ -71,7 +72,8 @@ PLINTH_GRID = 50  # subdivisions per side, for the edge fade into the live terra
 ISLAND_MARGIN = 0.004  # smart-project island margin, in UV units
 BAKE_MARGIN = 8  # pixels of edge extension around each island
 SMART_PROJECT_ANGLE = math.radians(66)
-
+# shell faces no overview or arc camera sees bake at this fraction of the seen texels per metre
+UNSEEN_TEXEL_RATIO = 0.25
 # ---------------------------------------------------------------- light (blue hour)
 
 # OKLCH (L, C, h), converted to linear sRGB by the builder

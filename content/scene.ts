@@ -9,6 +9,8 @@ import type { SceneLayout } from "@/content/schema";
  */
 export const sceneLayout: SceneLayout = {
   north: 180,
+  // out over the fjord, looking up the slope at the four Houses
+  overview: { position: [-6, -118, 30], lookAt: [0, 8, 4] },
   houses: {
     lyngen: { position: [0, 0], rotation: 10, ground: 0 },
     senja: { position: [-46, 12], rotation: 8, ground: 3.5 },

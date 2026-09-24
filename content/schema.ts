@@ -64,9 +64,17 @@ export const Placement = z.object({
   ground: z.number(),
 });
 
+const Point = z.tuple([z.number(), z.number(), z.number()]);
+
 export const SceneLayout = z.object({
   /** Direction of north in the layout frame, degrees counter-clockwise from +y. */
   north: z.number(),
+  /**
+   * The overview camera in the layout frame (x, y, z metres, z on the same
+   * datum as the ground heights). The builder bakes what it and each
+   * House's arc can see at full lightmap texel density.
+   */
+  overview: z.object({ position: Point, lookAt: Point }),
   houses: z.record(z.string(), Placement),
 });
 

@@ -37,13 +37,14 @@ type Vec3 = [number, number, number];
 export type HouseExtras = {
   schemaVersion: number;
   slug: string;
-  mode: string;
+  mode: "draft" | "final";
   bakeHash: string;
   /** The GLB origin is the datum: the finished floor of `level`. The snow plinth sits at `plinth`. */
   datum: { level: string; plinth: number };
   /** Everything but the plinth, in glTF axes (y up, front +z). */
   bbox: { min: Vec3; max: Vec3 };
-  glazingFaces: Record<string, { size: [number, number]; normal: Vec3; bearing: number }>;
+  /** `seen`: whether the overview or arc cameras see any of the Glazing Face. */
+  glazingFaces: Record<string, { size: [number, number]; normal: Vec3; bearing: number; seen: boolean }>;
   /** Lightmap files beside the GLB, per node and layer. */
   lightmaps: Record<string, { base: string; spill: string }>;
 };
@@ -109,9 +110,16 @@ export function expectedNodes(project: Project): { required: string[]; optional:
 
 /**
  * Every way a GLB fails to match its House record: nodes, materials and the
- * root extras. Returns no issues when it matches.
+ * root extras. Given the current bake hash (`bakeHash` of the House's
+ * export), a GLB baked from anything else is stale. Returns no issues when
+ * it matches.
  */
-export function checkGlbContract(gltf: Gltf, project: Project, layout: SceneLayout): string[] {
+export function checkGlbContract(
+  gltf: Gltf,
+  project: Project,
+  layout: SceneLayout,
+  { bakeHash }: { bakeHash?: string } = {},
+): string[] {
   const issues: string[] = [];
   const { house, slug } = project;
   const rootName = `house:${slug}`;
@@ -164,6 +172,13 @@ export function checkGlbContract(gltf: Gltf, project: Project, layout: SceneLayo
   if (extras.slug !== slug) issues.push(`extras.slug is ${show(extras.slug)}, expected ${slug}`);
   if (typeof extras.bakeHash !== "string" || !/^[0-9a-f]{64}$/.test(extras.bakeHash)) {
     issues.push(`extras.bakeHash ${show(extras.bakeHash)} is not a sha256 hex digest`);
+  } else if (bakeHash && extras.bakeHash !== bakeHash) {
+    issues.push(
+      `extras.bakeHash is ${extras.bakeHash.slice(0, 12)}…, expected ${bakeHash.slice(0, 12)}…: the bake is stale, run \`bun run houses:bake ${slug}\``,
+    );
+  }
+  if (extras.mode !== "draft" && extras.mode !== "final") {
+    issues.push(`extras.mode is ${show(extras.mode)}, expected draft or final`);
   }
 
   const levels = levelElevations(house);
@@ -206,6 +221,7 @@ export function checkGlbContract(gltf: Gltf, project: Project, layout: SceneLayo
     if (!nearAll(face.size, size)) issues.push(`extras.glazingFaces.${g.name}.size is ${show(face.size)}, expected ${show(size)}`);
     if (!nearAll(face.normal, normal)) issues.push(`extras.glazingFaces.${g.name}.normal is ${show(face.normal)}, expected ${show(normal)}`);
     if (!near(face.bearing, g.bearing)) issues.push(`extras.glazingFaces.${g.name}.bearing is ${show(face.bearing)}, expected ${g.bearing}`);
+    if (typeof face.seen !== "boolean") issues.push(`extras.glazingFaces.${g.name}.seen is ${show(face.seen)}, expected true or false`);
   }
 
   for (const node of ["shell", "plinth"]) {

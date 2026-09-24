@@ -54,11 +54,11 @@ Detail values are **builder-wide constants in one config file**, never per House
 
 ## Placement
 
-`content/scene.ts` holds each House's position, rotation and ground height, plus north, so the overview composition is edited in one place. The Project's camera block is relative to its House's frame, so moving a House carries its hero angle along. Elevation (`+40 m`) is Project copy, not House data.
+`content/scene.ts` holds each House's position, rotation and ground height, plus north and the overview camera, so the overview composition is edited in one place. The Project's camera block is relative to its House's frame, so moving a House carries its hero angle along. Elevation (`+40 m`) is Project copy, not House data.
 
 ## Validation
 
-zod checks shape. `validateHouse` (TS) checks that references exist, openings fit their faces and don't overlap, every slab touches a volume or stone mass, opening names are unique, and the gross floor area (from volumes and Levels) is within ±15% of the Project's authored m². The Bun export refuses invalid data and names the offending parts. The JSON carries `schemaVersion`. The per-House bake cache hashes the House JSON, its placement and camera block (both change the bake: sky direction, seen faces) and the builder version.
+zod checks shape. `validateHouse` (TS) checks that references exist, openings fit their faces and don't overlap, every slab touches a volume or stone mass, opening names are unique, and the gross floor area (from volumes and Levels) is within ±15% of the Project's authored m². The Bun export refuses invalid data and names the offending parts. The JSON carries `schemaVersion`. The per-House bake cache hashes the House JSON, its placement, camera block and the overview camera (all change the bake: sky direction, seen faces) and the builder version.
 
 ## GLB contract
 
@@ -69,7 +69,7 @@ One GLB per House:
 - `glazing:<name>`: one node per Glazing Face, so interior mapping gets each window's frame and hover or image capture can target one. Each is one outward quad with a 0..1 UV (u from the left edge seen from outside, v up).
 - `balustrade`, `downlights`, `plinth`. A terrace's glazed back wall isn't a Glazing Face, so its glass rides in `balustrade` with material `glazing`.
 - Materials named from a fixed enum: `concrete, stone, timber, metal, snow, glazing, balustrade, downlight, plinth`. R3F swaps materials by name.
-- Root `extras`: `schemaVersion`, datum, bbox, the bake hash, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them. In detail (`HouseExtras` in `lib/house/glb-contract.ts`): `datum` is the entrance Level's name and the plinth's elevation; `bbox` is min/max in glTF axes, without the plinth; each Glazing Face's `size` is width × height in metres and its `normal` is in glTF axes; `lightmaps` names the KTX2 files beside the GLB, per node (`shell`, `plinth`) and layer (`base`, `spill`); `mode` is `draft` or `final`.
+- Root `extras`: `schemaVersion`, datum, bbox, the bake hash, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them. In detail (`HouseExtras` in `lib/house/glb-contract.ts`): `datum` is the entrance Level's name and the plinth's elevation; `bbox` is min/max in glTF axes, without the plinth; each Glazing Face's `size` is width × height in metres, its `normal` is in glTF axes and `seen` is whether the overview or arc cameras see any of it; `lightmaps` names the KTX2 files beside the GLB, per node (`shell`, `plinth`) and layer (`base`, `spill`); `mode` is `draft` or `final`.
 - Picking raycasts `shell` and `glazing:*`; `plinth` is never picked.
 
 `bun test` checks every committed GLB against its House record (`lib/house/glb-contract.test.ts`).

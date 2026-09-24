@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Project, SceneLayout } from "@/content/schema";
 import { validateProject } from "@/content/schema";
+import { viewpoints } from "@/lib/house/cameras";
 import { glazingFaces, grossFloorArea, levelElevations } from "@/lib/house/derive";
 import { SCHEMA_VERSION } from "@/lib/house/schema";
 import { formatIssues, type HouseIssue } from "@/lib/house/validate";
@@ -17,7 +18,9 @@ export class HouseExportError extends Error {
 
 /**
  * The builder JSON for one Project: the House, its placement and camera
- * block, and the derived facts the builder writes into the GLB extras.
+ * block, and the derived facts the builder uses: the Glazing Faces it writes
+ * into the GLB extras, and the viewpoints (the overview and arc cameras in
+ * the House frame) it marks faces seen from.
  * Serialized with sorted keys so the same input always gives the same bytes.
  * Refuses a Project that fails validation, naming the offending parts.
  */
@@ -39,14 +42,15 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
       levels: levelElevations(house),
       grossFloorArea: Math.round(grossFloorArea(house) * 100) / 100,
       glazingFaces: glazingFaces(house, orientation),
+      viewpoints: viewpoints(project.camera, placement, layout),
     },
   });
 }
 
 /**
  * The bake hash written to a House's GLB extras: the builder JSON (House,
- * placement and camera block) plus the builder version, so a change to any
- * of them calls for a new bake.
+ * placement, camera block and overview camera) plus the builder version, so
+ * a change to any of them calls for a new bake.
  */
 export function bakeHash(exportJson: string, builderVersion: string): string {
   return createHash("sha256").update(exportJson).update(`\nbuilder ${builderVersion}\n`).digest("hex");
