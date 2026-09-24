@@ -76,7 +76,7 @@ All from Google Fonts via `next/font` in `fonts/index.ts`. Inter is dropped.
 | --- | --- | --- | --- |
 | Display | **Newsreader** (optical sizes) | `--font-heading` | Page titles, Project names, section heads. Light (300) at large sizes, regular (400) at smaller sizes. Used sparingly: one display moment per viewport. |
 | Body / UI | **Geist** | `--font-sans` | Paragraphs, navigation, buttons, forms. |
-| Data | **Geist Mono** | `--font-mono` | Project data: coordinates, floor area (m²), year, elevation, location. Also Scene labels. |
+| Data | **Geist Mono** | `--font-mono` | Project data: location, elevation, year, floor area (m²). Also Scene labels. |
 
 Rules:
 
@@ -100,8 +100,8 @@ shadcn `base-nova` (Base UI primitives) is the base for all UI. Add components w
 A paper sheet (`--card`) that slides in over the Scene, set out like the **title block of a drawing set**:
 
 - The Project name in Newsreader.
-- A grid of mono data cells separated by hairlines: location, coordinates, year, floor area, elevation.
-- One paragraph of description in Geist.
+- A grid of mono data cells separated by hairlines: location, elevation, year, floor area.
+- The Project's lede (one sentence) in Geist.
 - A "View project →" link to `/projects/[slug]`.
 - On desktop it opens from the right side. On mobile it is a bottom sheet. Base it on shadcn `Sheet`.
 
@@ -112,25 +112,25 @@ Routes: `/`, `/projects/[slug]` and a styled 404. Nothing else: no `/projects` p
 ### Header and footer
 
 - **Header:** fixed and quiet: the wordmark on the left, anchor links (Projects, Studio, Approach, Contact) in mono 12px uppercase, and the current Depth on the right (`±0.00` over the Scene, then `▽ −2.00` etc.), which replaces an active-link underline. Over the Scene it is paper-colored. It cuts to ink with no fade when the section line crosses its baseline. On Project pages the links go to `/#…`. On mobile the links collapse into a shadcn `Sheet`.
-- **Footer:** shared by every page, a hairline-topped strip like the edge of a drawing sheet: the wordmark, the studio's location and coordinates in mono, the contact email, and the line "Atrium is a fictional studio."
+- **Footer:** shared by every page, a hairline-topped strip like the edge of a drawing sheet: the wordmark, the studio's location (`Tromsø, Norway`) in mono, the contact email, and the line "Atrium is a fictional studio."
 
 ### Home (`/`)
 
 The Scene is at grade (`±0.00`). Below the **Section Cut**, each section is a **Depth**, labelled in the margin rail as `▽ −1.00 · PROJECTS`. The labels are the only depth effect: no parallax earth layers, and no darkening as you go deeper.
 
 1. **Scene** (`±0.00`), then the **Section Cut**.
-2. **Project Index** (`−1.00`): a schedule, one hairline-separated row per Project: the name in Newsreader, then location, coordinates, year and m² in mono columns. A small render thumbnail appears on row hover. On mobile the rows stack: the name, then one mono line of data.
-3. **Studio** (`−2.00`): one Newsreader statement (the display moment), 2–3 short paragraphs in columns 3–8, and a mono data block in 9–12 (Founded, Based: Tromsø with coordinates, Projects: 4). No image.
-4. **Approach** (`−3.00`): three rows, Site, Light and Material. Each has its rail label (`01 SITE`), a short Newsreader head, a paragraph, and a detail crop from a House render on the right (the snow plinth, a glowing window, board-formed concrete).
-5. **Contact** (`−4.00`): one Newsreader line, the email as the primary `mailto:` link, and address and coordinates in a data block. No form and no map. The footer follows.
+2. **Project Index** (`−1.00`): a schedule, one hairline-separated row per Project: the name in Newsreader, then location, elevation, year and m² in mono columns. A small thumbnail (a crop of the Project's hero image) appears on row hover. On mobile the rows stack: the name, then one mono line of data.
+3. **Studio** (`−2.00`): one Newsreader statement (the display moment), 2–3 short paragraphs in columns 3–8, and a mono data block in 9–12 (Founded, Based: Tromsø, Norway, Projects: 4). No image.
+4. **Approach** (`−3.00`): three rows, Site, Light and Material. Each has its rail label (`01 SITE`), a short Newsreader head, a paragraph, and a detail crop from a Project image on the right (the snow plinth, a glowing window, board-formed concrete).
+5. **Contact** (`−4.00`): one Newsreader line, the email as the primary `mailto:` link, and `Tromsø, Norway` in a data block. No form and no map. The footer follows.
 
 ### Project page (`/projects/[slug]`)
 
 Paper from the top, like unfolding the Project Panel into the full sheet:
 
-1. **Title block:** the Project name in Newsreader and the full data grid (a larger Project Panel).
-2. The first render.
-3. The write-up in three parts, **Site, Light, Material** (mirroring Approach), alternating with renders.
+1. **Title block:** the Project name in Newsreader, the lede and the full data grid (a larger Project Panel).
+2. The hero image.
+3. The write-up in three parts, **Site, Light, Material** (mirroring Approach), alternating with images: Site with the wide image, Light with the exterior glow and then the interior view out, Material with the close-up.
 4. **Drawings:** a plan and a section of the House, drawn as SVG from its House data.
 5. A next-Project row ("Next project: Senja House →", wrapping around), then the footer.
 
@@ -154,6 +154,27 @@ Slow and heavy, like moving a heavy object.
 
 ## Voice and naming
 
-- Projects are named **"<Place> House"** after real Arctic places, e.g. Lyngen House, Senja House, Kvaløya House, Lofoten House. Coordinates and elevation come from the real place.
+- The four Projects are **Lyngen House, Senja House, Kvaløya House and Reine House**, named after real places in Troms and Nordland. Location is written as place and county (`Lyngen, Troms`). Elevation is a plausible rounded value for that place (`+40 m`), not a surveyed point. There are no coordinates anywhere on the site, for Projects or the studio.
 - Copy is short, declarative and understated. Say what the building does with site, light and material. No marketing adjectives ("stunning", "luxurious", "breathtaking").
 - English throughout.
+- Fictional facts only need to agree with each other: the studio was founded in 2014, Projects were completed between 2017 and 2025, and floor areas run 140–320 m².
+- The contact email is `studio@atrium.example`: a reserved domain, so no `mailto:` reaches a real inbox. No street address and no credit line.
+
+## Content
+
+All copy and Project data is local TypeScript, with no MDX and no CMS.
+
+- **One module per Project**, `content/projects/<slug>.ts`: name, slug, location, elevation, year, floor area, a one-sentence **lede**, the write-up in three parts (Site, Light, Material), the image set, the camera block and the House data. `content/projects/index.ts` sets the order used by the Project Index and the next-Project wrap.
+- **`content/site.ts`** holds everything else: the Studio statement, paragraphs and data block, the three Approach rows, the Contact line, the 404 line and the footer line.
+- **Drafting:** an agent drafts all copy to the voice rules above. The human runs the `humanizer` skill over it and reviews it before it ships. There are no automated copy tests.
+- **Order:** a Project's House record comes first, then its write-up is drafted from it (the copy must match the massing), then its images are made from the baked House. Studio, Approach, Contact, 404 and footer copy have no dependency.
+- **Metadata:** titles are `Lyngen House — Atrium`, and descriptions come from the lede. A Project's OG image is its hero image. The home page's description comes from the Studio statement, and its OG image is the pre-rendered Scene still.
+
+### Images
+
+Project images are AI-generated by the human's image agent, one variant at a time (a rejected image is simply regenerated). They are committed as optimised AVIF/WebP under `public/projects/<slug>/` and served with `next/image`. Every image is at blue hour, in snow.
+
+- **Exteriors** are image-to-image from the baked House, captured at a set camera in the live Scene, so the massing matches the Scene and the plan and section drawings. An image whose massing drifts is rejected.
+- **Five per Project:** *hero* (the hero angle; its crop is the Project Index thumbnail), *site* (wide, the House in its landscape), *light* (glowing glazing and soffit), *interior* (a view out) and *material* (a close-up of stone, board-formed concrete or fascia).
+- **The interior** is framed by one real glazing face of the House, with the same proportions and mullions, and it looks out in that face's direction. The room is sparse, and its only warm light comes from lamps and downlights. The image brief names the glazing face.
+- The three Approach detail crops are cut from these images, so they need no separate generation.
