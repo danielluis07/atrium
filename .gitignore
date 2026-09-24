@@ -46,5 +46,9 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 
-# house builder JSON (from bun run houses:export)
+# house builder JSON and raw bake outputs (from bun run houses:export / houses:bake)
 /scripts/houses/out/
+
+# house builder Python environment (uv sync --project scripts/houses/builder)
+/scripts/houses/builder/.venv/
+__pycache__/

@@ -10,7 +10,8 @@
     "test": "bun test",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "houses:export": "bun scripts/export-houses.ts"
+    "houses:export": "bun scripts/export-houses.ts",
+    "houses:bake": "bun scripts/bake-houses.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -25,6 +26,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.0",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/bun": "^1.4.2",

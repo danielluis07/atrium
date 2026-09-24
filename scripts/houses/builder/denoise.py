@@ -1,6 +1,7 @@
-"""PROTOTYPE (issue #6): OIDN-denoise a baked lightmap through Blender's compositor (bpy 5.2).
+"""OIDN-denoise a baked lightmap through Blender's compositor (bpy 5.2). build.py runs it in a fresh
+process, since it rebuilds the scene.
 
-    .venv/Scripts/python.exe denoise.py in.hdr out.hdr
+    uv run python denoise.py in.exr out.exr
 """
 
 import os
@@ -38,7 +39,9 @@ def denoise(src, dst):
     tree.links.new(n_img.outputs["Image"], n_dn.inputs["Image"])
     tree.links.new(n_dn.outputs["Image"], out.inputs[0])
 
-    scene.render.image_settings.file_format = "HDR"
+    scene.render.image_settings.file_format = "OPEN_EXR"
+    scene.render.image_settings.color_mode = "RGB"
+    scene.render.image_settings.color_depth = "16"
     scene.render.filepath = os.path.abspath(dst)
     bpy.ops.render.render(write_still=True)
     print(f"denoised {src} -> {dst} in {time.time() - t:.1f} s", flush=True)

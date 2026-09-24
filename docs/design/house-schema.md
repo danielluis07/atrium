@@ -66,11 +66,13 @@ One GLB per House:
 
 - Root node `house:<slug>`, origin at the datum.
 - `shell`: every opaque baked surface (concrete, stone, timber, metal, snow), with the base + spill lightmap UV.
-- `glazing:<name>`: one node per Glazing Face, so interior mapping gets each window's frame and hover or image capture can target one.
-- `balustrade`, `downlights`, `plinth`.
+- `glazing:<name>`: one node per Glazing Face, so interior mapping gets each window's frame and hover or image capture can target one. Each is one outward quad with a 0..1 UV (u from the left edge seen from outside, v up).
+- `balustrade`, `downlights`, `plinth`. A terrace's glazed back wall isn't a Glazing Face, so its glass rides in `balustrade` with material `glazing`.
 - Materials named from a fixed enum: `concrete, stone, timber, metal, snow, glazing, balustrade, downlight, plinth`. R3F swaps materials by name.
-- Root `extras`: `schemaVersion`, datum, bbox, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them.
+- Root `extras`: `schemaVersion`, datum, bbox, the bake hash, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them. In detail (`HouseExtras` in `lib/house/glb-contract.ts`): `datum` is the entrance Level's name and the plinth's elevation; `bbox` is min/max in glTF axes, without the plinth; each Glazing Face's `size` is width × height in metres and its `normal` is in glTF axes; `lightmaps` names the KTX2 files beside the GLB, per node (`shell`, `plinth`) and layer (`base`, `spill`); `mode` is `draft` or `final`.
 - Picking raycasts `shell` and `glazing:*`; `plinth` is never picked.
+
+`bun test` checks every committed GLB against its House record (`lib/house/glb-contract.test.ts`).
 
 ## Drawings
 

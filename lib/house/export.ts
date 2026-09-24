@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { Project, SceneLayout } from "@/content/schema";
 import { validateProject } from "@/content/schema";
 import { glazingFaces, grossFloorArea, levelElevations } from "@/lib/house/derive";
@@ -39,6 +41,15 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
       glazingFaces: glazingFaces(house, orientation),
     },
   });
+}
+
+/**
+ * The bake hash written to a House's GLB extras: the builder JSON (House,
+ * placement and camera block) plus the builder version, so a change to any
+ * of them calls for a new bake.
+ */
+export function bakeHash(exportJson: string, builderVersion: string): string {
+  return createHash("sha256").update(exportJson).update(`\nbuilder ${builderVersion}\n`).digest("hex");
 }
 
 /** JSON with object keys sorted at every depth, two-space indented, ending in a newline. */
