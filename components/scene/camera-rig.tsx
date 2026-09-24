@@ -5,7 +5,8 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { PerspectiveCamera } from "three";
 
 import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
-import { flyTo, houseShot, orbitRig, overviewFov, rigPose, startRig, stepRig } from "@/lib/scene/camera";
+import { cutPose, cutRig, flyTo, houseShot, orbitRig, overviewFov, startRig, stepRig } from "@/lib/scene/camera";
+import type { Cut } from "@/lib/scene/cut";
 import { toThree } from "@/lib/scene/frame";
 import { moveGesture, pressGesture, releaseGesture, type Gesture } from "@/lib/scene/gesture";
 import { dragAngle, stepAngle } from "@/lib/scene/orbit";
@@ -21,7 +22,8 @@ export type HouseCamera = { camera: CameraBlock; placement: Placement };
  * selected House's hero angle, or back out to overview, and reports the
  * landing; while it flies, the Houses under a still pointer are picked
  * again. The lens widens on narrow viewports. The wheel is left alone, so
- * it always scrolls the page.
+ * it always scrolls the page, and the scroll drops the camera toward the
+ * snow as the Section Cut's line rises (`lib/scene/cut.ts`).
  *
  * It also reads every press on the Scene (`lib/scene/gesture.ts`): a click
  * selects the House pressed (the Houses mark it in `gesture`) or closes, and
@@ -33,6 +35,7 @@ export function CameraRig({
   houses,
   store,
   gesture,
+  cut,
 }: {
   overview: SceneLayout["overview"];
   /** Each House's camera block and placement, by Project slug. */
@@ -40,6 +43,8 @@ export function CameraRig({
   store: SelectionStore;
   /** The press under way, shared with the Houses. */
   gesture: RefObject<Gesture | undefined>;
+  /** Where the section line is on the stage, read every frame. */
+  cut: RefObject<Cut>;
 }) {
   const get = useThree((s) => s.get);
   const canvas = useThree((s) => s.gl.domElement);
@@ -126,20 +131,21 @@ export function CameraRig({
         const house = next.selected ? houses[next.selected] : undefined;
         // a new shot each time, so selecting the House again starts from its hero angle
         const shot = house ? houseShot(house.camera, house.placement) : "overview";
-        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        rig.current = flyTo(overview, rig.current, shot, { reducedMotion });
+        rig.current = flyTo(overview, rig.current, shot, { reducedMotion: reducedMotion() });
       }),
     [store, overview, houses],
   );
 
   useFrame(({ camera }, dt) => {
     const flying = !!rig.current.flight;
+    const { progress } = cut.current;
+    rig.current = cutRig(overview, rig.current, progress, { reducedMotion: !!rig.current.held && reducedMotion() });
     rig.current = stepRig(rig.current, { dt, pointer: pointer.current });
-    const pose = rigPose(overview, rig.current);
+    const pose = cutPose(overview, rig.current, cut.current, aspect);
     camera.position.set(...toThree(pose.position));
     camera.lookAt(...toThree(pose.lookAt));
     // the Houses move under the pointer, which picks only when it moves itself
-    if (flying && pointer.current) {
+    if ((flying || progress > 0) && pointer.current) {
       camera.updateMatrixWorld();
       events.update?.();
     }
@@ -152,3 +158,6 @@ export function CameraRig({
 
   return null;
 }
+
+let motion: MediaQueryList | undefined;
+const reducedMotion = () => (motion ??= window.matchMedia("(prefers-reduced-motion: reduce)")).matches;

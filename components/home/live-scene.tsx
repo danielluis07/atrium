@@ -17,6 +17,7 @@ import { ProjectPanel } from "@/components/home/project-panel";
 import { useSelection } from "@/components/scene/use-selection";
 import type { SceneLayout, SceneProject } from "@/content/schema";
 import { sceneDownloads } from "@/lib/scene/assets";
+import { isCovered, measureCut, REST, type Cut } from "@/lib/scene/cut";
 import { classifyGpu } from "@/lib/scene/gpu";
 import { readLowestRung, rememberRung } from "@/lib/scene/memory";
 import {
@@ -36,10 +37,12 @@ const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
  * the GPU's tier decides it, the Scene's downloads start while detect-gpu
  * classifies, and the Canvas mounts only once the path and start rung are
  * known, so the pipeline compiles once. The Canvas fades in over the still
- * once its first frame is drawn, renders only while the stage is on screen
- * and the tab is visible, and steps down the ladder when frames run long.
- * Selecting a House opens its Project Panel beside it; the selection lives
- * here, so every visit starts at overview.
+ * once its first frame is drawn, renders only until the paper covers the
+ * stage and while the tab is visible, and steps down the ladder when frames
+ * run long. As the Section Cut's line rises the camera drops toward the
+ * snow. Selecting a House opens its Project Panel beside it, and scrolling
+ * closes it again; the selection lives here, so every visit starts at
+ * overview.
  *
  * To the keyboard and assistive tech the Scene is a listbox of the four
  * Projects: Tab reaches it, ↑/↓ (and Home/End) move between the Houses,
@@ -50,7 +53,9 @@ const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
 export function LiveScene({ layout, projects }: { layout: SceneLayout; projects: SceneProject[] }) {
   const decision = useSyncExternalStore(onDecision, getDecision, () => undefined);
   const tabVisible = useSyncExternalStore(onVisibilityChange, isTabVisible, () => true);
-  const [onScreen, setOnScreen] = useState(true);
+  // where the Section Cut's line is: read by the camera every frame, and whether the paper covers the stage
+  const cut = useRef<Cut>(REST);
+  const [covered, setCovered] = useState(false);
   const [ready, setReady] = useState(false);
   const [stepped, setStepped] = useState<number>();
   const [store] = useState(createSelectionStore);
@@ -81,13 +86,34 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
 
   useEffect(() => {
     const stage = ref.current;
-    if (!live || !stage) return;
-    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, [live]);
+    const line = stage?.closest('[data-slot="section-cut"]')?.querySelector('[data-slot="section-line"]');
+    if (!live || !stage || !line) return;
+    const header = document.querySelector("header");
+    const measure = () => {
+      const { top, height } = stage.getBoundingClientRect();
+      const next = measureCut({
+        stage: { top, height },
+        line: line.getBoundingClientRect().top,
+        baseline: header?.getBoundingClientRect().bottom ?? 0,
+      });
+      // scrolling with a House selected closes it, and the drop absorbs its fly-back
+      if (next.progress > 0 && next.progress !== cut.current.progress && store.get().selected) {
+        store.dispatch({ type: "close" });
+      }
+      cut.current = next;
+      setCovered(isCovered(next));
+    };
+    // and again once the Canvas is in, which lengthens the cut (`app/globals.css`)
+    measure();
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [live, store, ready]);
 
-  const rendering = !!live && onScreen && tabVisible;
+  const rendering = !!live && !covered && tabVisible;
 
   const stepDown = (next: number) => {
     setStepped(next);
@@ -169,6 +195,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
               rung={rung}
               onStepDown={stepDown}
               active={rendering}
+              cut={cut}
               onReady={() => setReady(true)}
             />
           </StillOnError>

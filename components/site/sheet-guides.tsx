@@ -1,15 +1,18 @@
+import { cn } from "@/lib/utils";
+
 /**
  * Three faint full-height hairlines, like the frame of a drawing sheet: the
  * two page edges (halfway into the page margin) and the edge of the margin
  * rail (halfway into the gutter after column 2). On mobile the rail folds,
- * so only the page edges remain. Painted behind everything on the page.
+ * so only the page edges remain. Painted behind everything on the page, or,
+ * made `absolute`, behind everything on a paper surface that would hide them.
  */
-export function SheetGuides() {
+export function SheetGuides({ className }: { className?: string }) {
   return (
     <div
       aria-hidden="true"
       data-slot="sheet-guides"
-      className="pointer-events-none fixed inset-0 -z-10">
+      className={cn("pointer-events-none fixed inset-0 -z-10", className)}>
       <div className="page-frame h-full">
         <div className="page-grid relative h-full">
           <div className="absolute inset-y-0 left-[calc(var(--page-margin)/-2)] border-l" />

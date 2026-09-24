@@ -18,5 +18,5 @@ The hero was going to hand off to the paper site through a **Whiteout**: fog thi
 
 ## Consequences
 
-- The Whiteout paper-mix post effect, the sky dome's whiteout uniform, and fading bloom, AO and grain toward paper (from the scene-rendering research) are no longer needed. What the Section Cut needs from the Scene (the camera drop, and where the line meets the rendered snow) is still open.
+- The Whiteout paper-mix post effect, the sky dome's whiteout uniform, and fading bloom, AO and grain toward paper (from the scene-rendering research) are no longer needed. What the Section Cut needs from the Scene (the camera drop, and where the line meets the rendered snow) is settled in ADR 0003.
 - "Level" is kept for a floor of a House. Home sections are "Depths".

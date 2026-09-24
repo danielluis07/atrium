@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DepthReadout } from "@/components/site/depth-readout";
+import { HeaderFrame } from "@/components/site/header-frame";
 import { focusClass } from "@/components/site/label";
 import { MobileNav } from "@/components/site/mobile-nav";
 import { Wordmark } from "@/components/site/wordmark";
@@ -8,9 +9,14 @@ import { depths } from "@/content/site";
 import { depthHref } from "@/lib/depth";
 import { cn } from "@/lib/utils";
 
+/**
+ * Fixed and quiet: paper-coloured over the Scene, ink on paper below the
+ * Section Cut (`HeaderFrame`). Nothing in it fades between the two, so the
+ * change is a cut.
+ */
 export function SiteHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b bg-background">
+    <HeaderFrame className="fixed inset-x-0 top-0 z-40 border-b bg-background text-foreground">
       <div className="page-frame flex h-(--header-height) items-center justify-between">
         <Wordmark />
         <div className="flex items-center gap-4 md:gap-8">
@@ -21,7 +27,7 @@ export function SiteHeader() {
                   <Link
                     href={depthHref(d.id)}
                     className={cn(
-                      "font-mono text-xs tracking-[0.12em] uppercase text-foreground transition-colors duration-200 hover:text-muted-foreground",
+                      "font-mono text-xs tracking-[0.12em] uppercase text-foreground hover:text-muted-foreground",
                       focusClass,
                     )}>
                     {d.label}
@@ -36,6 +42,6 @@ export function SiteHeader() {
           </div>
         </div>
       </div>
-    </header>
+    </HeaderFrame>
   );
 }

@@ -1,4 +1,5 @@
 import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
+import { dropPose, type Cut } from "@/lib/scene/cut";
 import { clampAngle, heroAngle, orbitPose, type OrbitAngle } from "@/lib/scene/orbit";
 
 /** The overview's vertical field of view on a wide screen, degrees. */
@@ -116,8 +117,12 @@ export type Shot = "overview" | HouseShot;
 /** A flight under way, from the pose the camera left toward its shot. Seconds. */
 export type Flight = { from: CameraPose; elapsed: number; duration: number };
 
-/** The whole camera: the overview's drift and lean, the shot, and the flight to it if there is one. */
-export type Rig = { overview: OverviewRig; shot: Shot; flight?: Flight };
+/**
+ * The whole camera: the overview's drift and lean, the shot, and the flight
+ * to it if there is one. `held` is where a fly-back was when the Section
+ * Cut absorbed it: the drop sets off from there instead (`cutRig`).
+ */
+export type Rig = { overview: OverviewRig; shot: Shot; flight?: Flight; held?: CameraPose };
 
 /**
  * A flight's length (`DESIGN.md` § Motion): the shortest hop takes the
@@ -176,7 +181,7 @@ export function stepRig(rig: Rig, input: OverviewInput): Rig {
   const overview = stepOverview(rig.overview, rig.shot === "overview" ? input : { dt: input.dt });
   const flight = rig.flight && { ...rig.flight, elapsed: rig.flight.elapsed + dt };
   const shot = rig.shot === "overview" || rig.flight ? rig.shot : stepOrbit(rig.shot, dt);
-  return { overview, shot, flight: flight && flight.elapsed < flight.duration ? flight : undefined };
+  return { overview, shot, flight: flight && flight.elapsed < flight.duration ? flight : undefined, held: rig.held };
 }
 
 function stepOrbit(shot: HouseShot, dt: number): HouseShot {
@@ -201,14 +206,36 @@ function housePose({ camera, placement, angle, time }: HouseShot): CameraPose {
   return orbitPose(camera, placement, clampAngle(camera, swayed));
 }
 
-/** Where the camera is: on its shot, or eased along the way there. */
+/** Where the camera is: on its shot, eased along the way there, or held where the drop absorbed a fly-back. */
 export function rigPose(overview: Overview, rig: Rig): CameraPose {
+  if (rig.held) return rig.held;
   const to = shotPose(overview, rig.overview, rig.shot);
   if (!rig.flight) return to;
   const { from, elapsed, duration } = rig.flight;
   const s = easeInOut(elapsed / duration);
   return { position: mix(from.position, to.position, s), lookAt: mix(from.lookAt, to.lookAt, s) };
 }
+
+// ---------------------------------------------------------------- the Section Cut
+
+/**
+ * The rig as the Section Cut finds it at `progress` (`lib/scene/cut.ts`).
+ * Scrolling with a House selected closes it, and the drop absorbs the
+ * fly-back: rather than fly out to overview and then drop, the camera holds
+ * where the flight had it and drops from there, one move. Back at rest, it
+ * flies on to overview.
+ */
+export function cutRig(overview: Overview, rig: Rig, progress: number, { reducedMotion = false } = {}): Rig {
+  if (progress > 0 && rig.flight && rig.shot === "overview") {
+    return { overview: rig.overview, shot: "overview", held: rigPose(overview, rig) };
+  }
+  if (progress <= 0 && rig.held) return flyTo(overview, rig, "overview", { reducedMotion });
+  return rig;
+}
+
+/** Where the camera is with the Section Cut at `cut`, for a viewport of `aspect`: the rig's pose, dropped. */
+export const cutPose = (overview: Overview, rig: Rig, cut: Cut, aspect: number): CameraPose =>
+  dropPose(overview, rigPose(overview, rig), cut, { fov: overviewFov(aspect), aspect });
 
 const shotPose = (overview: Overview, rig: OverviewRig, shot: Shot): CameraPose =>
   shot === "overview" ? overviewPose(overview, rig) : housePose(shot);

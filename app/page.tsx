@@ -4,6 +4,7 @@ import { Approach } from "@/components/home/approach";
 import { Contact } from "@/components/home/contact";
 import { ProjectIndex } from "@/components/home/project-index";
 import { SceneStage } from "@/components/home/scene-stage";
+import { SectionCut } from "@/components/home/section-cut";
 import { Studio } from "@/components/home/studio";
 import { studio } from "@/content/site";
 
@@ -16,11 +17,12 @@ export default function Home() {
   return (
     <main className="flex-1">
       <h1 className="sr-only">{studio.name}</h1>
-      <SceneStage />
-      <ProjectIndex />
-      <Studio />
-      <Approach />
-      <Contact />
+      <SectionCut scene={<SceneStage />}>
+        <ProjectIndex />
+        <Studio />
+        <Approach />
+        <Contact />
+      </SectionCut>
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { lineAtBaseline } from "./cut";
 import { expectReachableByTab } from "./keyboard";
 import { HOME } from "./paths";
 
@@ -112,7 +113,11 @@ test.describe("the Lean Scene", () => {
     await expect(scene).toHaveCSS("opacity", "1");
     await expect(scene).toHaveAttribute("data-rendering", "true");
 
-    // below grade, the stage is off screen
+    // the paper rising over the stage: the Scene renders until it covers it, and below grade
+    await lineAtBaseline(page, 20);
+    await expect(scene).toHaveAttribute("data-rendering", "true");
+    await lineAtBaseline(page, 0);
+    await expect(scene).toHaveAttribute("data-rendering", "false");
     await page.locator("#contact").scrollIntoViewIfNeeded();
     await expect(scene).toHaveAttribute("data-rendering", "false");
     await page.evaluate(() => window.scrollTo(0, 0));

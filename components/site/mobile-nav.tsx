@@ -26,7 +26,7 @@ export function MobileNav() {
           <Button
             variant="ghost"
             size="sm"
-            className="-mr-2.5 font-mono text-xs tracking-[0.12em] uppercase"
+            className="-mr-2.5 font-mono text-xs tracking-[0.12em] uppercase transition-none"
           />
         }>
         Menu
