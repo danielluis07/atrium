@@ -1,0 +1,77 @@
+# House schema
+
+How a Project describes its **House** as data, and what the builder hands back to the Scene. Decided in "Design the House schema" (issue #10). Terms in **bold** are defined in `CONTEXT.md`.
+
+The House lives in the Project's record (`content/projects/<slug>.ts`) and is validated by zod plus a geometric check in TS. A Bun script exports it as JSON to the headless-Blender builder (`docs/adr/0001-houses-baked-offline-in-headless-blender.md`), which trusts its input.
+
+## Frame and units
+
+- Metres. House frame: **x** to the right when facing the front, **y** going back, **z** up. The front faces −y.
+- The origin is the **datum**: ±0.00 at the finished floor of the entrance Level, at the centre of the plan's bounding box.
+- The GLB is y-up (glTF), with the front along +z and its origin at the datum. R3F never sees the authoring axes.
+- Geometry is **orthogonal only**: axis-aligned boxes in the House frame. Only the whole House is rotated, by the Scene layout. A House that needs something new gets a new shared part, never per-House code.
+
+## Levels
+
+`levels` is declared once: each **Level** has a name (`L-1`, `L0`, `L1`…), a floor elevation relative to the datum and a floor-to-floor height. Parts reference Levels by name, so a floor height changes in one place. Levels also drive the drawings and the gross floor area.
+
+## Authored parts
+
+| Part | Placed by | Notes |
+| --- | --- | --- |
+| **volume** | plan rectangle, `from`/`to` Level | Board-formed concrete, the one wall finish. Optional top override for parapets and frames that rise past their Level. May cantilever over nothing. |
+| **stone mass** | plan rectangle, `from`/`to` Level (or top override) | Chimney, hearth or wall. One per House. |
+| **slab** | plan rectangle, Level | Roof, canopy or balcony: thickness, fascia depth, soffit yes/no. The overhang is what extends past the volumes below. |
+| **opening** | `volume` + `face` (`front`/`back`/`left`/`right`), `at` + `width`, `level` | `at` is the offset from the face's left edge, seen from outside. Sill and head default to full height (the Level floor to the underside of what is above) with optional overrides. `depth` sets the recess. May span Levels; the builder adds a transom at each Level line it crosses. Fill: `glazing`, `door` (timber), `terrace` (recess with glazed back wall, snow floor, glass balustrade, timber ceiling) or `void` (a covered cut-through). Optional `mullions` count. |
+| **balustrade** | slab + edge(s) | Glass with a metal rail, for balconies outside a terrace recess. |
+
+Every opening has a required `name`, unique within the House and stable (e.g. `living-front`). A glazing opening is a **Glazing Face**: the image briefs, the drawings and the GLB all key on its name.
+
+Also on the House: `section`, one authored cut (axis and offset) for the section drawing.
+
+Out of the vocabulary on purpose: steps, landscape walls, flues, timber wall cladding, interior walls and rooms.
+
+## Derived by the builder, never authored
+
+- Fascia geometry around slabs and frame tops.
+- Roof, terrace and stone-top snow.
+- Soffit downlights on a fixed pitch along each soffit's outer edge.
+- Soffits clipped to the overhang only; buried faces culled before unwrapping.
+- The snow plinth: flat, the footprint plus a margin, at the lowest exposed floor. Its edges fade into the sloped live terrain.
+- Each Glazing Face's compass **bearing**: House-frame normal → rotated by the Scene layout → one of 8 points. `content/scene.ts` declares north (the fjord lies north, so fronts face roughly north over the water).
+- Seen/unseen faces from the overview and arc cameras (see `DESIGN.md` § Scene). An opening that is entirely unseen is a builder warning, not an error.
+
+Detail values are **builder-wide constants in one config file**, never per House: mullion pitch (1.65 m), frame and fascia thickness, bevel widths, snow cushion depth, downlight pitch, plinth margin and the unseen texel ratio.
+
+## Placement
+
+`content/scene.ts` holds each House's position, rotation and ground height, plus north, so the overview composition is edited in one place. The Project's camera block is relative to its House's frame, so moving a House carries its hero angle along. Elevation (`+40 m`) is Project copy, not House data.
+
+## Validation
+
+zod checks shape. `validateHouse` (TS) checks that references exist, openings fit their faces and don't overlap, every slab touches a volume or stone mass, opening names are unique, and the gross floor area (from volumes and Levels) is within ±15% of the Project's authored m². The Bun export refuses invalid data and names the offending parts. The JSON carries `schemaVersion`. The per-House bake cache hashes the House JSON, its placement and camera block (both change the bake: sky direction, seen faces) and the builder version.
+
+## GLB contract
+
+One GLB per House:
+
+- Root node `house:<slug>`, origin at the datum.
+- `shell`: every opaque baked surface (concrete, stone, timber, metal, snow), with the base + spill lightmap UV.
+- `glazing:<name>`: one node per Glazing Face, so interior mapping gets each window's frame and hover or image capture can target one.
+- `balustrade`, `downlights`, `plinth`.
+- Materials named from a fixed enum: `concrete, stone, timber, metal, snow, glazing, balustrade, downlight, plinth`. R3F swaps materials by name.
+- Root `extras`: `schemaVersion`, datum, bbox, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them.
+- Picking raycasts `shell` and `glazing:*`; `plinth` is never picked.
+
+## Drawings
+
+The Project page's plan and section are **massing drawings**: volume outlines as poché, glazing as thin lines, the stone mass hatched, slab overhangs dashed, no rooms. The plan is cut at the entrance Level; the section follows the House's `section` field and marks ±0.00 and each Level.
+
+## The four Houses
+
+The same parts in four compositions. Dimensions are written when each record is authored; the validator keeps them within the m² range.
+
+- **Lyngen House** (L0–L1, ~300 m²): the reference, translated. A low west wing with a timber garage door, the stone chimney, a double-height glazed main volume under a large cantilevered roof slab, and an upper east frame with a recessed terrace.
+- **Senja House** (L-1–L0, ~220 m²): set into the slope. A lower volume fully glazed toward the fjord, and an upper long bar cantilevering about 4 m past it with a glazed end face. A long stone wall runs perpendicular to the bar.
+- **Kvaløya House** (L0, ~160 m²): low and wide. Three volumes pinwheel around a stone hearth under one continuous roof slab with deep overhangs; a `void` opening makes a covered cut-through to the view.
+- **Reine House** (L0–L2, ~240 m²): a compact stack. Volumes shift their offsets Level by Level, balcony slabs with glass balustrades sit on the overhangs, and a full-height stone wall runs up one side.

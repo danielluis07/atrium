@@ -28,6 +28,10 @@ _Avoid_: model, building, mesh
 One floor of a House.
 _Avoid_: storey, floor (in data), Depth
 
+**Glazing Face**:
+One named, full-height glazed opening in a House, facing one compass direction. Interior images are framed by a Glazing Face and look out through it.
+_Avoid_: window (in data), glass, pane
+
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
 _Avoid_: modal, popup, card, drawer
