@@ -6,6 +6,7 @@ import { projectOrder } from "@/content/projects";
 import { lyngen } from "@/content/projects/lyngen";
 import { sceneLayout } from "@/content/scene";
 import type { Project } from "@/content/schema";
+import { bakeHash, exportHouse } from "@/lib/house/export";
 import {
   checkGlbContract,
   KHR_DF_MODEL_UASTC_HDR_4X4,
@@ -14,6 +15,7 @@ import {
   type Gltf,
   type HouseExtras,
 } from "@/lib/house/glb-contract";
+import { builderVersion } from "@/scripts/bake-houses";
 
 const HOUSES_DIR = "public/houses";
 const glbPath = (slug: string) => join(HOUSES_DIR, slug, `${slug}.glb`);
@@ -21,6 +23,8 @@ const baked = projectOrder.filter((p) => existsSync(glbPath(p.slug)));
 const load = (slug: string) => readGlb(new Uint8Array(readFileSync(glbPath(slug))));
 const rootOf = (gltf: Gltf, slug: string) => gltf.nodes.find((n) => n.name === `house:${slug}`)!;
 const extrasOf = (gltf: Gltf, slug: string) => rootOf(gltf, slug).extras as HouseExtras;
+/** The hash a bake of this record would carry now. */
+const currentHash = (project: Project) => bakeHash(exportHouse(project, sceneLayout), builderVersion());
 
 describe("committed House GLBs", () => {
   test("Lyngen is baked", () => {
@@ -30,7 +34,7 @@ describe("committed House GLBs", () => {
   for (const project of baked) {
     describe(project.name, () => {
       test("matches its House record", () => {
-        expect(checkGlbContract(load(project.slug), project, sceneLayout)).toEqual([]);
+        expect(checkGlbContract(load(project.slug), project, sceneLayout, { bakeHash: currentHash(project) })).toEqual([]);
       });
 
       test("has its lightmaps beside it as UASTC HDR KTX2", () => {
@@ -95,6 +99,24 @@ describe("checkGlbContract", () => {
     ]);
   });
 
+  test("fails when the bake is stale: the record changed since", () => {
+    const project = structuredClone(lyngen) as Project;
+    project.camera.azimuth += 10;
+    const [issue] = checkGlbContract(fresh(), project, sceneLayout, { bakeHash: currentHash(project) });
+    expect(issue).toMatch(/^extras\.bakeHash is [0-9a-f]{12}…, expected [0-9a-f]{12}…: the bake is stale, run `bun run houses:bake lyngen`$/);
+  });
+
+  test("fails when a Glazing Face has no seen flag, or the mode is unknown", () => {
+    const gltf = fresh();
+    const extras = extrasOf(gltf, "lyngen");
+    delete (extras.glazingFaces["living-front"] as Partial<HouseExtras["glazingFaces"][string]>).seen;
+    (extras as { mode: string }).mode = "preview";
+    expect(check(gltf)).toEqual([
+      "extras.mode is \"preview\", expected draft or final",
+      "extras.glazingFaces.living-front.seen is undefined, expected true or false",
+    ]);
+  });
+
   test("fails when a material is outside the enum or on the wrong node", () => {
     const gltf = fresh();
     gltf.materials.find((m) => m.name === "stone")!.name = "granite";
@@ -115,7 +137,7 @@ describe("checkGlbContract", () => {
     extras.schemaVersion = 0;
     extras.lightmaps.shell.spill = "lm-shell-spill.hdr";
     expect(check(gltf)).toEqual([
-      "extras.schemaVersion is 0, expected 1",
+      "extras.schemaVersion is 0, expected 2",
       'extras.lightmaps.shell.spill "lm-shell-spill.hdr" is not a .ktx2 file name',
     ]);
     rootOf(gltf, "lyngen").name = "house:senja";

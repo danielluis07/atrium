@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 
 /** Bumped whenever the builder JSON changes shape. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const name = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "use lowercase-kebab-case");
 const levelName = z.string().regex(/^L-?\d+$/, "Levels are named L-1, L0, L1…");

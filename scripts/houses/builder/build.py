@@ -2,13 +2,14 @@
 
 Reads the builder JSON written by `bun run houses:export` (docs/design/house-schema.md),
 builds the shared parts, derives fascias, snow, downlights, clipped soffits and the snow
-plinth, culls buried faces, bevels with harden normals, unwraps a lightmap UV, bakes two
+plinth, culls buried faces, bevels with harden normals, marks the faces the overview and arc
+cameras see, unwraps a lightmap UV (unseen faces at a quarter of the texel density), bakes two
 Cycles lightmap layers (base = sky + downlights, spill = window light) for the shell and
 the plinth with OIDN denoise, and exports a raw GLB whose root carries the contract extras.
 
 Run it through `bun run houses:bake`, which compresses the outputs into public/houses/.
 
-    uv run python build.py --json out/lyngen.json --out out/lyngen --bake-hash <sha256> [--mode draft]
+    uv run python build.py --json out/lyngen.json --out out/lyngen --bake-hash <sha256> [--mode draft|final]
 """
 
 import argparse
@@ -570,8 +571,64 @@ for ob in (shell, balustrade, plinth):
     if ob:
         box_uv(ob)
 
+# ---------------------------------------------------------------- seen and unseen faces
 
-def lightmap_uv(ob, margin):
+# the overview and arc cameras in the House frame. Only the House is in the way: the other Houses and the
+# terrain are ignored, and there is no frustum test (every one of these cameras frames the whole House).
+VIEWPOINTS = [Vector(p) for p in DATA["derived"]["viewpoints"]]
+
+
+def sees(tree, points, normal):
+    """Whether any viewpoint sees any of the points on a surface facing `normal`, past the shell."""
+    for p in points:
+        o = p + normal * 0.004
+        for cam in VIEWPOINTS:
+            ray = cam - o
+            if ray.dot(normal) <= 0:
+                continue
+            if tree.ray_cast(o, ray.normalized(), ray.length)[0] is None:
+                return True
+    return False
+
+
+bm = bmesh.new()
+bm.from_mesh(shell.data)
+shell_tree = BVHTree.FromBMesh(bm)
+seen = [sees(shell_tree, [f.calc_center_median()] + [f.calc_center_median().lerp(v.co, 0.9) for v in f.verts], f.normal)
+        for f in bm.faces]
+bm.free()
+
+steps = (0.05, 0.275, 0.5, 0.725, 0.95)
+for name, ob in glazing.items():
+    a, b, c, d = (v.co for v in ob.data.vertices)  # bottom left, bottom right, top right, top left
+    points = [a.lerp(b, u).lerp(d.lerp(c, u), v) for u in steps for v in steps]
+    glazing_faces[name]["seen"] = sees(shell_tree, points, Vector(glazing_faces[name]["normal"]))
+    if not glazing_faces[name]["seen"]:
+        print(f"warning: Glazing Face {name} is entirely unseen from the overview and arc cameras", flush=True)
+print(f"seen: {sum(seen)} of {len(seen)} shell faces, "
+      f"{sum(g['seen'] for g in glazing_faces.values())} of {len(glazing_faces)} Glazing Faces", flush=True)
+lap("seen faces")
+
+
+def uv_area(uv, poly):
+    s = 0.0
+    pts = [uv[i].uv for i in poly.loop_indices]
+    for i in range(len(pts)):
+        a, b = pts[i], pts[(i + 1) % len(pts)]
+        s += a.x * b.y - b.x * a.y
+    return abs(s) / 2
+
+
+def texel_density(ob, res, polys):
+    """Lightmap texels per metre over some of a mesh's faces."""
+    uv = ob.data.uv_layers["lightmap"].data
+    area = sum(p.area for p in polys)
+    return math.sqrt(sum(uv_area(uv, p) for p in polys) * res * res / area) if area else 0.0
+
+
+def lightmap_uv(ob, margin, seen):
+    """Unwrap the seen and unseen faces apart, bring the unseen ones to UNSEEN_TEXEL_RATIO of the seen
+    texel density, then pack both into one lightmap."""
     me = ob.data
     me.uv_layers.new(name="lightmap")
     me.uv_layers.active = me.uv_layers["lightmap"]
@@ -579,15 +636,42 @@ def lightmap_uv(ob, margin):
         o.select_set(False)
     ob.select_set(True)
     bpy.context.view_layer.objects.active = ob
+    bpy.context.tool_settings.use_uv_select_sync = True
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+    groups = [(True, 1.0), (False, C.UNSEEN_TEXEL_RATIO)]
+    for group, _ in groups:
+        bpy.ops.mesh.select_all(action="DESELECT")
+        ebm = bmesh.from_edit_mesh(me)
+        chosen = [f for f in ebm.faces if seen[f.index] == group]
+        for f in chosen:
+            f.select_set(True)
+        bmesh.update_edit_mesh(me)
+        if chosen:
+            bpy.ops.uv.smart_project(angle_limit=C.SMART_PROJECT_ANGLE, island_margin=margin, area_weight=0.0,
+                                     correct_aspect=True, scale_to_bounds=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    # each smart project fills the unit square on its own: rescale each group to its texel density, and park
+    # the unseen group off the square so no island can join across the two
+    uv = me.uv_layers["lightmap"].data
+    for group, ratio in groups:
+        polys = [p for p in me.polygons if seen[p.index] == group]
+        if not polys:
+            continue
+        k = ratio / texel_density(ob, 1, polys)
+        offset = Vector((0.0 if group else 2.0, 0.0))
+        for p in polys:
+            for li in p.loop_indices:
+                uv[li].uv = uv[li].uv * k + offset
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=C.SMART_PROJECT_ANGLE, island_margin=margin, area_weight=0.0,
-                             correct_aspect=True, scale_to_bounds=False)
+    bpy.ops.uv.pack_islands(rotate=True, rotate_method="CARDINAL", scale=True, margin_method="SCALED", margin=margin,
+                            shape_method="AABB")
     bpy.ops.object.mode_set(mode="OBJECT")
     me.uv_layers.active = me.uv_layers["UVMap"]
 
 
-lightmap_uv(shell, C.ISLAND_MARGIN)
+lightmap_uv(shell, C.ISLAND_MARGIN, seen)
 # plinth: planar 0..1 projection is already ideal
 me = plinth.data
 me.uv_layers.new(name="lightmap")
@@ -599,20 +683,17 @@ for poly in me.polygons:
 lap("join + uv")
 
 # texel density report
+seen_polys = [p for p in shell.data.polygons if seen[p.index]]
+unseen_polys = [p for p in shell.data.polygons if not seen[p.index]]
+texels_per_m = texel_density(shell, MODE["res"], seen_polys)
+texels_per_m_unseen = texel_density(shell, MODE["res"], unseen_polys)
 area = sum(p.area for p in shell.data.polygons)
-uv_area = 0.0
-lmd = shell.data.uv_layers["lightmap"].data
-for p in shell.data.polygons:
-    pts = [lmd[i].uv for i in p.loop_indices]
-    s = 0.0
-    for i in range(len(pts)):
-        a, b = pts[i], pts[(i + 1) % len(pts)]
-        s += a.x * b.y - b.x * a.y
-    uv_area += abs(s) / 2
-texels_per_m = math.sqrt(uv_area * MODE["res"] * MODE["res"] / area)
+unseen_area = sum(p.area for p in unseen_polys)
+coverage = sum(uv_area(shell.data.uv_layers["lightmap"].data, p) for p in shell.data.polygons)
 exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values(), *terrace_glass] if o]
 tris = sum(len(p.vertices) - 2 for o in exported for p in o.data.polygons)
-print(f"shell surface {area:.0f} m2, uv coverage {uv_area:.2f}, {texels_per_m:.0f} texels/m at {MODE['res']}, {tris} tris")
+print(f"shell surface {area:.0f} m2 ({unseen_area:.0f} unseen), uv coverage {coverage:.2f}, "
+      f"{texels_per_m:.0f} texels/m seen and {texels_per_m_unseen:.0f} unseen at {MODE['res']}, {tris} tris")
 
 # ---------------------------------------------------------------- world + bake setup
 
@@ -772,7 +853,8 @@ extras = {
     "datum": {"level": ENTRANCE, "plinth": round(PLINTH_Z, 4)},
     "bbox": {"min": lo, "max": hi},
     "glazingFaces": {
-        name: {"size": [round(f["size"][0], 4), round(f["size"][1], 4)], "normal": gltf(f["normal"]), "bearing": bearings[name]}
+        name: {"size": [round(f["size"][0], 4), round(f["size"][1], 4)], "normal": gltf(f["normal"]),
+               "bearing": bearings[name], "seen": f["seen"]}
         for name, f in glazing_faces.items()
     },
     "lightmaps": lightmaps,
@@ -828,4 +910,6 @@ if args.preview:
     lap("preview render")
 
 with open(os.path.join(OUT, "timings.json"), "w") as f:
-    json.dump({"mode": args.mode, **MODE, "texels_per_m": round(texels_per_m), "tris": tris, **timings}, f, indent=1)
+    json.dump({"mode": args.mode, **MODE, "texels_per_m": round(texels_per_m),
+               "texels_per_m_unseen": round(texels_per_m_unseen), "unseen_m2": round(unseen_area), "tris": tris,
+               **timings}, f, indent=1)
