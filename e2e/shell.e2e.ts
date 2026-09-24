@@ -4,6 +4,7 @@ import { expectReachableByTab } from "./keyboard";
 
 const pages = [
   { name: "home", path: "/" },
+  { name: "Project", path: "/projects/lyngen" },
   { name: "404", path: "/nothing-here" },
 ];
 
@@ -27,7 +28,7 @@ test("an unknown route returns the styled 404", async ({ page }) => {
   const response = await page.goto("/nothing-here");
   expect(response?.status()).toBe(404);
 
-  await expect(page.getByText("▽ −∞")).toBeVisible();
+  await expect(page.getByRole("main").getByText("▽ −∞")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 1, name: "Nothing is built here." }),
   ).toBeVisible();
