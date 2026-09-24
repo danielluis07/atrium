@@ -46,7 +46,7 @@ Field-level choices (the zod schema in `lib/house/schema.ts` is the reference):
 - Roof, terrace and stone-top snow.
 - Soffit downlights on a fixed pitch along each soffit's outer edge.
 - Soffits clipped to the overhang only; buried faces culled before unwrapping.
-- The snow plinth: flat, the footprint plus a margin, at the lowest exposed floor. Its edges fade into the sloped live terrain.
+- The snow plinth: the footprint plus a margin, flat at the lowest exposed floor. Its edges fade into the sloped live terrain. When solids start below the entrance Level (Senja), the House is set into the slope: the plinth stands at ±0.00 behind their back faces (uphill, +y) and at their floor in front, so the step falls on the walls that hold it. Past each end of their run, the snow falls from grade to the lower floor across a fan (`GRADE_FAN`). A gap in the run has nothing holding the step, which is a builder warning.
 - Each Glazing Face's compass **bearing**: House-frame normal → rotated by the Scene layout → one of 8 points. `content/scene.ts` declares north (the fjord lies north, so fronts face roughly north over the water).
 - Seen/unseen faces from the overview and arc cameras (see `DESIGN.md` § Scene). An opening that is entirely unseen is a builder warning, not an error.
 
@@ -69,7 +69,7 @@ One GLB per House:
 - `glazing:<name>`: one node per Glazing Face, so interior mapping gets each window's frame and hover or image capture can target one. Each is one outward quad with a 0..1 UV (u from the left edge seen from outside, v up).
 - `balustrade`, `downlights`, `plinth`. A terrace's glazed back wall isn't a Glazing Face, so its glass rides in `balustrade` with material `glazing`.
 - Materials named from a fixed enum: `concrete, stone, timber, metal, snow, glazing, balustrade, downlight, plinth`. R3F swaps materials by name.
-- Root `extras`: `schemaVersion`, datum, bbox, the bake hash, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them. In detail (`HouseExtras` in `lib/house/glb-contract.ts`): `datum` is the entrance Level's name and the plinth's elevation; `bbox` is min/max in glTF axes, without the plinth; each Glazing Face's `size` is width × height in metres, its `normal` is in glTF axes and `seen` is whether the overview or arc cameras see any of it; `lightmaps` names the KTX2 files beside the GLB, per node (`shell`, `plinth`) and layer (`base`, `spill`); `mode` is `draft` or `final`.
+- Root `extras`: `schemaVersion`, datum, bbox, the bake hash, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them. In detail (`HouseExtras` in `lib/house/glb-contract.ts`): `datum` is the entrance Level's name and the plinth's elevation (its lower floor, when it steps; grade is always ±0.00); `bbox` is min/max in glTF axes, without the plinth; each Glazing Face's `size` is width × height in metres, its `normal` is in glTF axes and `seen` is whether the overview or arc cameras see any of it; `lightmaps` names the KTX2 files beside the GLB, per node (`shell`, `plinth`) and layer (`base`, `spill`); `mode` is `draft` or `final`.
 - Picking raycasts `shell` and `glazing:*`; `plinth` is never picked.
 
 `bun test` checks every committed GLB against its House record (`lib/house/glb-contract.test.ts`).

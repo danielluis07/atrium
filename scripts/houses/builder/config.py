@@ -66,6 +66,9 @@ BEVEL_ANGLE = math.radians(30)
 
 PLINTH_MARGIN = 12.0  # beyond the footprint on every side
 PLINTH_GRID = 50  # subdivisions per side, for the edge fade into the live terrain
+# where solids start below ±0.00, the plinth steps down in front of them. Past each end of their run the
+# snow falls from grade to the lower floor across a fan this wide, measured from their back face.
+GRADE_FAN = math.radians(60)
 
 # ---------------------------------------------------------------- lightmaps
 

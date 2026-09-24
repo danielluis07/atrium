@@ -39,7 +39,10 @@ export type HouseExtras = {
   slug: string;
   mode: "draft" | "final";
   bakeHash: string;
-  /** The GLB origin is the datum: the finished floor of `level`. The snow plinth sits at `plinth`. */
+  /**
+   * The GLB origin is the datum: the finished floor of `level`, at grade. The snow plinth sits at
+   * `plinth`, or steps from `plinth` up to grade behind solids set below it.
+   */
   datum: { level: string; plinth: number };
   /** Everything but the plinth, in glTF axes (y up, front +z). */
   bbox: { min: Vec3; max: Vec3 };

@@ -104,6 +104,32 @@ SLABS = [
 ]
 ENTRANCE = next(l["name"] for l in H["levels"] if l["elevation"] == 0)
 PLINTH_Z = min(b[2] for b in SOLIDS)  # the lowest exposed floor
+# solids that start below ±0.00: the grade stands at ±0.00 behind them (uphill, +y) and steps down in front
+SUNK = [b for b in SOLIDS if b[2] < -EPS]
+RUN = (min(b[0] for b in SUNK), max(b[3] for b in SUNK)) if SUNK else None
+
+
+def cut_at(x):
+    """The back face of the sunk solids at x, which holds the grade behind it."""
+    return max((b[4] for b in SUNK if b[0] - EPS <= x <= b[3] + EPS), default=max(b[4] for b in SUNK))
+
+
+def plinth_z(x, y, sx=None, sy=None):
+    """The snow plinth's height at (x, y), on the side of any step that (sx, sy) is on. Flat at the lowest
+    exposed floor, unless solids start below ±0.00: then ±0.00 behind their back faces and their floor in
+    front, and past each end of their run the snow falls between the two across a GRADE_FAN fan."""
+    if not SUNK:
+        return PLINTH_Z
+    sx, sy = (x, y) if sx is None else (sx, sy)
+    x0, x1 = RUN
+    if x0 <= sx <= x1:
+        return 0.0 if sy >= cut_at(sx) - EPS else PLINTH_Z
+    end = x0 if sx < x0 else x1
+    cy, w = cut_at(end), abs(x - end) * math.tan(C.GRADE_FAN)
+    if w < EPS:
+        return 0.0 if sy >= cy - EPS else PLINTH_Z
+    t = min(max((y - cy + w) / w, 0.0), 1.0)
+    return PLINTH_Z * (1 - t * t * (3 - 2 * t))
 
 
 def opening_extent(o):
@@ -466,19 +492,47 @@ for x, y, z in lamps:
     lo.location = (x, y, z - 0.03)
     col.objects.link(lo)
 
-# the snow plinth: flat, the footprint plus a margin, at the lowest exposed floor
+# the snow plinth: the footprint plus a margin, at the lowest exposed floor, stepping up to ±0.00 behind
+# any solids that start below it
 footprint = [(b[0], b[1], b[3], b[4]) for b in SOLIDS] + [s["r"] for s in SLABS]
 px0 = min(r[0] for r in footprint) - C.PLINTH_MARGIN
 py0 = min(r[1] for r in footprint) - C.PLINTH_MARGIN
 px1 = max(r[2] for r in footprint) + C.PLINTH_MARGIN
 py1 = max(r[3] for r in footprint) + C.PLINTH_MARGIN
-bpy.ops.mesh.primitive_grid_add(x_subdivisions=C.PLINTH_GRID, y_subdivisions=C.PLINTH_GRID, size=1)
-plinth = bpy.context.active_object
-plinth.name = "plinth"
-for v in plinth.data.vertices:
-    v.co.x = px0 + (v.co.x + 0.5) * (px1 - px0)
-    v.co.y = py0 + (v.co.y + 0.5) * (py1 - py0)
-    v.co.z = PLINTH_Z
+if SUNK:
+    spans = sorted((b[0], b[3]) for b in SUNK)
+    reach = spans[0][1]
+    for a, b in spans[1:]:
+        if a > reach + EPS:
+            print(f"warning: nothing holds the grade between x {reach:g} and {a:g}: the snow steps there", flush=True)
+        reach = max(reach, b)
+
+
+def grid_lines(a, b, steps):
+    """A uniform grid from a to b, plus a line at each step, clear of the grid lines beside it."""
+    steps = [s for s in steps if a < s < b]
+    uniform = [a + (b - a) * i / C.PLINTH_GRID for i in range(C.PLINTH_GRID + 1)]
+    return sorted(steps + [u for u in uniform if all(abs(u - s) > 0.05 for s in steps)])
+
+
+xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])])
+ys = grid_lines(py0, py1, [b[4] for b in SUNK])
+bm = bmesh.new()
+for i in range(len(xs) - 1):
+    for j in range(len(ys) - 1):
+        corners = [(xs[i], ys[j]), (xs[i + 1], ys[j]), (xs[i + 1], ys[j + 1]), (xs[i], ys[j + 1])]
+        mx, my = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
+        # each quad takes its side of a step from a point just inside it, so a step falls between quads,
+        # on the face of the solid that holds it, and the weld leaves it open
+        bm.faces.new([bm.verts.new((x, y, plinth_z(x, y, x + (mx - x) * 0.01, y + (my - y) * 0.01)))
+                      for x, y in corners])
+bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+me = bpy.data.meshes.new("plinth")
+bm.to_mesh(me)
+bm.free()
+me.shade_smooth()
+plinth = bpy.data.objects.new("plinth", me)
+col.objects.link(plinth)
 plinth.data.materials.append(mats["plinth"])
 
 bpy.ops.mesh.primitive_plane_add(size=600, location=(0, 0, PLINTH_Z - 0.03))
@@ -536,8 +590,8 @@ def box_uv(ob):
 
 
 def cull_hidden(ob):
-    """Delete faces that sit on the plinth or are buried inside another part (all samples inside a solid).
-    They would otherwise waste lightmap texels."""
+    """Delete faces that sit on the plinth or are buried, each sample under the plinth or inside another
+    part. They would otherwise waste lightmap texels."""
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bm.faces.ensure_lookup_table()
@@ -546,12 +600,14 @@ def cull_hidden(ob):
     for f in bm.faces:
         n = f.normal
         c = f.calc_center_median()
-        if n.z < -0.9 and c.z < PLINTH_Z + 0.01:
+        if n.z < -0.9 and c.z < plinth_z(c.x, c.y) + 0.01:
             dead.append(f)
             continue
         samples = [c] + [c.lerp(v.co, 0.9) for v in f.verts]
         hidden = True
         for s in samples:
+            if s.z < plinth_z(s.x, s.y) - 0.01:
+                continue
             loc, hn, idx, dist = tree.ray_cast(s + n * 0.004, n, 100.0)
             if loc is None or hn.dot(n) <= 0:
                 hidden = False

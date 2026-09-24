@@ -27,8 +27,8 @@ const extrasOf = (gltf: Gltf, slug: string) => rootOf(gltf, slug).extras as Hous
 const currentHash = (project: Project) => bakeHash(exportHouse(project, sceneLayout), builderVersion());
 
 describe("committed House GLBs", () => {
-  test("Lyngen is baked", () => {
-    expect(baked.map((p) => p.slug)).toContain("lyngen");
+  test("every House is baked", () => {
+    expect(baked.map((p) => p.slug)).toEqual(projectOrder.map((p) => p.slug));
   });
 
   for (const project of baked) {
