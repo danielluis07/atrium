@@ -31,6 +31,17 @@ describe("the selection store", () => {
     expect(store.get().selected).toBe("senja");
   });
 
+  test("the keyboard focuses a House beside the pointer's hover, and leaving the Scene focuses none", () => {
+    const store = after({ type: "hover", slug: "reine" }, { type: "focus", slug: "lyngen" });
+    expect(store.get()).toMatchObject({ focused: "lyngen", hovered: "reine" });
+    store.dispatch({ type: "select", slug: "lyngen" });
+    store.dispatch({ type: "focus", slug: "senja" });
+    expect(store.get()).toMatchObject({ focused: "senja", selected: "lyngen" });
+    store.dispatch({ type: "focus" });
+    expect(store.get().focused).toBeUndefined();
+    expect(store.get().hovered).toBe("reine");
+  });
+
   test("selecting a House flies in to it, and it is at the House once that flight arrives", () => {
     const store = after({ type: "select", slug: "lyngen" });
     expect(store.get()).toMatchObject({ selected: "lyngen", phase: "flying-in" });
@@ -129,6 +140,7 @@ describe("the selection store", () => {
     const before = store.get();
     store.dispatch({ type: "close" });
     store.dispatch({ type: "hover" });
+    store.dispatch({ type: "focus" });
     expect(store.get()).toBe(before);
   });
 

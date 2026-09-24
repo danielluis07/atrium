@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectReachableByTab } from "./keyboard";
 import { HOME } from "./paths";
 
 // headless Chromium renders WebGL on SwiftShader, which it only offers when asked
@@ -126,6 +127,59 @@ test.describe("the Lean Scene", () => {
 
     expect(errors).toEqual([]);
     expect([...origins]).toEqual([new URL(baseURL!).origin]);
+  });
+
+  test("the keyboard and assistive tech reach, move between and select the four Projects", async ({ page }) => {
+    // every step waits on frames from the software renderer
+    test.setTimeout(240_000);
+    const slow = expect.configure({ timeout: 30_000 });
+    await page.goto("/?scene=lean");
+    await expect(liveScene(page)).toHaveAttribute("data-scene-ready", "true", { timeout: 100_000 });
+
+    const scene = page.getByRole("listbox", { name: "Projects in the Scene" });
+    const options = scene.getByRole("option");
+    await slow(options).toHaveText(["Lyngen House", "Senja House", "Kvaløya House", "Reine House"]);
+    await slow(scene.getByRole("option", { selected: true })).toHaveCount(0);
+    const status = stage(page).getByRole("status");
+    await slow(status).toHaveText("");
+
+    // the option the listbox points assistive tech at
+    const activeOption = () =>
+      scene.evaluate((el) => document.getElementById(el.getAttribute("aria-activedescendant")!)?.textContent);
+    await expectReachableByTab(page, scene);
+    await slow.poll(activeOption).toBe("Lyngen House");
+    await page.keyboard.press("ArrowDown");
+    await slow.poll(activeOption).toBe("Senja House");
+    await page.keyboard.press("End");
+    await page.keyboard.press("ArrowDown");
+    await slow.poll(activeOption).toBe("Lyngen House");
+    await page.keyboard.press("ArrowUp");
+    await slow.poll(activeOption).toBe("Reine House");
+
+    // Enter opens the Panel, and focus moves into it
+    const panel = page.locator('[data-slot="project-panel"]');
+    await page.keyboard.press("Enter");
+    await slow(panel).toBeVisible();
+    await slow(panel.getByRole("heading", { name: "Reine House" })).toBeVisible();
+    await slow.poll(() => panel.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    await slow(scene.getByRole("option", { name: "Reine House", selected: true })).toHaveCount(1);
+    // the listbox holds only its options
+    await slow(scene.getByRole("dialog")).toHaveCount(0);
+    await slow(status).toHaveText("Reine House is open.");
+
+    // Esc closes it and hands focus back to the Scene, on the same House
+    await page.keyboard.press("Escape");
+    await slow(panel).toBeHidden();
+    await slow(scene).toBeFocused();
+    await slow(scene.getByRole("option", { selected: true })).toHaveCount(0);
+    await slow(status).toHaveText("");
+    await slow.poll(activeOption).toBe("Reine House");
+
+    // Space selects too
+    await page.keyboard.press("Home");
+    await page.keyboard.press(" ");
+    await slow(panel.getByRole("heading", { name: "Lyngen House" })).toBeVisible();
+    await slow(status).toHaveText("Lyngen House is open.");
   });
 
   test("the wheel over the Scene scrolls the page and never zooms", async ({ page }) => {

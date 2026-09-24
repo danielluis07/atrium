@@ -82,9 +82,9 @@ type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glazing" | "downl
  * terrain among the pines. With `shadows`, they and the pines cast the baked
  * shadow over the snow. Everything loads inside the Canvas's `<Suspense>`.
  *
- * Only a House's shell and glazing pick. Hovering a House brightens its
- * windows, and every frame `onLabel` gets the point on screen its label
- * points at (none when it is behind the camera). Pressing a House marks it
+ * Only a House's shell and glazing pick. Hovering a House, or the keyboard
+ * focusing it, brightens its windows, and every frame `onLabel` gets the
+ * point on screen its label points at (none when it is behind the camera). Pressing a House marks it
  * on the press under way, so a click selects it (the camera rig reads the
  * press), and the Houses left unselected dim.
  */
@@ -100,7 +100,7 @@ export function Houses({
   store: SelectionStore;
   /** The press under way, which the camera rig starts and resolves. */
   gesture: RefObject<Gesture | undefined>;
-  /** Where the hovered House's label goes. */
+  /** Where the hovered or focused House's label goes. */
   onLabel: (at: LabelPoint | undefined) => void;
 }) {
   const gl = useThree((s) => s.gl);
@@ -171,10 +171,14 @@ export function Houses({
   }, [houses]);
 
   useFrame(({ camera, size }, dt) => {
-    const { hovered, selected } = store.get();
-    for (const h of looks.current) lookTo(h, hovered === h.slug, !!selected && selected !== h.slug, dt);
+    const { hovered, focused, selected } = store.get();
+    for (const h of looks.current) {
+      lookTo(h, hovered === h.slug || focused === h.slug, !!selected && selected !== h.slug, dt);
+    }
 
-    const house = looks.current.find((h) => h.slug === hovered);
+    // the pointer's House wins the label over the keyboard's
+    const named = hovered ?? focused;
+    const house = looks.current.find((h) => h.slug === named);
     if (!house) return;
     const p = onScreen.current.copy(house.anchor).project(camera);
     onLabel(p.z < 1 ? { x: ((p.x + 1) / 2) * size.width, y: ((1 - p.y) / 2) * size.height } : undefined);
