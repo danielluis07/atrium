@@ -6,7 +6,7 @@ import "@/components/scene/fog";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer, N8AO, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 
 import { Atmosphere } from "@/components/scene/atmosphere";
 import { CameraRig, type HouseCamera } from "@/components/scene/camera-rig";
@@ -15,6 +15,7 @@ import { Houses } from "@/components/scene/houses";
 import { Mountains } from "@/components/scene/mountains";
 import { Snowfall } from "@/components/scene/snowfall";
 import type { SceneLayout, SceneProject } from "@/content/schema";
+import type { Cut } from "@/lib/scene/cut";
 import type { Gesture } from "@/lib/scene/gesture";
 import { monitor, startMonitor, type MonitorEvent } from "@/lib/scene/monitor";
 import { ladderOf, renderConfig, type Ladder } from "@/lib/scene/rungs";
@@ -36,8 +37,10 @@ export type SceneProps = {
   rung: number;
   /** Called with the next rung when frames run long. */
   onStepDown: (rung: number) => void;
-  /** Whether to render: false while the stage is off screen or the tab is hidden. */
+  /** Whether to render: false once the paper covers the stage, or while the tab is hidden. */
   active: boolean;
+  /** Where the Section Cut's line is on the stage; the camera drops as it rises. */
+  cut: RefObject<Cut>;
   /** Called once the Houses have rendered their first frame. */
   onReady: () => void;
 };
@@ -51,7 +54,17 @@ export type SceneProps = {
  * orbits it, and a click on empty snow closes it. Client-only; the home
  * page loads it with SSR off.
  */
-export default function Scene({ layout, projects, store, ladder, rung, onStepDown, active, onReady }: SceneProps) {
+export default function Scene({
+  layout,
+  projects,
+  store,
+  ladder,
+  rung,
+  onStepDown,
+  active,
+  cut,
+  onReady,
+}: SceneProps) {
   const config = renderConfig(ladder, rung);
   const label = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture>(undefined);
@@ -80,7 +93,7 @@ export default function Scene({ layout, projects, store, ladder, rung, onStepDow
         onCreated={({ gl }) => {
           gl.toneMappingExposure = EXPOSURE;
         }}>
-        <CameraRig overview={layout.overview} houses={houses} store={store} gesture={gesture} />
+        <CameraRig overview={layout.overview} houses={houses} store={store} gesture={gesture} cut={cut} />
         <Atmosphere north={layout.north} />
         <Mountains />
         <Snowfall count={SNOWFLAKES[ladder]} />
@@ -146,7 +159,7 @@ function RungMonitor({
   active,
   onStepDown,
   store,
-}: Omit<SceneProps, "layout" | "projects" | "onReady">) {
+}: Omit<SceneProps, "layout" | "projects" | "cut" | "onReady">) {
   const state = useRef(startMonitor(rung, ladderOf(ladder).length));
   const frames = useRef(0);
   const last = useRef<number>(undefined);

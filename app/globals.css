@@ -103,6 +103,45 @@
   letter-spacing: -0.02em;
 }
 
+/*
+ * The Section Cut (`components/home/section-cut.tsx`, ADR 0003). The stage
+ * is a viewport tall and is held for `--cut` of scroll while the paper rises
+ * over it. Over the still: until the line comes up to the still's snow line
+ * (the still covers the stage from its foot), after which the still rides up
+ * with the line. Over the live Scene: until the line reaches the header's
+ * baseline, and the camera keeps the snow above it.
+ */
+[data-slot="section-cut"] {
+  container-type: inline-size;
+  --stage-height: max(24rem, 100svh);
+  --still-snow: calc(
+    (1 - var(--still-snow-line)) * max(var(--stage-height), 100cqw / var(--still-aspect))
+  );
+  --cut: calc(var(--still-snow) - var(--snow-gap));
+}
+[data-slot="section-cut"]:has([data-scene-ready="true"]) {
+  --cut: calc(var(--stage-height) - var(--header-height));
+}
+
+/*
+ * Over the Scene the header is clear, with ink and paper swapped; it cuts
+ * back to ink, with no fade, the moment the section line crosses its
+ * baseline (`data-surface`). Until the header has looked, a page with a
+ * section line starts over the Scene. Without JavaScript nothing can look,
+ * so the header stays ink.
+ */
+@media (scripting: enabled) {
+  [data-slot="site-header"][data-surface="scene"],
+  :root:has([data-slot="section-line"]) [data-slot="site-header"]:not([data-surface]) {
+    --foreground: var(--primary-foreground);
+    --muted-foreground: oklch(0.975 0.004 240 / 0.7);
+    --muted: oklch(0.975 0.004 240 / 0.12);
+    --ring: var(--primary-foreground);
+    --border: transparent;
+    background-color: transparent;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;
