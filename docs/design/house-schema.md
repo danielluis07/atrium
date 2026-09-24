@@ -72,7 +72,7 @@ One GLB per House:
 - Root `extras`: `schemaVersion`, datum, bbox, the bake hash, and per Glazing Face its size, normal, bearing and seen flag. R3F reads these rather than recomputing them. In detail (`HouseExtras` in `lib/house/glb-contract.ts`): `datum` is the entrance Level's name and the plinth's elevation (its lower floor, when it steps; grade is always ±0.00); `bbox` is min/max in glTF axes, without the plinth; each Glazing Face's `size` is width × height in metres, its `normal` is in glTF axes and `seen` is whether the overview or arc cameras see any of it; `lightmaps` names the KTX2 files beside the GLB, per node (`shell`, `plinth`) and layer (`base`, `spill`); `mode` is `draft` or `final`.
 - Picking raycasts `shell` and `glazing:*`; `plinth` is never picked.
 
-`bun test` checks every committed GLB against its House record (`lib/house/glb-contract.test.ts`).
+`bun test` checks every committed GLB against its House record (`tests/unit/lib/house/glb-contract.test.ts`).
 
 ## Drawings
 

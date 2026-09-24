@@ -4,7 +4,7 @@ const port = 3100;
 
 /** End-to-end tests run against a production build (`bun run build` first). */
 export default defineConfig({
-  testDir: "e2e",
+  testDir: "tests/e2e",
   testMatch: "**/*.e2e.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

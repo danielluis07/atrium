@@ -7,7 +7,7 @@
     "build": "bun --bun next build",
     "start": "bun --bun next start",
     "lint": "eslint",
-    "test": "bun test",
+    "test": "bun test tests/unit",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "houses:export": "bun scripts/export-houses.ts",
