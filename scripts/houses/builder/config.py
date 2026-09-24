@@ -1,0 +1,109 @@
+"""Builder-wide constants: the detail values every House shares, never set per House.
+
+See docs/design/house-schema.md. Lengths in metres, House frame (z up, the front faces -y).
+"""
+
+import math
+
+# ---------------------------------------------------------------- bake modes
+
+# res: shell lightmap size; plinth_res: snow plinth lightmap size; samples: Cycles spp
+MODES = {
+    "draft": {"res": 512, "plinth_res": 256, "samples": 64},
+}
+
+# ---------------------------------------------------------------- openings
+
+MULLION_PITCH = 1.65  # default pane width when an opening gives no mullion count
+FRAME_WIDTH = 0.06  # mullion face width (half at the jambs)
+FRAME_DEPTH = 0.14  # mullions, sill and head, measured out from the glass line
+SILL_HEAD_HEIGHT = 0.07
+TRANSOM_HEIGHT = 0.18  # the frame at each Level line an opening crosses
+TRANSOM_DEPTH = 0.2
+GLASS_INSET = 0.06  # glass sits this far out from the back of its recess
+DOOR_THICKNESS = 0.06
+
+# ---------------------------------------------------------------- slabs, fascias, snow
+
+FASCIA_THICKNESS = 0.05
+FASCIA_DROP = 0.02  # a fascia hangs this far below its slab's underside
+SOFFIT_THICKNESS = 0.03
+CAP_THICKNESS = 0.05  # metal cap around a volume top that is fully exposed
+CAP_DEPTH = 0.22  # its height, centred a little below the top
+SNOW_CUSHION = 0.12  # roof snow rises this far above the fascia or cap
+STONE_SNOW = 0.18  # snow on an exposed stone mass top
+SNOW_INSET = 0.01  # gap between roof snow and the fascia's inner face
+MIN_SNOW_PATCH = 0.3  # exposed tops narrower than this get no snow
+
+# ---------------------------------------------------------------- terrace recesses and balustrades
+
+BALUSTRADE_HEIGHT = 1.0
+BALUSTRADE_GLASS = 0.02
+RAIL_WIDTH = 0.06
+RAIL_HEIGHT = 0.06
+TERRACE_SNOW = 0.08
+
+# ---------------------------------------------------------------- downlights
+
+DOWNLIGHT_PITCH = 2.1  # along each soffit's outer edge
+DOWNLIGHT_INSET = 0.45  # in from the fascia
+DOWNLIGHT_RADIUS = 0.05
+DOWNLIGHT_WATTS = 60.0
+DOWNLIGHT_CONE = math.radians(130)
+
+# ---------------------------------------------------------------- bevels (width, segments)
+
+BEVEL_VOLUME = (0.015, 2)
+BEVEL_STONE = (0.03, 3)
+BEVEL_SLAB = (0.01, 1)
+BEVEL_METAL = (0.004, 1)
+BEVEL_SNOW = (0.1, 4)
+BEVEL_STONE_SNOW = (0.08, 3)
+BEVEL_ANGLE = math.radians(30)
+
+# ---------------------------------------------------------------- snow plinth
+
+PLINTH_MARGIN = 12.0  # beyond the footprint on every side
+PLINTH_GRID = 50  # subdivisions per side, for the edge fade into the live terrain
+
+# ---------------------------------------------------------------- lightmaps
+
+ISLAND_MARGIN = 0.004  # smart-project island margin, in UV units
+BAKE_MARGIN = 8  # pixels of edge extension around each island
+SMART_PROJECT_ANGLE = math.radians(66)
+
+# ---------------------------------------------------------------- light (blue hour)
+
+# OKLCH (L, C, h), converted to linear sRGB by the builder
+SKY_ZENITH = (0.26, 0.06, 262)
+SKY_HORIZON = (0.55, 0.06, 250)
+WINDOW = (0.82, 0.12, 70)
+DOWNLIGHT = (0.86, 0.09, 75)
+
+# the afterglow: a compass bearing (degrees clockwise from north) and its height above the horizon
+AFTERGLOW_BEARING = 245.0
+AFTERGLOW_ELEVATION = math.radians(3)
+AFTERGLOW_POWER = 6.0  # how tight the glow is around its bearing
+WINDOW_SPILL_STRENGTH = 2.5  # glazing emission in the spill layer
+
+CYCLES = {
+    "max_bounces": 6,
+    "diffuse_bounces": 4,
+    "sample_clamp_indirect": 4.0,  # kills downlight and window fireflies in the indirect term
+}
+
+# ---------------------------------------------------------------- materials (the GLB's fixed enum)
+
+# name: (linear base colour, roughness, metallic)
+MATERIALS = {
+    "concrete": ((0.34, 0.34, 0.335), 0.85, 0.0),
+    "stone": ((0.28, 0.26, 0.23), 0.9, 0.0),
+    "timber": ((0.46, 0.23, 0.10), 0.6, 0.0),
+    "metal": ((0.035, 0.037, 0.04), 0.45, 0.3),  # coated dielectric, or dark fascias go flat black
+    "snow": ((0.82, 0.84, 0.86), 0.7, 0.0),
+    "glazing": ((0.02, 0.02, 0.02), 0.05, 0.0),
+    "balustrade": ((0.8, 0.8, 0.8), 0.05, 0.0),
+    "downlight": ((0.9, 0.85, 0.75), 0.5, 0.0),
+    "plinth": ((0.82, 0.84, 0.86), 0.7, 0.0),
+}
+DOWNLIGHT_EMISSION = 12.0
