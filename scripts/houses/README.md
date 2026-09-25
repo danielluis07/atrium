@@ -18,6 +18,10 @@ Draft mode (512² shell, 256² plinth, 64 spp) takes about 90 s per House on the
 
 Every bake writes its bake hash to the GLB extras: a sha256 of the House's exported JSON (the House, its placement, its camera block and the overview camera) and the builder version. A House whose committed GLB carries the current hash, in the mode asked for or a better one (a final bake satisfies a draft run), with its lightmaps beside it, is skipped without starting Blender. Anything else re-bakes. The GLB-contract test fails when a committed hash differs from the current one, so an edit to a House record, `content/scene.ts` or the builder can't ship without its bake.
 
+## The download budget
+
+`bun test` also measures the committed files against the download budget (`lib/scene/budget.ts`): all four Houses' GLBs and lightmaps at most 16 MB over the wire, and everything the Scene downloads (`sceneDownloads` in `lib/scene/assets.ts`) at most 24 MB. A file's wire size is its gzip size where that is smaller. The test prints every file, the totals and the lightmaps' estimated GPU memory (BC6H or ASTC HDR, and the RGBA16F fallback), which isn't gated. A file the Scene starts to download belongs in `sceneDownloads`, so the budget counts it.
+
 ## Seen and unseen faces
 
 Only the overview camera (`content/scene.ts`) and each House's arc (its camera block, every 10° across ± `arc`, at pitch 8°, the authored pitch and 30°) ever see a House. The builder casts rays from each shell face to those viewpoints, with only the House itself in the way, and bakes the faces none of them reach at `UNSEEN_TEXEL_RATIO` (¼) of the texel density. Each Glazing Face gets a `seen` flag in the extras. One that no viewpoint sees prints a warning naming it: that glazing needs no design, or the House or its camera block needs another look.
