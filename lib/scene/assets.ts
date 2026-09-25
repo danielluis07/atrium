@@ -44,11 +44,13 @@ export const GPU_BENCHMARKS_PATH = "/detect-gpu";
  * own code.
  */
 export function sceneDownloads(slugs: string[]): string[] {
-  return [
-    ...slugs.flatMap((slug) => {
-      const { glb, lightmaps } = houseAssets(slug);
-      return [glb, ...Object.values(lightmaps).flatMap((l) => Object.values(l))];
-    }),
-    ...BASIS_FILES.map((f) => BASIS_PATH + f),
-  ];
+  return [...houseDownloads(slugs), ...BASIS_FILES.map((f) => BASIS_PATH + f)];
+}
+
+/** The Houses' files alone: each GLB and its lightmaps. */
+export function houseDownloads(slugs: string[]): string[] {
+  return slugs.flatMap((slug) => {
+    const { glb, lightmaps } = houseAssets(slug);
+    return [glb, ...Object.values(lightmaps).flatMap((l) => Object.values(l))];
+  });
 }
