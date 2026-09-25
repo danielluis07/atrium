@@ -11,8 +11,11 @@ import {
   DRACO_PATH,
   GPU_BENCHMARKS_PATH,
   houseAssets,
+  LIVE_PATHS,
   sceneDownloads,
+  type LivePath,
 } from "@/lib/scene/assets";
+import { DETAIL_PATH, detailMaps } from "@/lib/scene/detail";
 
 const publicFile = (url: string) => join("public", url);
 
@@ -30,13 +33,23 @@ describe("the Scene's assets", () => {
     });
   }
 
-  test("everything the Scene downloads is served from public/", () => {
-    const downloads = sceneDownloads(projectOrder.map((p) => p.slug));
-    expect(downloads.length).toBeGreaterThan(0);
-    for (const url of downloads) {
-      expect(url.startsWith("/")).toBe(true);
-      expect({ url, exists: existsSync(publicFile(url)) }).toEqual({ url, exists: true });
-    }
+  for (const path of LIVE_PATHS) {
+    test(`everything the ${path} Scene downloads is served from public/`, () => {
+      const downloads = sceneDownloads(projectOrder.map((p) => p.slug), path);
+      expect(downloads.length).toBeGreaterThan(0);
+      for (const url of downloads) {
+        expect(url.startsWith("/")).toBe(true);
+        expect({ url, exists: existsSync(publicFile(url)) }).toEqual({ url, exists: true });
+      }
+    });
+  }
+
+  test("each path downloads its own detail set, and only that", () => {
+    const slugs = projectOrder.map((p) => p.slug);
+    const detail = (path: LivePath) => sceneDownloads(slugs, path).filter((u) => u.startsWith(`${DETAIL_PATH}/`));
+    expect(detail("target")).toEqual(detailMaps("full").map((m) => m.url));
+    expect(detail("lean")).toEqual(detail("target"));
+    expect(detail("mobile")).toEqual(detailMaps("half").map((m) => m.url));
   });
 
   test("the self-hosted decoders are the ones three ships", () => {

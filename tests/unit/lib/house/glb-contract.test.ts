@@ -131,6 +131,17 @@ describe("checkGlbContract", () => {
     );
   });
 
+  test("fails when the shell has no first UV set for the detail maps", () => {
+    const gltf = fresh();
+    const shell = gltf.nodes.find((n) => n.name === "shell")!;
+    const concrete = gltf.meshes[shell.mesh!].primitives.find((p) => gltf.materials[p.material!].name === "concrete")!;
+    delete concrete.attributes!.TEXCOORD_0;
+    // the glazing needs none
+    const glass = gltf.nodes.find((n) => n.name === "glazing:hall-front")!;
+    delete gltf.meshes[glass.mesh!].primitives[0].attributes!.TEXCOORD_0;
+    expect(check(gltf)).toEqual(["node shell's concrete has no TEXCOORD_0 for the detail maps"]);
+  });
+
   test("fails on the wrong schema version, root or lightmaps", () => {
     const gltf = fresh();
     const extras = extrasOf(gltf, "lyngen");

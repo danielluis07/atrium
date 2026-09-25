@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "houses:export": "bun scripts/export-houses.ts",
-    "houses:bake": "bun scripts/bake-houses.ts"
+    "houses:bake": "bun scripts/bake-houses.ts",
+    "houses:detail": "bun scripts/detail-maps.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

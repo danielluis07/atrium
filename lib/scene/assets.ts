@@ -3,6 +3,13 @@
  * fetched from a third party at runtime.
  */
 
+import { detailMaps, detailSet } from "@/lib/scene/detail";
+import type { ScenePath } from "@/lib/scene/policy";
+
+/** A path that draws the live Scene. */
+export type LivePath = Exclude<ScenePath, "still">;
+export const LIVE_PATHS: readonly LivePath[] = ["target", "lean", "mobile"];
+
 const LIGHTMAP_NODES = ["shell", "plinth"] as const;
 const LIGHTMAP_LAYERS = ["base", "spill"] as const;
 
@@ -39,12 +46,16 @@ export const DRACO_FILES = ["draco_decoder.wasm", "draco_wasm_wrapper.js"] as co
 export const GPU_BENCHMARKS_PATH = "/detect-gpu";
 
 /**
- * Everything the Lean Scene downloads before its first frame, so the
+ * Everything a live Scene path downloads before its first frame, so the
  * downloads can start the moment the path is chosen, alongside the Scene's
- * own code.
+ * own code: the Houses, the path's detail maps and the KTX2 transcoder.
  */
-export function sceneDownloads(slugs: string[]): string[] {
-  return [...houseDownloads(slugs), ...BASIS_FILES.map((f) => BASIS_PATH + f)];
+export function sceneDownloads(slugs: string[], path: LivePath): string[] {
+  return [
+    ...houseDownloads(slugs),
+    ...detailMaps(detailSet(path)).map((m) => m.url),
+    ...BASIS_FILES.map((f) => BASIS_PATH + f),
+  ];
 }
 
 /** The Houses' files alone: each GLB and its lightmaps. */
