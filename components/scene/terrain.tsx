@@ -4,7 +4,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
 
-import { skyLitMaterial } from "@/components/scene/materials";
+import { skyLitMaterial, type DetailTextures, type ReliefUniforms } from "@/components/scene/materials";
 import { bakeShadow, type ShadowUniforms } from "@/components/scene/shadow";
 import { terrainHeight, type PlinthRect } from "@/lib/scene/platform";
 import { WATER_LEVEL } from "@/lib/scene/terrain";
@@ -22,11 +22,13 @@ const gridZ = (t: number) => -(t < 0 ? 10 + 60 * t + 40 * t ** 3 : 10 + 90 * t +
 
 function terrainGeometry(plinths: PlinthRect[]): BufferGeometry {
   const positions = new Float32Array(GRID * GRID * 3);
+  const uvs = new Float32Array(GRID * GRID * 2);
   for (let j = 0; j < GRID; j++) {
     const z = gridZ((2 * j) / (GRID - 1) - 1);
     for (let i = 0; i < GRID; i++) {
       const x = gridX((2 * i) / (GRID - 1) - 1);
       positions.set([x, terrainHeight(plinths, x, z), z], (j * GRID + i) * 3);
+      uvs.set(planUv(x, z), (j * GRID + i) * 2);
     }
   }
   const index: number[] = [];
@@ -42,20 +44,38 @@ function terrainGeometry(plinths: PlinthRect[]): BufferGeometry {
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
   geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
 }
 
 /**
+ * A world plan position as texture coordinates, in metres: the snow's detail
+ * normal tiles the same way on the terrain and on each House's plinth
+ * (`houses.tsx`), so it runs across the plinth's edge unbroken.
+ */
+export const planUv = (x: number, z: number): [number, number] => [x, z];
+
+/**
  * The live snow slope, carved to each House's plinth, and the fjord below it.
  * With `shadow`, it bakes the shadow of the Houses and pines once they are in,
- * and takes it.
+ * and takes it. With `snow`, it takes the snow's detail normal.
  */
-export function Terrain({ plinths, north, shadow }: { plinths: PlinthRect[]; north: number; shadow?: ShadowUniforms }) {
+export function Terrain({
+  plinths,
+  north,
+  shadow,
+  snow: detail,
+}: {
+  plinths: PlinthRect[];
+  north: number;
+  shadow?: ShadowUniforms;
+  snow?: { maps: DetailTextures | undefined; relief: ReliefUniforms };
+}) {
   const get = useThree((s) => s.get);
   const geometry = useMemo(() => terrainGeometry(plinths), [plinths]);
-  const snow = useMemo(() => skyLitMaterial(SNOW, shadow), [shadow]);
+  const snow = useMemo(() => skyLitMaterial(SNOW, shadow, detail), [shadow, detail]);
   const water = useMemo(() => new MeshStandardMaterial({ color: WATER, roughness: 0.08 }), []);
 
   useEffect(() => () => geometry.dispose(), [geometry]);

@@ -65,7 +65,7 @@ zod checks shape. `validateHouse` (TS) checks that references exist, openings fi
 One GLB per House:
 
 - Root node `house:<slug>`, origin at the datum.
-- `shell`: every opaque baked surface (concrete, stone, timber, metal, snow), with the base + spill lightmap UV.
+- `shell`: every opaque baked surface (concrete, stone, timber, metal, snow), with the base + spill lightmap UV (`TEXCOORD_1`) and a first UV set (`TEXCOORD_0`) in metres by dominant axis, boards horizontal on walls, which the shared detail maps (`lib/scene/detail.ts`) tile on.
 - `glazing:<name>`: one node per Glazing Face, so interior mapping gets each window's frame and hover or image capture can target one. Each is one outward quad with a 0..1 UV (u from the left edge seen from outside, v up).
 - `balustrade`, `downlights`, `plinth`. A terrace's glazed back wall isn't a Glazing Face, so its glass rides in `balustrade` with material `glazing`.
 - Materials named from a fixed enum: `concrete, stone, timber, metal, snow, glazing, balustrade, downlight, plinth`. R3F swaps materials by name.

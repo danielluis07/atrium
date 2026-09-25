@@ -10,6 +10,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  RepeatWrapping,
   ShaderMaterial,
   Vector3,
   type Material,
@@ -26,15 +27,25 @@ import {
   glazingMaterial,
   LIGHTMAP_INTENSITY,
   patchLightmap,
+  withDetail,
+  type DetailTextures,
   type LightUniforms,
+  type ReliefUniforms,
 } from "@/components/scene/materials";
-import { WINDOW } from "@/components/scene/palette";
+import { keyDirection, WINDOW } from "@/components/scene/palette";
 import { Pines } from "@/components/scene/pines";
 import { CASTER_LAYER, shadowUniforms, type ShadowUniforms } from "@/components/scene/shadow";
-import { Terrain } from "@/components/scene/terrain";
+import { planUv, Terrain } from "@/components/scene/terrain";
 import type { SceneLayout } from "@/content/schema";
 import type { HouseExtras } from "@/lib/house/glb-contract";
 import { BASIS_PATH, DRACO_PATH, houseAssets, type HouseAssets } from "@/lib/scene/assets";
+import {
+  DETAIL_MATERIALS,
+  DETAIL_TILES,
+  detailMaps,
+  type DetailMaterial,
+  type DetailSet,
+} from "@/lib/scene/detail";
 import { houseTransform } from "@/lib/scene/frame";
 import type { Gesture } from "@/lib/scene/gesture";
 import { plinthHeight, type PlinthRect } from "@/lib/scene/platform";
@@ -91,12 +102,15 @@ type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glazing" | "downl
 export function Houses({
   layout,
   shadows,
+  detail,
   store,
   gesture,
   onLabel,
 }: {
   layout: SceneLayout;
   shadows: boolean;
+  /** The shared detail maps to tile over the shells, the plinths and the terrain. */
+  detail: DetailSet;
   store: SelectionStore;
   /** The press under way, which the camera rig starts and resolves. */
   gesture: RefObject<Gesture | undefined>;
@@ -116,13 +130,30 @@ export function Houses({
       loader.setDRACOLoader(dracoLoader());
     },
   );
+  const maps = detailMaps(detail);
+  // one loader for both: the detail maps share the lightmaps' transcoder
   const textures = useLoader(
     KTX2Loader,
-    assets.flatMap(lightmapUrls),
+    [...assets.flatMap(lightmapUrls), ...maps.map((m) => m.url)],
     (loader) => {
       loader.setTranscoderPath(BASIS_PATH).detectSupport(gl);
     },
   );
+  const lightmapCount = assets.length * 4;
+
+  const details = useMemo(() => {
+    const byMaterial: Partial<Record<DetailMaterial, DetailTextures>> = {};
+    const anisotropy = gl.capabilities.getMaxAnisotropy();
+    maps.forEach((map, i) => {
+      const texture = asDetail(textures[lightmapCount + i], DETAIL_TILES[map.material].metres, anisotropy);
+      (byMaterial[map.material] ??= {})[map.kind] = texture;
+    });
+    return byMaterial;
+    // maps follow the detail set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textures, detail, gl, lightmapCount]);
+  const relief = useMemo<ReliefUniforms>(() => ({ reliefKey: { value: keyDirection(layout.north) } }), [layout.north]);
+  const snow = useMemo(() => ({ maps: details.snow, relief }), [details, relief]);
 
   const houses = useMemo(() => {
     const prepared = slugs.map((slug, i) => {
@@ -135,6 +166,7 @@ export function Houses({
           shell: { base: shellBase, spill: shellSpill },
           plinth: { base: plinthBase, spill: plinthSpill },
         },
+        { details, relief },
         shadows ? shadow : undefined,
       );
     });
@@ -143,7 +175,7 @@ export function Houses({
     return prepared;
     // slugs follow the layout
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gltfs, textures, layout, shadow, shadows]);
+  }, [gltfs, textures, layout, shadow, shadows, details, relief]);
 
   useEffect(
     () => () => {
@@ -204,7 +236,7 @@ export function Houses({
       {houses.map((h) => (
         <primitive key={h.slug} object={h.root} dispose={null} {...pickHandlers(h.slug)} />
       ))}
-      <Terrain plinths={rects} north={layout.north} shadow={shadows ? shadow : undefined} />
+      <Terrain plinths={rects} north={layout.north} shadow={shadows ? shadow : undefined} snow={snow} />
       <Pines plinths={rects} overview={layout.overview} />
     </>
   );
@@ -225,6 +257,23 @@ function asLightmap(texture: Texture): Texture {
 }
 
 /**
+ * A detail map tiled every `metres` on the first UV set, which is in metres.
+ * KTX2Loader has already set its colour space from the file. Anisotropic
+ * filtering keeps boards on a wall seen at a glancing angle from blurring.
+ */
+function asDetail(texture: Texture, metres: number, anisotropy: number): Texture {
+  texture.channel = 0;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.repeat.setScalar(1 / metres);
+  texture.anisotropy = anisotropy;
+  return texture;
+}
+
+type Detail = { details: Partial<Record<DetailMaterial, DetailTextures>>; relief: ReliefUniforms };
+
+const isDetailMaterial = (name: string): name is DetailMaterial => (DETAIL_MATERIALS as readonly string[]).includes(name);
+
+/**
  * A fresh copy of a loaded House (the loader's cache outlives the Canvas),
  * placed, with its materials swapped by name for baked-light ones.
  */
@@ -233,6 +282,7 @@ function prepareHouse(
   scene: Object3D,
   layout: SceneLayout,
   lightmaps: Lightmaps,
+  detail: Detail,
   shadow: ShadowUniforms | undefined,
 ): PreparedHouse {
   const root = scene.clone(true);
@@ -257,7 +307,7 @@ function prepareHouse(
   const material = (name: string, source: Material): Material => {
     let m = byName.get(name);
     if (!m) {
-      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, shellSpill, plinthSpill, toHouse, shadow);
+      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, detail, shellSpill, plinthSpill, toHouse, shadow);
       byName.set(name, m);
     }
     return m;
@@ -330,6 +380,7 @@ function makeMaterial(
   name: string,
   source: MeshStandardMaterial,
   lightmaps: Lightmaps,
+  { details, relief }: Detail,
   shellSpill: LightUniforms,
   plinthSpill: LightUniforms,
   toHouse: Matrix4,
@@ -349,18 +400,21 @@ function makeMaterial(
     case "downlight":
       return new MeshBasicMaterial({ color: DOWNLIGHT });
     case "plinth": {
-      const m = baked(source, lightmaps.plinth.base, 0);
+      // the snow normal, tiled in world plan metres as on the terrain (`fitPlinth`)
+      const m = withDetail(baked(source, lightmaps.plinth.base, 0), "snow", details.snow);
       // wins the depth test over the terrain sunk just under it
       m.polygonOffset = true;
       m.polygonOffsetFactor = -1;
       m.polygonOffsetUnits = -4;
-      patchLightmap(m, lightmaps.plinth.spill, plinthSpill, { edgeFade: true, shadow });
+      patchLightmap(m, lightmaps.plinth.spill, plinthSpill, { edgeFade: true, shadow, relief });
       return m;
     }
     default: {
-      // concrete, stone, timber, metal, snow: the builder's own colours, lit by the bake
+      // concrete, stone, timber, metal, snow: the builder's own colours, lit by the bake, and
+      // all but metal with the shared detail maps over them
       const m = baked(source, lightmaps.shell.base, name === "metal" ? 1 : DIELECTRIC_ENVIRONMENT);
-      patchLightmap(m, lightmaps.shell.spill, shellSpill);
+      if (isDetailMaterial(name)) withDetail(m, name, details[name]);
+      patchLightmap(m, lightmaps.shell.spill, shellSpill, { relief });
       return m;
     }
   }
@@ -378,18 +432,25 @@ function baked(source: MeshStandardMaterial, lightMap: Texture, envMapIntensity:
   });
 }
 
-/** Bends the plinth's outer band onto the slope (`lib/scene/platform.ts`). */
+/**
+ * Bends the plinth's outer band onto the slope (`lib/scene/platform.ts`), and
+ * maps its first UV set to world plan metres, as the terrain's is, so the
+ * snow's detail normal runs across its edge unbroken.
+ */
 function fitPlinth(plinth: Mesh, rects: PlinthRect[], index: number) {
   const source = plinth.geometry.getAttribute("position");
   const positions = new Float32Array(source.count * 3);
+  const uvs = new Float32Array(source.count * 2);
   const toLocal = plinth.matrixWorld.clone().invert();
   const p = new Vector3();
   for (let i = 0; i < source.count; i++) {
     p.fromBufferAttribute(source, i).applyMatrix4(plinth.matrixWorld);
     p.y = plinthHeight(rects, index, p.x, p.z, p.y);
+    uvs.set(planUv(p.x, p.z), i * 2);
     p.applyMatrix4(toLocal).toArray(positions, i * 3);
   }
   plinth.geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  plinth.geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
   plinth.geometry.deleteAttribute("normal");
   plinth.geometry.computeVertexNormals();
   plinth.geometry.computeBoundingBox();

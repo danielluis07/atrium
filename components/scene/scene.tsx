@@ -16,6 +16,7 @@ import { Mountains } from "@/components/scene/mountains";
 import { Snowfall } from "@/components/scene/snowfall";
 import type { SceneLayout, SceneProject } from "@/content/schema";
 import type { Cut } from "@/lib/scene/cut";
+import type { DetailSet } from "@/lib/scene/detail";
 import type { Gesture } from "@/lib/scene/gesture";
 import { monitor, startMonitor, type MonitorEvent } from "@/lib/scene/monitor";
 import { ladderOf, renderConfig, type Ladder } from "@/lib/scene/rungs";
@@ -33,6 +34,8 @@ export type SceneProps = {
   /** Hover and selection, shared with the Project Panel. */
   store: SelectionStore;
   ladder: Ladder;
+  /** The path's detail maps, fixed for the Scene's life: a rung never changes them. */
+  detail: DetailSet;
   /** The rung the Scene renders at; it only ever moves down, through `onStepDown`. */
   rung: number;
   /** Called with the next rung when frames run long. */
@@ -60,6 +63,7 @@ export default function Scene({
   projects,
   store,
   ladder,
+  detail,
   rung,
   onStepDown,
   active,
@@ -112,6 +116,7 @@ export default function Scene({
           <Houses
             layout={layout}
             shadows={ladder === "desktop"}
+            detail={detail}
             store={store}
             gesture={gesture}
             onLabel={placeLabel}
@@ -167,7 +172,7 @@ function RungMonitor({
   active,
   onStepDown,
   store,
-}: Omit<SceneProps, "layout" | "projects" | "cut" | "onReady">) {
+}: Omit<SceneProps, "layout" | "projects" | "cut" | "onReady" | "detail">) {
   const state = useRef(startMonitor(rung, ladderOf(ladder).length));
   const frames = useRef(0);
   const last = useRef<number>(undefined);

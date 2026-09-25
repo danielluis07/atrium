@@ -16,8 +16,9 @@ import { preload } from "react-dom";
 import { ProjectPanel } from "@/components/home/project-panel";
 import { useSelection } from "@/components/scene/use-selection";
 import type { SceneLayout, SceneProject } from "@/content/schema";
-import { sceneDownloads } from "@/lib/scene/assets";
+import { sceneDownloads, type LivePath } from "@/lib/scene/assets";
 import { isCovered, measureCut, REST, type Cut } from "@/lib/scene/cut";
+import { detailSet } from "@/lib/scene/detail";
 import { classifyGpu } from "@/lib/scene/gpu";
 import { readLowestRung, rememberRung } from "@/lib/scene/memory";
 import {
@@ -82,8 +83,9 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const ladder = live?.path === "mobile" ? "mobile" : "desktop";
   const cursor = useSelection(store, (s) => sceneCursor(s, ladder === "desktop"));
 
-  if (live || decision?.preload) {
-    for (const url of sceneDownloads(Object.keys(layout.houses))) {
+  const downloading = live?.path ?? decision?.preload;
+  if (downloading) {
+    for (const url of sceneDownloads(Object.keys(layout.houses), downloading)) {
       preload(url, { as: "fetch", crossOrigin: "anonymous" });
     }
   }
@@ -196,6 +198,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
               projects={projects}
               store={store}
               ladder={ladder}
+              detail={detailSet(live.path)}
               rung={rung}
               onStepDown={stepDown}
               active={rendering}
@@ -256,8 +259,13 @@ type Decision = {
   choice?: SceneChoice;
   /** Whether `?scene=` forced the path; a forced session leaves no memory. */
   forced: boolean;
-  /** Whether the Scene's downloads are worth starting before the tier is in. */
-  preload: boolean;
+  /**
+   * The path whose downloads are worth starting before the tier is in. Only
+   * the tier is unknown, and it can't move a desktop between Target and Lean
+   * detail (they share the full set), so the ladder decides: mobile for a
+   * touch-primary visitor, desktop otherwise.
+   */
+  preload?: LivePath;
 };
 
 let caps: SceneCapabilities | undefined;
@@ -269,7 +277,11 @@ function getDecision(): Decision {
   if (decision) return decision;
   caps = capabilities();
   const settled = chooseWithoutGpu(caps);
-  decision = { choice: settled, forced: !!caps.override, preload: !settled };
+  decision = {
+    choice: settled,
+    forced: !!caps.override,
+    preload: settled ? undefined : caps.touchPrimary ? "mobile" : "lean",
+  };
   return decision;
 }
 

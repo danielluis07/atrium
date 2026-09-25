@@ -57,7 +57,7 @@ export type Gltf = {
   scene?: number;
   scenes: { nodes: number[] }[];
   nodes: { name?: string; mesh?: number; children?: number[]; extras?: unknown }[];
-  meshes: { primitives: { material?: number }[] }[];
+  meshes: { primitives: { material?: number; attributes?: Record<string, number> }[] }[];
   materials: { name?: string }[];
 };
 
@@ -71,10 +71,15 @@ export function readGlb(bytes: Uint8Array): Gltf {
 }
 
 const KTX2_IDENTIFIER = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a];
-/** Khronos Data Format colour model for UASTC HDR 4x4. */
+/** Khronos Data Format colour models: ETC1S (Basis-LZ), UASTC LDR 4x4 and UASTC HDR 4x4. */
+export const KHR_DF_MODEL_ETC1S = 163;
+export const KHR_DF_MODEL_UASTC = 166;
 export const KHR_DF_MODEL_UASTC_HDR_4X4 = 167;
+/** Khronos Data Format transfer functions. */
+export const KHR_DF_TRANSFER_LINEAR = 1;
+export const KHR_DF_TRANSFER_SRGB = 2;
 
-export type Ktx2Header = { width: number; height: number; levels: number; colorModel: number };
+export type Ktx2Header = { width: number; height: number; levels: number; colorModel: number; transfer: number };
 
 /** The few KTX2 header fields the contract checks, or undefined when the bytes aren't KTX2. */
 export function readKtx2Header(bytes: Uint8Array): Ktx2Header | undefined {
@@ -85,10 +90,15 @@ export function readKtx2Header(bytes: Uint8Array): Ktx2Header | undefined {
     width: view.getUint32(20, true),
     height: view.getUint32(24, true),
     levels: view.getUint32(40, true),
-    // DFD: total size, then the basic block's vendor/type and version/size words, then the model byte
+    // DFD: total size, then the basic block's vendor/type and version/size words, then model, primaries, transfer
     colorModel: view.getUint8(dfd + 12),
+    transfer: view.getUint8(dfd + 14),
   };
 }
+
+/** A mip chain that runs from the full size down to 1×1. */
+export const fullMipChain = ({ width, height }: Pick<Ktx2Header, "width" | "height">) =>
+  Math.floor(Math.log2(Math.max(width, height))) + 1;
 
 const TOLERANCE = 1e-3;
 const near = (a: unknown, b: number) => typeof a === "number" && Math.abs(a - b) <= TOLERANCE;
@@ -163,6 +173,10 @@ export function checkGlbContract(
       const material = p.material === undefined ? undefined : gltf.materials[p.material]?.name;
       if (!material || !allowed.includes(material)) {
         issues.push(`node ${node.name} uses material ${material ?? "(none)"}, expected one of ${allowed.join(", ")}`);
+      }
+      // the detail maps tile in metres on the shell's first UV set
+      if (kind === "shell" && p.attributes?.TEXCOORD_0 === undefined) {
+        issues.push(`node shell's ${material ?? "(none)"} has no TEXCOORD_0 for the detail maps`);
       }
     }
   }

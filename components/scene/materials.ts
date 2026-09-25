@@ -7,11 +7,13 @@ import {
   UniformsLib,
   UniformsUtils,
   type Texture,
+  type Vector3,
   type WebGLProgramParametersWithUniforms,
 } from "three";
 
 import { OPEN_SNOW, SKY_HORIZON, SKY_ZENITH, SNOW_SHADOW, WINDOW } from "@/components/scene/palette";
 import { shadowMaskPars, type ShadowUniforms } from "@/components/scene/shadow";
+import type { DetailKind, DetailMaterial } from "@/lib/scene/detail";
 
 /**
  * The Houses' materials. Light is baked (ADR 0001): every opaque surface
@@ -19,7 +21,9 @@ import { shadowMaskPars, type ShadowUniforms } from "@/components/scene/shadow";
  * House so hover can brighten its windows, and a per-House dim for the
  * Houses left unselected. Warm light comes only from
  * the glazing, which looks into lit rooms (interior mapping), and the
- * soffit downlights, both bright enough to bloom.
+ * soffit downlights, both bright enough to bloom. Concrete, stone, timber and
+ * snow carry the shared tiled detail maps, whose normals shade the baked
+ * light in relief.
  */
 
 /** three's lightmap factor: a baked value times π gives Blender's shading. */
@@ -32,6 +36,56 @@ if (!ShaderChunk.lights_fragment_maps.includes(LIGHTMAP_READ)) {
 
 /** One House's baked light: `spillK` weighs the window spill, and `lightDim` scales it all. */
 export type LightUniforms = { spillK: { value: number }; lightDim: { value: number } };
+
+/** One material's tiled detail maps, loaded once and shared by every House. */
+export type DetailTextures = Partial<Record<DetailKind, Texture>>;
+
+/** How hard each material's normal map bends its normal. Snow is soft: the roof, the plinth and the terrain share it. */
+const NORMAL_SCALE: Record<DetailMaterial, number> = { concrete: 0.8, stone: 1.2, timber: 1, snow: 0.35 };
+
+/**
+ * The light is baked, so a normal map alone would only move the faint
+ * environment reflection. Relief lets it shade the baked light too, from
+ * the key direction the snow's baked shadows fall from: `1 + RELIEF · t·key`,
+ * where `t` is the bent normal's tilt across the surface. The tilt averages
+ * out, so a surface keeps the brightness it was baked with.
+ */
+const RELIEF = 0.9;
+
+/** The key direction relief shades from, world space (`keyDirection` in the palette). */
+export type ReliefUniforms = { reliefKey: { value: Vector3 } };
+
+const reliefPars = /* glsl */ `
+uniform vec3 reliefKey;
+float relief( vec3 bent, vec3 unbent ) {
+  vec3 key = normalize( ( viewMatrix * vec4( reliefKey, 0.0 ) ).xyz );
+  // only the tilt across the surface: bending always shortens the normal's
+  // component along it, which would darken every face toward the key
+  vec3 tilt = bent - unbent * dot( bent, unbent );
+  return max( 0.0, 1.0 + ${RELIEF.toFixed(2)} * dot( tilt, key ) );
+}`;
+
+/**
+ * Tiles a material's detail maps over it: the albedo takes over the flat
+ * colour (its mean is that colour, so the House keeps its baked brightness),
+ * the roughness map the roughness.
+ */
+export function withDetail(material: MeshStandardMaterial, name: DetailMaterial, maps: DetailTextures | undefined) {
+  if (!maps) return material;
+  if (maps.albedo) {
+    material.map = maps.albedo;
+    material.color.setRGB(1, 1, 1);
+  }
+  if (maps.normal) {
+    material.normalMap = maps.normal;
+    material.normalScale.setScalar(NORMAL_SCALE[name]);
+  }
+  if (maps.roughness) {
+    material.roughnessMap = maps.roughness;
+    material.roughness = 1;
+  }
+  return material;
+}
 
 /** A world plan position for the shadow mask, from the vertex shader. */
 function withShadow(shader: WebGLProgramParametersWithUniforms, shadow: ShadowUniforms) {
@@ -52,12 +106,13 @@ function withShadow(shader: WebGLProgramParametersWithUniforms, shadow: ShadowUn
  * Adds the spill layer to a lightmapped material. On the plinth the baked
  * light fades to open snow toward its edge, where it meets the live terrain,
  * and takes the same baked shadows as the terrain, so they cross the edge.
+ * With `relief`, a normal map shades the baked light as the terrain's does.
  */
 export function patchLightmap(
   material: MeshStandardMaterial,
   spill: Texture,
   uniforms: LightUniforms,
-  { edgeFade = false, shadow }: { edgeFade?: boolean; shadow?: ShadowUniforms } = {},
+  { edgeFade = false, shadow, relief }: { edgeFade?: boolean; shadow?: ShadowUniforms; relief?: ReliefUniforms } = {},
 ) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.spillMap = { value: spill };
@@ -65,10 +120,11 @@ export function patchLightmap(
     shader.uniforms.lightDim = uniforms.lightDim;
     shader.uniforms.openSnow = { value: OPEN_SNOW };
     if (shadow) withShadow(shader, shadow);
+    if (relief) Object.assign(shader.uniforms, relief);
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "void main() {",
-        "uniform sampler2D spillMap;\nuniform float spillK;\nuniform float lightDim;\nuniform vec3 openSnow;\nvoid main() {",
+        `uniform sampler2D spillMap;\nuniform float spillK;\nuniform float lightDim;\nuniform vec3 openSnow;\n${relief ? reliefPars : ""}\nvoid main() {`,
       )
       .replace(
         "#include <lights_fragment_maps>",
@@ -81,11 +137,12 @@ export function patchLightmap(
           lightMapTexel.rgb = mix( openSnow, lightMapTexel.rgb, smoothstep( 0.0, 0.16, min( lightMapEdge.x, lightMapEdge.y ) ) );`
               : ""
           }
-          ${shadow ? "lightMapTexel.rgb *= shadowLight( vShadowXZ );" : ""}`,
+          ${shadow ? "lightMapTexel.rgb *= shadowLight( vShadowXZ );" : ""}
+          ${relief ? "#ifdef USE_NORMALMAP\nlightMapTexel.rgb *= relief( normal, nonPerturbedNormal );\n#endif" : ""}`,
         ),
       );
   };
-  const key = `lightmap${edgeFade ? "-edge" : ""}${shadow ? "-shadow" : ""}`;
+  const key = `lightmap${edgeFade ? "-edge" : ""}${shadow ? "-shadow" : ""}${relief ? "-relief" : ""}`;
   material.customProgramCacheKey = () => key;
 }
 
@@ -93,13 +150,23 @@ export function patchLightmap(
  * Lit by the open sky as the plinth's baked edge is, a little darker where a
  * surface turns from the sky: the snow, and the pines and mountains on it.
  * With `shadow`, the open snow takes the baked shadows of the Houses and pines.
+ * With `snow`, it takes the snow's detail normal, in relief as the plinth
+ * does, so the two meet without a seam; its geometry's first UV set must be
+ * world plan metres, as the plinth's is.
  */
-export function skyLitMaterial(color: Color, shadow?: ShadowUniforms): MeshStandardMaterial {
+export function skyLitMaterial(
+  color: Color,
+  shadow?: ShadowUniforms,
+  snow?: { maps: DetailTextures | undefined; relief: ReliefUniforms },
+): MeshStandardMaterial {
   const material = new MeshStandardMaterial({ color, roughness: 0.8, envMapIntensity: 0 });
+  const relief = snow?.maps?.normal ? snow.relief : undefined;
+  if (relief) withDetail(material, "snow", { normal: snow!.maps!.normal });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.openSnow = { value: OPEN_SNOW };
     shader.uniforms.openSnowIntensity = { value: LIGHTMAP_INTENSITY };
     if (shadow) withShadow(shader, shadow);
+    if (relief) Object.assign(shader.uniforms, relief);
     shader.vertexShader = shader.vertexShader
       .replace("void main() {", "varying float vSkyward;\nvoid main() {")
       .replace(
@@ -107,13 +174,16 @@ export function skyLitMaterial(color: Color, shadow?: ShadowUniforms): MeshStand
         "#include <beginnormal_vertex>\nvSkyward = normalize( mat3( modelMatrix ) * objectNormal ).y;",
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace("void main() {", "uniform vec3 openSnow;\nuniform float openSnowIntensity;\nvarying float vSkyward;\nvoid main() {")
+      .replace(
+        "void main() {",
+        `uniform vec3 openSnow;\nuniform float openSnowIntensity;\nvarying float vSkyward;\n${relief ? reliefPars : ""}\nvoid main() {`,
+      )
       .replace(
         "#include <lights_fragment_maps>",
-        `#include <lights_fragment_maps>\nirradiance += openSnow * openSnowIntensity * mix( 0.6, 1.0, vSkyward )${shadow ? " * shadowLight( vShadowXZ )" : ""};`,
+        `#include <lights_fragment_maps>\nirradiance += openSnow * openSnowIntensity * mix( 0.6, 1.0, vSkyward )${shadow ? " * shadowLight( vShadowXZ )" : ""}${relief ? " * relief( normal, nonPerturbedNormal )" : ""};`,
       );
   };
-  const key = shadow ? "sky-lit-shadow" : "sky-lit";
+  const key = `sky-lit${shadow ? "-shadow" : ""}${relief ? "-relief" : ""}`;
   material.customProgramCacheKey = () => key;
   return material;
 }

@@ -18,9 +18,19 @@ Draft mode (512² shell, 256² plinth, 64 spp) takes about 90 s per House on the
 
 Every bake writes its bake hash to the GLB extras: a sha256 of the House's exported JSON (the House, its placement, its camera block and the overview camera) and the builder version. A House whose committed GLB carries the current hash, in the mode asked for or a better one (a final bake satisfies a draft run), with its lightmaps beside it, is skipped without starting Blender. Anything else re-bakes. The GLB-contract test fails when a committed hash differs from the current one, so an edit to a House record, `content/scene.ts` or the builder can't ship without its bake.
 
+## Detail maps
+
+```sh
+bun run houses:detail                    # regenerate the shared tiled detail maps (about a minute)
+```
+
+The Houses share tiled detail maps (`lib/scene/detail.ts`): board-formed concrete (albedo, normal, roughness), stacked stone and timber soffits (albedo, normal), and snow (normal, on the roof snow, the plinths and the live terrain). `builder/textures.py`, promoted from the prototype (#6), generates them procedurally and periodically, so they tile, at full size (1024²) and half size (the mobile Scene's set). Each albedo map's mean in linear light is its material's flat base colour in `builder/config.py`, and the concrete roughness map's mean is its roughness, so a House keeps the brightness it was baked with; the generator fails if either drifts. KTX-Software then encodes each map into `public/scene/detail/` as a mipmapped KTX2: albedo (sRGB) and roughness (linear) as ETC1S, which measured indistinguishable from the source at a third of UASTC's size, and normals (linear) as UASTC with RDO and Zstandard, since ETC1S's block artefacts wreck them. The Scene tiles them in metres on the shell's `TEXCOORD_0`, and on the plinth and the terrain in world plan metres, so the snow runs across the plinth's edge unbroken. The maps are placeholders: final ones are made by hand. They don't change what a bake bakes, so they don't touch the bake hash.
+
+Which set a Scene path loads is fixed for the path (`detailSet`): the full set on Target and Lean, the half-size set on mobile, none on the still. It never changes with the rung, since swapping textures would recompile the Scene's shaders mid-flight.
+
 ## The download budget
 
-`bun test` also measures the committed files against the download budget (`lib/scene/budget.ts`): all four Houses' GLBs and lightmaps at most 16 MB over the wire, and everything the Scene downloads (`sceneDownloads` in `lib/scene/assets.ts`) at most 24 MB. A file's wire size is its gzip size where that is smaller. The test prints every file, the totals and the lightmaps' estimated GPU memory (BC6H or ASTC HDR, and the RGBA16F fallback), which isn't gated. A file the Scene starts to download belongs in `sceneDownloads`, so the budget counts it.
+`bun test` also measures the committed files against the download budget (`lib/scene/budget.ts`): all four Houses' GLBs and lightmaps at most 16 MB over the wire, and everything each live Scene path downloads (`sceneDownloads` in `lib/scene/assets.ts`: the Houses, its detail maps and the transcoder) at most 24 MB. A file's wire size is its gzip size where that is smaller. The test prints every file per path, the totals and the estimated GPU memory of the lightmaps (BC6H or ASTC HDR, and the RGBA16F fallback) and of the detail maps (BC7 or ASTC, and the RGBA8 fallback), which isn't gated. A file the Scene starts to download belongs in `sceneDownloads`, so the budget counts it.
 
 ## Seen and unseen faces
 
@@ -42,6 +52,7 @@ The preflight names whichever of these is missing before a bake starts.
 ## Layout
 
 - `builder/build.py`: the House compiler, promoted from the one-House prototype (#6). It reads the exported JSON, builds the shared parts, derives fascias, snow, downlights, clipped soffits and the snow plinth (stepped for a House set into the slope), culls buried faces, bevels, marks seen and unseen faces, unwraps lightmap UVs, bakes base and window-spill lightmaps with Cycles, and exports the raw GLB with the contract extras.
+- `builder/textures.py`: the procedural detail-map generator, run by `../detail-maps.ts` (`bun run houses:detail`).
 - `builder/denoise.py`: OIDN denoise of one lightmap through the compositor, run by `build.py` in a fresh process.
 - `builder/config.py`: every builder-wide constant (detail sizes, bevels, light, materials, bake modes, the unseen texel ratio).
 - `builder/pyproject.toml`: its `version` is the builder version in every bake hash. Bump it when a builder change alters what it bakes.
