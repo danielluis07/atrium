@@ -70,6 +70,22 @@ class Maker:
         return n / np.linalg.norm(n, axis=-1, keepdims=True)
 
 
+def fit_run(rng, total, size, gap):
+    """Random (size, gap) pairs, each in its [lo, hi) range, that sum to exactly `total` pixels.
+
+    Draws pairs until they overrun the tile, then scales the sizes down to fit, so a run of courses
+    or blocks laid from any start wraps round the tile with a joint at every seam.
+    """
+    pairs = []
+    while sum(s + g for s, g in pairs) < total:
+        pairs.append((int(rng.integers(*size)), int(rng.integers(*gap))))
+    room = total - sum(g for _, g in pairs)
+    drawn = sum(s for s, _ in pairs)
+    sizes = [max(1, int(s * room / drawn)) for s, _ in pairs]
+    sizes[-1] += room - sum(sizes)  # the rounding goes to the last
+    return [(s, g) for s, (_, g) in zip(sizes, pairs)]
+
+
 def albedo(material, display):
     """Linear albedo from a display-referred pattern, each channel scaled so its mean is the base colour."""
     base = np.array(MATERIALS[material][0])
@@ -116,12 +132,15 @@ def timber(m):
     """Planks 10 cm wide running along u."""
     n = m.n
     y = np.arange(n)
-    ph = n // 10
-    tone = m.rng.normal(0, 0.06, 11)[y // ph][:, None]
+    # ten planks to the tile exactly, fractional pixels and all, so the joints and tones wrap
+    ph = n / 10
+    tone = m.rng.normal(0, 0.06, 10)[(y // ph).astype(int)][:, None]
     # grain along the plank, long in x
     grain = m.noise(30, aniso=(1.0, 0.03)) * 0.5 + m.noise(4, aniso=(1.0, 0.05)) * 0.25
-    rings = np.sin((y[:, None] / m.s + m.noise(80, aniso=(0.1, 1.0)) * 20) * 0.6) * 0.15
-    dist = np.minimum(y % ph, ph - (y % ph))[:, None].astype(float)
+    # rings about 0.6 rad per prototype pixel, rounded to whole cycles per tile so their phase wraps
+    cycles = max(1, round(0.6 * n / m.s / (2 * np.pi)))
+    rings = np.sin(2 * np.pi * cycles * y[:, None] / n + m.noise(80, aniso=(0.1, 1.0)) * 12) * 0.15
+    dist = np.minimum(y % ph, ph - (y % ph))[:, None]
     gap = np.exp(-((dist / m.px(1.4)) ** 2))
     v = 1 + tone + grain * 0.12 + rings * 0.5 - gap * 0.55
     display = np.stack([0.50 * v, 0.29 * v, 0.16 * v], -1)
@@ -137,26 +156,22 @@ def stone(m):
     display = np.zeros((n, n, 3))
     xx = np.arange(n)
     y = 0
-    while y < n:
-        h = int(rng.integers(px(52), px(143)))
-        if n - y < px(60):
-            h = n - y
-        x = int(rng.integers(0, px(200)))
-        rows = min(y + h, n) - y
-        edge = np.minimum(np.arange(rows), rows - 1 - np.arange(rows)).astype(float)
+    # courses and their joints fill the tile exactly, as do each course's blocks, so every joint wraps
+    for h, joint in fit_run(rng, n, (px(52), px(143)), (px(5), px(10))):
+        edge = np.minimum(np.arange(h), h - 1 - np.arange(h)).astype(float)
         prof = np.clip(edge / px(9), 0, 1) ** 0.5
-        while x < n + px(600):
-            w = int(rng.integers(px(150), px(560)))
+        ys = slice(y, y + h)
+        # each course starts somewhere different, wrapping round the tile
+        x = int(rng.integers(0, n))
+        for w, gap in fit_run(rng, n, (px(150), px(560)), (px(6), px(14))):
             c = 0.55 + rng.normal(0, 0.045)
             warm = abs(rng.normal(0, 0.025))
-            a, b = x % n, (x + w) % n
-            cols = (xx >= a) & (xx < b) if a < b else (xx >= a) | (xx < b)
-            ys = slice(y, y + rows)
+            cols = (xx - x) % n < w
             bump = rng.uniform(0.6, 1.0)
-            height[ys, cols] = np.maximum(height[ys, cols], prof[:, None] * bump)
+            height[ys, cols] = prof[:, None] * bump
             display[ys, cols] = [c + warm, c + warm * 0.4, c - warm * 0.6]
-            x += w + int(rng.integers(px(6), px(14)))
-        y += h + int(rng.integers(px(5), px(10)))
+            x += w + gap
+        y += h + joint
     # blocks only fill where written: the rest is the joints
     solid = height > 0
     fine = m.noise(3) * 0.08 + m.noise(25) * 0.12
