@@ -1,4 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { PerspectiveCamera, Vector3 } from "three";
+
+import { getPlacement, getProject, getSceneLayout } from "@/content";
+import { fromHouseFrame } from "@/lib/house/cameras";
+import { overviewFov } from "@/lib/scene/camera";
+import { toThree } from "@/lib/scene/frame";
 
 import { lineAtBaseline } from "./cut";
 import { expectReachableByTab } from "./keyboard";
@@ -208,5 +214,70 @@ test.describe("the Lean Scene", () => {
     const wheels = await page.evaluate(() => (window as unknown as { wheels: boolean[] }).wheels);
     expect(wheels.length).toBeGreaterThan(0);
     expect(wheels).not.toContain(true);
+  });
+});
+
+/**
+ * Where a House stands on the stage from the overview at rest, CSS pixels:
+ * the point its hero camera looks at, projected. The mobile Scene's calm
+ * drift moves it by a few pixels at most.
+ */
+function houseOnStage(slug: string, stage: { width: number; height: number }): [number, number] {
+  const { overview } = getSceneLayout();
+  const camera = new PerspectiveCamera(overviewFov(stage.width / stage.height), stage.width / stage.height, 0.5, 4000);
+  camera.position.set(...toThree(overview.position));
+  camera.lookAt(...toThree(overview.lookAt));
+  camera.updateMatrixWorld();
+  const house = fromHouseFrame(getProject(slug)!.camera.lookAt, getPlacement(slug));
+  const p = new Vector3(...toThree(house)).project(camera);
+  return [((p.x + 1) / 2) * stage.width, ((1 - p.y) / 2) * stage.height];
+}
+
+/**
+ * A finger dragged `distance` pixels up from `from`, as raw touches: Chromium
+ * turns them into a scroll unless the page takes them for itself.
+ */
+async function swipeUp(page: Page, [x, y]: [number, number], distance: number) {
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: "touchStart" | "touchMove" | "touchEnd", at: number) =>
+    cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y: at }] });
+  await touch("touchStart", y);
+  for (let at = y - 10; at >= y - distance; at -= 10) await touch("touchMove", at);
+  await touch("touchEnd", y - distance);
+}
+
+test.describe("the mobile Scene", () => {
+  test.skip(({ isMobile }) => !isMobile, "mobile only");
+  // a software renderer takes a while over the first frame
+  test.setTimeout(240_000);
+
+  test("tapping a House opens the Project Panel as a bottom sheet, and swipes scroll the page", async ({ page }) => {
+    const slow = expect.configure({ timeout: 30_000 });
+    await page.goto("/?scene=mobile");
+    const scene = liveScene(page);
+    await expect(scene).toHaveAttribute("data-scene-path", "mobile");
+    await expect(scene).toHaveAttribute("data-scene-ready", "true", { timeout: 200_000 });
+
+    const canvas = stage(page).locator("canvas");
+    const box = (await canvas.boundingBox())!;
+    const [x, y] = houseOnStage("senja", box);
+    await page.touchscreen.tap(box.x + x, box.y + y);
+
+    const panel = page.locator('[data-slot="project-panel"]');
+    await slow(panel.getByRole("heading", { name: "Senja House" })).toBeVisible();
+    await expect(panel).toHaveAttribute("data-side", "bottom");
+    const sheet = (await panel.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(sheet.y + sheet.height).toBeCloseTo(viewport.height, 0);
+    expect(sheet.width).toBeCloseTo(viewport.width, 0);
+    // no orbit: the Scene offers no grab
+    await expect(scene).not.toHaveClass(/cursor-grab/);
+
+    // a swipe up over the Scene, above the sheet, scrolls the page, and scrolling closes the Panel
+    const from: [number, number] = [box.x + box.width / 2, box.y + box.height * 0.35];
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, from)).toBe("CANVAS");
+    await swipeUp(page, from, 200);
+    await slow.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+    await slow(panel).toBeHidden();
   });
 });

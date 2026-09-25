@@ -4,6 +4,7 @@ import { getPlacement, getProject, getProjects } from "@/content";
 import { sceneLayout } from "@/content/scene";
 import { heroCamera, toHouseFrame } from "@/lib/house/cameras";
 import {
+  CALM,
   flyTo,
   heroPose,
   houseShot,
@@ -108,6 +109,15 @@ describe("the overview camera", () => {
     // the tab was hidden for half a minute
     const [resumed] = poses([{ dt: 30 }], rig);
     expect(distance(resumed.position, before.at(-1)!.position)).toBeLessThan(0.03);
+  });
+
+  test("a calm camera (the mobile Scene's) drifts less, on the same periods", () => {
+    const reach = (rig: OverviewRig) =>
+      Math.max(...poses(idle(60), rig).map((p) => distance(p.position, overview.position)));
+    const full = reach(startOverview());
+    const calm = reach(startOverview({ calm: true }));
+    expect(calm).toBeGreaterThan(0.1);
+    expect(calm).toBeCloseTo(full * CALM, 6);
   });
 });
 
@@ -221,6 +231,20 @@ describe("the fly-to", () => {
       expect(distance(pose.position, rest.position)).toBeLessThan(1.5);
     }
     expect(moved).toBeGreaterThan(0.3);
+  });
+
+  test("a calm camera sways less at a House, and still holds its hero angle", () => {
+    const sway = (calm: boolean) => {
+      let { rig } = land(flyTo(overview, startRig({ calm }), shot("lyngen")));
+      let moved = 0;
+      for (let i = 0; i < 60 * 60; i++) {
+        rig = stepRig(rig, { dt: FRAME });
+        moved = Math.max(moved, distance(rigPose(overview, rig).position, hero("lyngen").position));
+      }
+      return moved;
+    };
+    expect(sway(true)).toBeGreaterThan(0);
+    expect(sway(true)).toBeLessThan(sway(false) * 0.6);
   });
 
   test("cuts instead of flying under reduced motion", () => {

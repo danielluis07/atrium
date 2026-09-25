@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { monitor, p90, startMonitor, type MonitorEvent, type MonitorState } from "@/lib/scene/monitor";
+import { ladderOf, renderConfig } from "@/lib/scene/rungs";
 
 const FLOOR = 6;
 
@@ -63,6 +64,11 @@ describe("the rung monitor", () => {
   test("never steps up, however fast the frames get", () => {
     const slow = run(startMonitor(1, FLOOR), frames(0, 3100, 25));
     expect(rungs(slow, frames(3100, 30_000, 4))).toEqual([2]);
+  });
+
+  test("steps the mobile ladder 1.5 → 1 → 0.75 and stops", () => {
+    const visited = rungs(startMonitor(1, ladderOf("mobile").length), frames(0, 30_000, 40));
+    expect(visited.map((rung) => renderConfig("mobile", rung).dpr)).toEqual([1.5, 1, 0.75]);
   });
 
   test("stops at the floor", () => {

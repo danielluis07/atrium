@@ -26,6 +26,17 @@ export const ORBIT_STEP = 10;
  */
 export const LOOK_ASIDE = 10;
 
+/**
+ * Where the view turns off the look-at point, degrees: right by `aside`,
+ * down by `below`. The desktop Panel on the right takes `aside`; the mobile
+ * Scene's bottom sheet takes `below`, so the House rises above it
+ * (`panelAim` in `lib/scene/camera.ts`).
+ */
+export type Aim = { aside: number; below: number };
+
+/** The desktop aim, clear of the Project Panel on the right. */
+export const ASIDE: Aim = { aside: LOOK_ASIDE, below: 0 };
+
 const rad = (d: number) => (d * Math.PI) / 180;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -57,18 +68,25 @@ export function stepAngle(camera: CameraBlock, angle: OrbitAngle, direction: -1 
 
 /**
  * The camera at `angle` around a House, in the layout frame: on the camera
- * block's sphere, looking past the look-at point by `LOOK_ASIDE`.
+ * block's sphere, looking past the look-at point by `aim`.
  */
 export function orbitPose(
   camera: CameraBlock,
   placement: Placement,
   angle: OrbitAngle,
+  aim: Aim = ASIDE,
 ): { position: Vec3; lookAt: Vec3 } {
   const position = orbitCamera(camera, angle.azimuth, angle.pitch);
   const [x, y, z] = camera.lookAt.map((v, i) => v - position[i]);
   // turned clockwise seen from above: to the right
-  const c = Math.cos(rad(LOOK_ASIDE));
-  const s = Math.sin(rad(LOOK_ASIDE));
-  const aim: Vec3 = [position[0] + x * c + y * s, position[1] - x * s + y * c, position[2] + z];
-  return { position: fromHouseFrame(position, placement), lookAt: fromHouseFrame(aim, placement) };
+  const c = Math.cos(rad(aim.aside));
+  const s = Math.sin(rad(aim.aside));
+  const [tx, ty] = [x * c + y * s, -x * s + y * c];
+  // then tipped down, keeping the look-at distance
+  const flat = Math.hypot(tx, ty);
+  const reach = Math.hypot(flat, z);
+  const elevation = Math.atan2(z, flat) - rad(aim.below);
+  const k = (reach * Math.cos(elevation)) / flat;
+  const look: Vec3 = [position[0] + tx * k, position[1] + ty * k, position[2] + reach * Math.sin(elevation)];
+  return { position: fromHouseFrame(position, placement), lookAt: fromHouseFrame(look, placement) };
 }

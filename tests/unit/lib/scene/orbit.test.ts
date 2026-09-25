@@ -11,6 +11,7 @@ import {
   houseShot,
   orbitRig,
   overviewFov,
+  panelAim,
   rigPose,
   startRig,
   stepRig,
@@ -149,6 +150,41 @@ describe("the orbit at a selected House", () => {
   });
 });
 
+describe("the mobile Scene's hero angle keeps the House above the bottom sheet", () => {
+  // touch viewports: phones upright and on their side, and a tablet
+  for (const [name, aspect] of [
+    ["9:19.5", 9 / 19.5],
+    ["9:16", 9 / 16],
+    ["3:4", 3 / 4],
+    ["19.5:9", 19.5 / 9],
+  ] as const) {
+    test(`its projected centre sits centred across, in the upper part of a ${name} viewport`, () => {
+      const half = Math.tan((overviewFov(aspect) * Math.PI) / 360);
+      const aim = panelAim("bottom", aspect);
+      for (const p of projects) {
+        const placement = getPlacement(p.slug);
+        const centre = fromHouseFrame(houseCentre(p), placement);
+        const pose = orbitPose(p.camera, placement, heroAngle(p.camera), aim);
+        const x = screenX(pose, centre, half * aspect);
+        expect(x).toBeGreaterThan(0.3);
+        expect(x).toBeLessThan(0.7);
+        // from the top: below the header, above the sheet's top edge at 40%
+        const y = screenY(pose, centre, half);
+        expect(y).toBeGreaterThan(0.12);
+        expect(y).toBeLessThan(0.35);
+      }
+    });
+  }
+
+  test("a Panel on the right keeps the desktop aim", () => {
+    const p = getProject("lyngen")!;
+    const placement = getPlacement(p.slug);
+    expect(orbitPose(p.camera, placement, heroAngle(p.camera), panelAim("right", 16 / 9))).toEqual(
+      orbitPose(p.camera, placement, heroAngle(p.camera)),
+    );
+  });
+});
+
 describe("the orbit in the camera rig", () => {
   const shot = (slug: string) => houseShot(getProject(slug)!.camera, getPlacement(slug));
   const land = (rig: Rig) => {
@@ -216,6 +252,15 @@ function screenX(pose: CameraPose, point: readonly number[], tanX: number): numb
   const right = normalize([f[1], -f[0], 0]);
   const d = point.map((v, i) => v - pose.position[i]);
   return (dot(d, right) / dot(d, f) / tanX + 1) / 2;
+}
+
+/** Where `point` falls down the viewport seen from `pose` (z up): 0 at the top edge, 1 at the bottom. */
+function screenY(pose: CameraPose, point: readonly number[], tanY: number): number {
+  const f = normalize(pose.lookAt.map((v, i) => v - pose.position[i]));
+  const right = normalize([f[1], -f[0], 0]);
+  const up = [right[1] * f[2] - right[2] * f[1], right[2] * f[0] - right[0] * f[2], right[0] * f[1] - right[1] * f[0]];
+  const d = point.map((v, i) => v - pose.position[i]);
+  return (1 - dot(d, up) / dot(d, f) / tanY) / 2;
 }
 
 const dot = (a: number[], b: number[]) => a.reduce((s, v, i) => s + v * b[i], 0);
