@@ -32,6 +32,8 @@ The room cards of ADR 0004 were cheap, but they read as flat drawings when a sel
 
 ## Evidence
 
+### Lyngen (#59)
+
 Built as #59 on Lyngen: a fireplace lounge in the double-height main volume, seen through `living-front` and `living-side`. The template puts the fireplace on the wall the stone chimney stands behind.
 
 - **The room.** The builder hollows the volume to a shell inside 0.3 m walls and cuts the glass through to it. The walls, floor, ceiling and furniture come to 3,186 triangles after culling, with 18 lamps (16 downlights, the floor lamp and the fire). Instead of sharing the House's lightmaps, the room bakes into its own texture, `interior.ktx2`: its light (denoised), its colours and its glow, combined into one HDR texture. The Scene draws it as one mesh with one unlit material, one draw call, after the House's other opaque parts, so the depth test drops what the walls hide.
@@ -46,3 +48,20 @@ Built as #59 on Lyngen: a fireplace lounge in the double-height main volume, see
 - **Step-downs.** In 3 alternating pairs with the rung left free, both builds start at rung 4 and settle at rung 6 in every run. The branch adds no step-down.
 - **Download.** `interior.ktx2` is 1.05 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Lyngen's GLB grew by 0.03 MB over the wire. The Scene (Target and Lean) went from 14.76 to 15.84 MB over the wire, of 24 MB, and the Houses from 9.11 to 10.20 MB, of 16 MB.
 - **Bake.** The room adds about 6 minutes to Lyngen's final bake (1024², 256 spp) and about 1 minute to a draft (512², 64 spp).
+
+### Kvaløya (#62)
+
+A dining room in `living` (L0, 9.2 × 6 m), seen through `living-front` and `living-court`: a 2.8 m walnut table for eight facing the fjord, two pendants over it, and a sideboard under a canvas on the back wall. It is built from the dining template with no builder change.
+
+- **The room.** 852 triangles after culling, with 10 lamps (8 downlights and the 2 pendants). At the overview, two hero Interiors are on screen: Lyngen's and Kvaløya's.
+- **Frame cost.** Measured the same way against `main` at ca7f23d (Lyngen's Interior only), with no bake running and the selected camera on Kvaløya. The GPU ran cooler than in #59: about 20 ms at the overview at rung 4. GPU p90, branch minus `main`, as mean / median of runs:
+
+  | Rung | Runs per build | Overview | Kvaløya selected |
+  |---|---|---|---|
+  | 4 (Lean), held | 7 | +1.30 / +0.52 ms | +0.41 / +0.33 ms |
+  | 6 (DPR 0.75, no bloom), held from the start | 12 | +1.89 / +2.92 ms | +1.13 / +0.23 ms |
+
+  Rung 4 is inside the +1.5 ms bar. At rung 6 the overview's p90 is over it. That tail comes from runs in which the whole frame slows (overview p50 of 14–18 ms against about 10 ms), which both builds have: `main`'s p90 went over 12 ms in 5 of 12 runs, the branch's in 8. The branch was higher in 7 of 12 alternating pairs, and a sign-flip test puts the paired gap at p = 0.14, so 12 pairs can't separate it from the GPU's state. The median p50s show the room's steady cost: +0.30 ms at the overview at either rung, and +0.68 ms at the selected camera at rung 4, higher in all 7 pairs, as Lyngen's was.
+- **Step-downs.** In 3 alternating pairs with the rung left free, both builds start at rung 4 and settle at rung 6 in every run. The branch adds no step-down.
+- **Download.** `interior.ktx2` is 0.87 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Kvaløya's GLB grew by 0.02 MB over the wire. The Scene (Target and Lean) went from 15.84 to 16.69 MB over the wire, of 24 MB, and the Houses from 10.20 to 11.04 MB, of 16 MB.
+- **Bake.** The room adds about 9.5 minutes to Kvaløya's final bake (16 minutes in all).

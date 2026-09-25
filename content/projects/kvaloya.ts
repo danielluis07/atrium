@@ -46,7 +46,10 @@ export const kvaloya = {
     levels: [{ name: "L0", elevation: 0, height: 3.2 }],
     // a pinwheel around the hearth, leaving the front-left quadrant open as a court
     volumes: [
-      { name: "living", rect: { x0: -1.2, y0: -7.2, x1: 8.0, y1: -1.2 }, from: "L0", to: "L0" },
+      {
+        name: "living", rect: { x0: -1.2, y0: -7.2, x1: 8.0, y1: -1.2 }, from: "L0", to: "L0",
+        interior: { kind: "dining", lamp: "pendant" },
+      },
       { name: "sleeping", rect: { x0: 1.2, y0: -1.2, x1: 7.2, y1: 7.2 }, from: "L0", to: "L0" },
       { name: "studio", rect: { x0: -8.0, y0: 1.2, x1: 1.2, y1: 7.2 }, from: "L0", to: "L0" },
     ],
