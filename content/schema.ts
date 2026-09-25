@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { interiorVolume } from "@/lib/house/derive";
 import { House } from "@/lib/house/schema";
 import { validateHouse, type HouseIssue } from "@/lib/house/validate";
 
@@ -85,8 +86,12 @@ export type SceneProject = ReturnType<typeof sceneProject>;
 export type Placement = z.infer<typeof Placement>;
 export type SceneLayout = z.infer<typeof SceneLayout>;
 
-/** A Project as the client Scene gets it: none of its House, write-up or images. */
-export const sceneProject = ({ slug, name, location, elevation, year, floorArea, lede, camera }: Project) => ({
+/**
+ * A Project as the client Scene gets it: none of its House, write-up or
+ * images, only whether its House has an Interior, whose baked texture joins
+ * the Scene's downloads.
+ */
+export const sceneProject = ({ slug, name, location, elevation, year, floorArea, lede, camera, house }: Project) => ({
   slug,
   name,
   location,
@@ -95,6 +100,7 @@ export const sceneProject = ({ slug, name, location, elevation, year, floorArea,
   floorArea,
   lede,
   camera,
+  interior: !!interiorVolume(house),
 });
 
 /** Everything `validateHouse` checks, plus the parts of the record that point into the House. */
@@ -107,6 +113,15 @@ export function validateProject(project: Project): HouseIssue[] {
       part: "images.interior",
       message: `looks out through ${face}, which is not a Glazing Face of the House`,
     });
+  } else {
+    // the image shows the Hero Interior, so it looks out of the room that has one
+    const room = interiorVolume(project.house);
+    if (room && opening.volume !== room.name) {
+      issues.push({
+        part: "images.interior",
+        message: `looks out through ${face}, which is in ${opening.volume}, not ${room.name}, which has the Interior`,
+      });
+    }
   }
   return issues;
 }

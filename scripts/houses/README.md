@@ -14,9 +14,15 @@ A bake writes `public/houses/<slug>/<slug>.glb` (meshopt, 16-bit texcoords) and 
 
 Draft mode (512² shell, 256² plinth, 64 spp) takes about 90 s per House on the dev laptop; final mode (1024² shell, 512² plinth, 256 spp) about 10 min. Run one bake at a time, and never alongside browser measurements: the two fight over RAM and memory bandwidth.
 
+## The Interior
+
+A House whose record gives a volume an Interior (`docs/adr/0005-hero-interior-is-real-baked-geometry.md`) also gets `interior.ktx2`. The builder hollows that volume to its room shell (`interiorShell` in `lib/house/derive.ts`, in the builder JSON as `derived.interior`), cuts every Glazing Face into it through to the room, and moves the room's walls into their own `interior` node. `builder/interior.py` then furnishes it: the kind's template (`TEMPLATES`), built from one shared low-poly kit and sized from the room, turned to the face the interior image looks out through, with a fireplace on the wall the stone mass stands behind. The room gets a finished floor and a timber ceiling, recessed downlights and its lamps. Faces flush against the room's shell or on its floor are culled, and the faces no overview or arc camera sees through the glass unwrap at a quarter of the texel density, as the shell's do.
+
+The room bakes on its own after the House's lightmaps, with the glass hidden so the sky comes in, lit by its lamps and downlights and the House's own: its light (denoised), its colours and its glow, combined into one HDR texture (`interior_res`: 512² draft, 1024² final) that holds its colours too. The GLB then gives the whole room the one `interior` material, and the Scene draws it unlit, behind glass that only reflects the sky. In the House's own bakes the glass is opaque, so the room doesn't light the shell, and the window spill is the glass's glow as before.
+
 ## The cache
 
-Every bake writes its bake hash to the GLB extras: a sha256 of the House's exported JSON (the House, its placement, its camera block and the overview camera) and the builder version. A House whose committed GLB carries the current hash, in the mode asked for or a better one (a final bake satisfies a draft run), with its lightmaps beside it, is skipped without starting Blender. Anything else re-bakes. The GLB-contract test fails when a committed hash differs from the current one, so an edit to a House record, `content/scene.ts` or the builder can't ship without its bake.
+Every bake writes its bake hash to the GLB extras: a sha256 of the House's exported JSON (the House, its placement, its camera block and the overview camera) and the builder version. A House whose committed GLB carries the current hash, in the mode asked for or a better one (a final bake satisfies a draft run), with its lightmaps and Interior texture beside it, is skipped without starting Blender. Anything else re-bakes. The GLB-contract test fails when a committed hash differs from the current one, so an edit to a House record, `content/scene.ts` or the builder can't ship without its bake.
 
 ## Detail maps
 
@@ -30,7 +36,7 @@ Which set a Scene path loads is fixed for the path (`detailSet`): the full set o
 
 ## The download budget
 
-`bun test` also measures the committed files against the download budget (`lib/scene/budget.ts`): all four Houses' GLBs and lightmaps at most 16 MB over the wire, and everything each live Scene path downloads (`sceneDownloads` in `lib/scene/assets.ts`: the Houses, its detail maps and the transcoder) at most 24 MB. A file's wire size is its gzip size where that is smaller. The test prints every file per path, the totals and the estimated GPU memory of the lightmaps (BC6H or ASTC HDR, and the RGBA16F fallback) and of the detail maps (BC7 or ASTC, and the RGBA8 fallback), which isn't gated. A file the Scene starts to download belongs in `sceneDownloads`, so the budget counts it.
+`bun test` also measures the committed files against the download budget (`lib/scene/budget.ts`): all four Houses' GLBs, lightmaps and Interior textures at most 16 MB over the wire, and everything each live Scene path downloads (`sceneDownloads` in `lib/scene/assets.ts`: the Houses, its detail maps and the transcoder) at most 24 MB. A file's wire size is its gzip size where that is smaller. The test prints every file per path, the totals and the estimated GPU memory of the lightmaps and Interior textures (BC6H or ASTC HDR, and the RGBA16F fallback) and of the detail maps (BC7 or ASTC, and the RGBA8 fallback), which isn't gated. A file the Scene starts to download belongs in `sceneDownloads`, so the budget counts it.
 
 ## Seen and unseen faces
 
@@ -52,9 +58,10 @@ The preflight names whichever of these is missing before a bake starts.
 ## Layout
 
 - `builder/build.py`: the House compiler, promoted from the one-House prototype (#6). It reads the exported JSON, builds the shared parts, derives fascias, snow, downlights, clipped soffits and the snow plinth (stepped for a House set into the slope), culls buried faces, bevels, marks seen and unseen faces, unwraps lightmap UVs, bakes base and window-spill lightmaps with Cycles, and exports the raw GLB with the contract extras.
+- `builder/interior.py`: the Interior's furniture kit and its templates, one per kind, which `build.py` furnishes the room with.
 - `builder/textures.py`: the procedural detail-map generator, run by `../detail-maps.ts` (`bun run houses:detail`).
 - `builder/denoise.py`: OIDN denoise of one lightmap through the compositor, run by `build.py` in a fresh process.
-- `builder/config.py`: every builder-wide constant (detail sizes, bevels, light, materials, bake modes, the unseen texel ratio).
+- `builder/config.py`: every builder-wide constant (detail sizes, bevels, light, materials, bake modes, the unseen texel ratio, the Interior's options and light).
 - `builder/pyproject.toml`: its `version` is the builder version in every bake hash. Bump it when a builder change alters what it bakes.
 - `lib/house/cameras.ts`: the overview and arc viewpoints in each House's frame, exported in the builder JSON as `derived.viewpoints`.
 - `preflight.ts`: the tool check. `../bake-houses.ts` and `../export-houses.ts`: the Bun entry points.

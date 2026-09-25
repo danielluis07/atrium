@@ -9,6 +9,7 @@ import type { Project } from "@/content/schema";
 import { bakeHash, exportHouse } from "@/lib/house/export";
 import {
   checkGlbContract,
+  fullMipChain,
   KHR_DF_MODEL_UASTC_HDR_4X4,
   readGlb,
   readKtx2Header,
@@ -35,6 +36,15 @@ describe("committed House GLBs", () => {
     describe(project.name, () => {
       test("matches its House record", () => {
         expect(checkGlbContract(load(project.slug), project, sceneLayout, { bakeHash: currentHash(project) })).toEqual([]);
+      });
+
+      test("has its Interior's texture beside it as UASTC HDR KTX2, when it has an Interior", () => {
+        const { interior } = extrasOf(load(project.slug), project.slug);
+        expect(!!interior).toBe(project.house.volumes.some((v) => v.interior));
+        if (!interior) return;
+        const header = readKtx2Header(new Uint8Array(readFileSync(join(HOUSES_DIR, project.slug, interior.texture))));
+        expect(header?.colorModel).toBe(KHR_DF_MODEL_UASTC_HDR_4X4);
+        expect(header!.levels).toBe(fullMipChain(header!));
       });
 
       test("has its lightmaps beside it as UASTC HDR KTX2", () => {
@@ -142,13 +152,62 @@ describe("checkGlbContract", () => {
     expect(check(gltf)).toEqual(["node shell's concrete has no TEXCOORD_0 for the detail maps"]);
   });
 
+  test("fails when a room doesn't match the record", () => {
+    const gltf = fresh();
+    extrasOf(gltf, "lyngen").glazingFaces["dining-front"].room = { size: [3.3, 3.3, 5], sill: 0 };
+    expect(check(gltf)).toEqual([
+      'extras.glazingFaces.dining-front.room is {"size":[3.3,3.3,5],"sill":0}, expected {"size":[5.4,3.5,8.1],"sill":0}',
+    ]);
+  });
+
+  test("fails when a face into the Interior isn't marked, or one that isn't is", () => {
+    const gltf = fresh();
+    const faces = extrasOf(gltf, "lyngen").glazingFaces;
+    faces["living-side"].interior = false;
+    faces["dining-front"].interior = true;
+    expect(check(gltf)).toEqual([
+      "extras.glazingFaces.living-side.interior is false, expected true",
+      "extras.glazingFaces.dining-front.interior is true, expected false",
+    ]);
+  });
+
+  test("fails when the Interior is missing, elsewhere or of another kind, or has no texture", () => {
+    const gltf = fresh();
+    extrasOf(gltf, "lyngen").interior = { volume: "lower", kind: "bedroom", texture: "interior.exr" };
+    expect(check(gltf)).toEqual([
+      'extras.interior.volume is "lower", expected main',
+      'extras.interior.kind is "bedroom", expected lounge',
+      'extras.interior.texture "interior.exr" is not a .ktx2 file name',
+    ]);
+    gltf.nodes.find((n) => n.name === "interior")!.name = "room";
+    expect(check(gltf)).toEqual(expect.arrayContaining(["node interior is missing", "node room is not in the House record"]));
+  });
+
+  test("fails when the room has no UV set for its texture", () => {
+    const gltf = fresh();
+    const room = gltf.nodes.find((n) => n.name === "interior")!;
+    delete gltf.meshes[room.mesh!].primitives[0].attributes!.TEXCOORD_0;
+    expect(check(gltf)).toEqual(["node interior has no TEXCOORD_0 for its baked texture"]);
+  });
+
+  test("fails on an Interior the record doesn't give", () => {
+    const project = structuredClone(lyngen) as Project;
+    delete project.house.volumes.find((v) => v.name === "main")!.interior;
+    expect(check(fresh(), project)).toEqual([
+      "node interior is not in the House record",
+      "extras.glazingFaces.living-front.interior is true, expected false",
+      "extras.glazingFaces.living-side.interior is true, expected false",
+      'extras.interior is {"volume":"main","kind":"lounge","texture":"interior.ktx2"}, but the record has no Interior',
+    ]);
+  });
+
   test("fails on the wrong schema version, root or lightmaps", () => {
     const gltf = fresh();
     const extras = extrasOf(gltf, "lyngen");
     extras.schemaVersion = 0;
     extras.lightmaps.shell.spill = "lm-shell-spill.hdr";
     expect(check(gltf)).toEqual([
-      "extras.schemaVersion is 0, expected 2",
+      "extras.schemaVersion is 0, expected 3",
       'extras.lightmaps.shell.spill "lm-shell-spill.hdr" is not a .ktx2 file name',
     ]);
     rootOf(gltf, "lyngen").name = "house:senja";

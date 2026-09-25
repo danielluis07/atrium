@@ -11,7 +11,6 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   RepeatWrapping,
-  ShaderMaterial,
   Vector3,
   type Material,
   type Object3D,
@@ -25,7 +24,9 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import type { LabelPoint } from "@/components/scene/hover-label";
 import {
   glazingMaterial,
+  interiorGlassMaterial,
   LIGHTMAP_INTENSITY,
+  type GlazingRoom,
   patchLightmap,
   withDetail,
   type DetailTextures,
@@ -38,7 +39,7 @@ import { CASTER_LAYER, shadowUniforms, type ShadowUniforms } from "@/components/
 import { planUv, Terrain } from "@/components/scene/terrain";
 import type { SceneLayout } from "@/content/schema";
 import type { HouseExtras } from "@/lib/house/glb-contract";
-import { BASIS_PATH, DRACO_PATH, houseAssets, type HouseAssets } from "@/lib/scene/assets";
+import { BASIS_PATH, DRACO_PATH, houseAssets, type HouseAssets, type SceneHouse } from "@/lib/scene/assets";
 import {
   DETAIL_MATERIALS,
   DETAIL_TILES,
@@ -55,8 +56,8 @@ import type { SelectionStore } from "@/lib/scene/selection";
 const DIELECTRIC_ENVIRONMENT = 0.35;
 /** Soffit downlights: small and far over the bloom threshold, so they read as points of light. */
 const DOWNLIGHT = WINDOW.clone().multiplyScalar(14);
-/** Parts that cast no shadow on the snow: the see-through glass, the lights, and the plinth, which is the snow. */
-const UNSHADOWED = new Set(["balustrade", "downlight", "plinth"]);
+/** Parts that cast no shadow on the snow: the see-through glass, the lights, the plinth, which is the snow, and the room inside. */
+const UNSHADOWED = new Set(["balustrade", "downlight", "plinth", "interior"]);
 /** Hovering a House: its window spill and its glazing brighten by these factors. */
 const HOVER = { spill: 1.8, glow: 1.5 };
 /** What the Houses left unselected keep of their light. */
@@ -79,14 +80,20 @@ type PreparedHouse = {
   materials: Material[];
   /** The shell's baked light, which hover and dim adjust. */
   light: LightUniforms;
-  glazing?: ShaderMaterial;
+  /** Every window's glow, shared by the House's glazing, which hover and dim adjust. */
+  glow: { value: number };
+  /** The Interior, lit by its baked texture alone, which brightens and dims with the glow. */
+  interior?: MeshBasicMaterial;
   downlight?: MeshBasicMaterial;
   /** Where the hover label points: just above the roof, in three.js axes. */
   anchor: Vector3;
 };
 
 /** What a frame adjusts on one House, and how far it is into its hover and its dim (0–1, eased). */
-type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glazing" | "downlight"> & { hover: number; dim: number };
+type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glow" | "interior" | "downlight"> & {
+  hover: number;
+  dim: number;
+};
 
 /**
  * The four baked Houses, placed from the Scene layout, standing on the live
@@ -101,6 +108,7 @@ type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glazing" | "downl
  */
 export function Houses({
   layout,
+  houses: sceneHouses,
   shadows,
   detail,
   store,
@@ -108,6 +116,8 @@ export function Houses({
   onLabel,
 }: {
   layout: SceneLayout;
+  /** The Houses to load, each with whether it has an Interior. */
+  houses: SceneHouse[];
   shadows: boolean;
   /** The shared detail maps to tile over the shells, the plinths and the terrain. */
   detail: DetailSet;
@@ -119,8 +129,8 @@ export function Houses({
 }) {
   const gl = useThree((s) => s.gl);
   const shadow = useMemo(() => shadowUniforms(), []);
-  const slugs = Object.keys(layout.houses);
-  const assets = slugs.map(houseAssets);
+  const slugs = sceneHouses.map((h) => h.slug);
+  const assets = sceneHouses.map(houseAssets);
 
   const gltfs = useLoader(
     GLTFLoader,
@@ -131,10 +141,11 @@ export function Houses({
     },
   );
   const maps = detailMaps(detail);
-  // one loader for both: the detail maps share the lightmaps' transcoder
+  const interiorUrls = assets.flatMap((a) => (a.interior ? [a.interior] : []));
+  // one loader for all: the detail maps and the Interiors' textures share the lightmaps' transcoder
   const textures = useLoader(
     KTX2Loader,
-    [...assets.flatMap(lightmapUrls), ...maps.map((m) => m.url)],
+    [...assets.flatMap(lightmapUrls), ...maps.map((m) => m.url), ...interiorUrls],
     (loader) => {
       loader.setTranscoderPath(BASIS_PATH).detectSupport(gl);
     },
@@ -158,6 +169,7 @@ export function Houses({
   const houses = useMemo(() => {
     const prepared = slugs.map((slug, i) => {
       const [shellBase, shellSpill, plinthBase, plinthSpill] = textures.slice(i * 4, i * 4 + 4).map(asLightmap);
+      const interior = assets[i].interior;
       return prepareHouse(
         slug,
         gltfs[i].scene,
@@ -167,13 +179,14 @@ export function Houses({
           plinth: { base: plinthBase, spill: plinthSpill },
         },
         { details, relief },
+        interior ? asInteriorTexture(textures[lightmapCount + maps.length + interiorUrls.indexOf(interior)]) : undefined,
         shadows ? shadow : undefined,
       );
     });
     const rects = prepared.map((h) => h.rect);
     prepared.forEach((h, i) => fitPlinth(h.plinth, rects, i));
     return prepared;
-    // slugs follow the layout
+    // slugs and assets follow the houses
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gltfs, textures, layout, shadow, shadows, details, relief]);
 
@@ -191,11 +204,12 @@ export function Houses({
   const looks = useRef<Look[]>([]);
   const onScreen = useRef(new Vector3());
   useEffect(() => {
-    looks.current = houses.map(({ slug, anchor, light, glazing, downlight }) => ({
+    looks.current = houses.map(({ slug, anchor, light, glow, interior, downlight }) => ({
       slug,
       anchor,
       light,
-      glazing,
+      glow,
+      interior,
       downlight,
       hover: 0,
       dim: 0,
@@ -256,6 +270,13 @@ function asLightmap(texture: Texture): Texture {
   return texture;
 }
 
+/** The Interior's baked light, colours and all, on its only UV set. */
+function asInteriorTexture(texture: Texture): Texture {
+  texture.channel = 0;
+  texture.colorSpace = LinearSRGBColorSpace;
+  return texture;
+}
+
 /**
  * A detail map tiled every `metres` on the first UV set, which is in metres.
  * KTX2Loader has already set its colour space from the file. Anisotropic
@@ -283,6 +304,7 @@ function prepareHouse(
   layout: SceneLayout,
   lightmaps: Lightmaps,
   detail: Detail,
+  interiorTexture: Texture | undefined,
   shadow: ShadowUniforms | undefined,
 ): PreparedHouse {
   const root = scene.clone(true);
@@ -303,13 +325,24 @@ function prepareHouse(
   // the spill on the plinth brightens with the windows, but the plinth never dims: its edge is the open snow
   const shellSpill: LightUniforms = { spillK: { value: 1 }, lightDim: { value: 1 } };
   const plinthSpill: LightUniforms = { spillK: shellSpill.spillK, lightDim: { value: 1 } };
+  const glow = { value: 1 };
   const byName = new Map<string, Material>();
   const material = (name: string, source: Material): Material => {
     let m = byName.get(name);
     if (!m) {
-      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, detail, shellSpill, plinthSpill, toHouse, shadow);
+      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, detail, shellSpill, plinthSpill, interiorTexture, shadow);
       byName.set(name, m);
     }
+    return m;
+  };
+  // each window looks into its own procedural room, or through glass into the Interior
+  const panes: Material[] = [];
+  const pane = (mesh: Mesh, part: string | undefined): Material => {
+    const face = part?.startsWith("glazing:") ? extras.glazingFaces[part.slice("glazing:".length)] : undefined;
+    const m = face?.interior
+      ? interiorGlassMaterial(toHouse)
+      : glazingMaterial(toHouse, glow, face ? { ...face.room, glass: face.size[1] } : terraceRoom(mesh, toHouse));
+    panes.push(m);
     return m;
   };
 
@@ -317,10 +350,13 @@ function prepareHouse(
   root.traverse((o) => {
     if (!(o instanceof Mesh)) return;
     const source = o.material as Material;
-    o.material = material(source.name, source);
+    const part = partOf(o);
+    o.material = source.name === "glazing" ? pane(o, part) : material(source.name, source);
     if (!UNSHADOWED.has(source.name)) o.layers.enable(CASTER_LAYER);
     if (source.name === "plinth") plinth = o;
-    if (!pickable(partOf(o))) o.raycast = () => {};
+    // the room draws after the House's other opaque parts, so the depth test drops what its walls hide
+    if (source.name === "interior") o.renderOrder = 1;
+    if (!pickable(part)) o.raycast = () => {};
   });
   if (!plinth) throw new Error(`${slug}.glb has no plinth`);
 
@@ -343,12 +379,29 @@ function prepareHouse(
       max: [box.max.x, box.max.z],
       low: position[1] + extras.datum.plinth,
     },
-    materials: [...byName.values()],
+    materials: [...byName.values(), ...panes],
     light: shellSpill,
-    glazing: byName.get("glazing") as ShaderMaterial | undefined,
+    glow,
+    interior: byName.get("interior") as MeshBasicMaterial | undefined,
     downlight: byName.get("downlight") as MeshBasicMaterial | undefined,
     anchor,
   };
+}
+
+/** Nominal depth of the room behind a terrace's glass, which the record doesn't describe. */
+const TERRACE_ROOM_DEPTH = 5;
+
+/**
+ * The procedural room behind a terrace's glazed back wall, which isn't a
+ * Glazing Face and has no room in the extras: as wide and high as its glass.
+ */
+function terraceRoom(mesh: Mesh, toHouse: Matrix4): GlazingRoom {
+  const box = new Box3()
+    .setFromBufferAttribute(mesh.geometry.getAttribute("position") as Float32BufferAttribute)
+    .applyMatrix4(toHouse.clone().multiply(mesh.matrixWorld));
+  const height = box.max.y - box.min.y;
+  const width = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+  return { size: [width, height, TERRACE_ROOM_DEPTH], sill: 0, glass: height };
 }
 
 /** The GLB part a mesh belongs to (`shell`, `glazing:<name>`, `plinth`…): its nearest named node. */
@@ -368,7 +421,8 @@ function lookTo(h: Look, hovered: boolean, dimmed: boolean, dt: number) {
   const dim = 1 - (1 - DIMMED) * h.dim;
   h.light.spillK.value = 1 + (HOVER.spill - 1) * h.hover;
   h.light.lightDim.value = dim;
-  if (h.glazing) h.glazing.uniforms.uGlow.value = (1 + (HOVER.glow - 1) * h.hover) * dim;
+  h.glow.value = (1 + (HOVER.glow - 1) * h.hover) * dim;
+  h.interior?.color.setScalar(h.glow.value);
   h.downlight?.color.copy(DOWNLIGHT).multiplyScalar(dim);
 }
 
@@ -383,12 +437,13 @@ function makeMaterial(
   { details, relief }: Detail,
   shellSpill: LightUniforms,
   plinthSpill: LightUniforms,
-  toHouse: Matrix4,
+  interiorTexture: Texture | undefined,
   shadow: ShadowUniforms | undefined,
 ): Material {
   switch (name) {
-    case "glazing":
-      return glazingMaterial(toHouse);
+    case "interior":
+      // baked with its colours, and lit by nothing else
+      return new MeshBasicMaterial({ map: interiorTexture });
     case "balustrade":
       return new MeshStandardMaterial({
         color: "#d6e0ea",

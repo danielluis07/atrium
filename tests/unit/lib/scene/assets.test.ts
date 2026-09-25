@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { projectOrder } from "@/content/projects";
+import { sceneProject } from "@/content/schema";
 import { readGlb, type HouseExtras } from "@/lib/house/glb-contract";
 import {
   BASIS_FILES,
@@ -18,11 +19,13 @@ import {
 import { DETAIL_PATH, detailMaps } from "@/lib/scene/detail";
 
 const publicFile = (url: string) => join("public", url);
+const houses = projectOrder.map(sceneProject);
 
 describe("the Scene's assets", () => {
-  for (const { slug } of projectOrder) {
-    test(`${slug}: the GLB's lightmaps are the files the Scene loads`, () => {
-      const assets = houseAssets(slug);
+  for (const house of houses) {
+    const { slug } = house;
+    test(`${slug}: the GLB's lightmaps and Interior texture are the files the Scene loads`, () => {
+      const assets = houseAssets(house);
       const gltf = readGlb(new Uint8Array(readFileSync(publicFile(assets.glb))));
       const extras = gltf.nodes.find((n) => n.name === `house:${slug}`)?.extras as HouseExtras;
       for (const [node, layers] of Object.entries(assets.lightmaps)) {
@@ -30,12 +33,20 @@ describe("the Scene's assets", () => {
           expect(url).toBe(`/houses/${slug}/${extras.lightmaps[node][layer as "base" | "spill"]}`);
         }
       }
+      expect(assets.interior).toBe(extras.interior && `/houses/${slug}/${extras.interior.texture}`);
     });
   }
 
+  test("only a House with an Interior downloads its texture", () => {
+    expect(houseAssets({ slug: "lyngen", interior: true }).interior).toBe("/houses/lyngen/interior.ktx2");
+    expect(houseAssets({ slug: "lyngen", interior: false }).interior).toBeUndefined();
+    const textures = sceneDownloads(houses, "lean").filter((u) => u.endsWith("/interior.ktx2"));
+    expect(textures).toEqual(houses.filter((h) => h.interior).map((h) => `/houses/${h.slug}/interior.ktx2`));
+  });
+
   for (const path of LIVE_PATHS) {
     test(`everything the ${path} Scene downloads is served from public/`, () => {
-      const downloads = sceneDownloads(projectOrder.map((p) => p.slug), path);
+      const downloads = sceneDownloads(houses, path);
       expect(downloads.length).toBeGreaterThan(0);
       for (const url of downloads) {
         expect(url.startsWith("/")).toBe(true);
@@ -45,8 +56,7 @@ describe("the Scene's assets", () => {
   }
 
   test("each path downloads its own detail set, and only that", () => {
-    const slugs = projectOrder.map((p) => p.slug);
-    const detail = (path: LivePath) => sceneDownloads(slugs, path).filter((u) => u.startsWith(`${DETAIL_PATH}/`));
+    const detail = (path: LivePath) => sceneDownloads(houses, path).filter((u) => u.startsWith(`${DETAIL_PATH}/`));
     expect(detail("target")).toEqual(detailMaps("full").map((m) => m.url));
     expect(detail("lean")).toEqual(detail("target"));
     expect(detail("mobile")).toEqual(detailMaps("half").map((m) => m.url));

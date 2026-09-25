@@ -1,7 +1,7 @@
 import { gzipSync } from "node:zlib";
 
 import { KHR_DF_MODEL_UASTC_HDR_4X4, readKtx2Header } from "@/lib/house/glb-contract";
-import { houseDownloads, sceneDownloads, type LivePath } from "@/lib/scene/assets";
+import { houseDownloads, sceneDownloads, type LivePath, type SceneHouse } from "@/lib/scene/assets";
 import { DETAIL_PATH } from "@/lib/scene/detail";
 
 /**
@@ -13,7 +13,7 @@ import { DETAIL_PATH } from "@/lib/scene/detail";
 export const MB = 1_000_000;
 
 export const BUDGETS = {
-  /** Every House's GLB and KTX2 lightmaps. */
+  /** Every House's GLB, KTX2 lightmaps and Interior texture. */
   houses: 16 * MB,
   /** Everything one Scene path downloads: the Houses, its detail maps and the rest (`sceneDownloads`). */
   scene: 24 * MB,
@@ -37,7 +37,7 @@ export type AssetSize = { url: string; raw: number; wire: number; gpu?: GpuBytes
 export type BudgetReport = {
   path: LivePath;
   sets: Record<AssetSet, { files: AssetSize[]; wire: number; raw: number; limit: number }>;
-  /** Summed over the Scene's KTX2 files: the Houses' lightmaps, and the path's detail maps. */
+  /** Summed over the Scene's KTX2 files: the Houses' lightmaps and Interior textures (HDR too), and the path's detail maps. */
   gpu: { lightmaps: GpuBytes; detail: GpuBytes };
 };
 
@@ -69,7 +69,7 @@ export function ktx2GpuBytes(bytes: Uint8Array): GpuBytes | undefined {
 export const isDetailMap = (url: string) => url.startsWith(`${DETAIL_PATH}/`);
 
 /** Measures the committed files one Scene path downloads, read through `read` by their served URL. */
-export function measureBudget(slugs: string[], path: LivePath, read: (url: string) => Uint8Array): BudgetReport {
+export function measureBudget(houses: SceneHouse[], path: LivePath, read: (url: string) => Uint8Array): BudgetReport {
   const sizes = new Map<string, AssetSize>();
   const size = (url: string) => {
     let s = sizes.get(url);
@@ -86,8 +86,8 @@ export function measureBudget(slugs: string[], path: LivePath, read: (url: strin
     return { files, raw: sum("raw"), wire: sum("wire"), limit };
   };
   const sets = {
-    houses: set(houseDownloads(slugs), BUDGETS.houses),
-    scene: set(sceneDownloads(slugs, path), BUDGETS.scene),
+    houses: set(houseDownloads(houses), BUDGETS.houses),
+    scene: set(sceneDownloads(houses, path), BUDGETS.scene),
   };
   const gpu = { lightmaps: { compressed: 0, fallback: 0 }, detail: { compressed: 0, fallback: 0 } };
   for (const { url, gpu: g } of sets.scene.files) {

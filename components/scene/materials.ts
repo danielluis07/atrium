@@ -6,8 +6,9 @@ import {
   ShaderMaterial,
   UniformsLib,
   UniformsUtils,
+  Vector2,
+  Vector3,
   type Texture,
-  type Vector3,
   type WebGLProgramParametersWithUniforms,
 } from "three";
 
@@ -20,8 +21,9 @@ import type { DetailKind, DetailMaterial } from "@/lib/scene/detail";
  * reads its base and window-spill lightmaps as `base + k·spill`, with `k` per
  * House so hover can brighten its windows, and a per-House dim for the
  * Houses left unselected. Warm light comes only from
- * the glazing, which looks into lit rooms (interior mapping), and the
- * soffit downlights, both bright enough to bloom. Concrete, stone, timber and
+ * the glazing, which looks into lit rooms (interior mapping, or the baked
+ * Interior behind glass), and the soffit downlights, both bright enough to
+ * bloom. Concrete, stone, timber and
  * snow carry the shared tiled detail maps, whose normals shade the baked
  * light in relief.
  */
@@ -190,14 +192,15 @@ export function skyLitMaterial(
 
 const glazingVertex = /* glsl */ `
 uniform mat4 uHouse;
-varying vec3 vPos;
+varying vec2 vGlass;
 varying vec3 vNormal;
 varying vec3 vView;
 #include <fog_pars_vertex>
 void main() {
   vec4 world = modelMatrix * vec4( position, 1.0 );
+  // the glass's own 0..1 across and up: glTF's v runs down
+  vGlass = vec2( uv.x, 1.0 - uv.y );
   // rooms are laid out in the House's own frame, so they sit on its floors whatever its placement
-  vPos = ( uHouse * world ).xyz;
   vNormal = normalize( mat3( uHouse ) * mat3( modelMatrix ) * normal );
   vView = mat3( uHouse ) * ( world.xyz - cameraPosition );
   vec4 mvPosition = viewMatrix * world;
@@ -205,82 +208,137 @@ void main() {
   #include <fog_vertex>
 }`;
 
-// Interior mapping: each pane looks into box rooms (3.3 m wide, one Level high, 5 m deep) lit warm.
-const glazingFragment = /* glsl */ `
-uniform vec3 uWarm;
-uniform float uGlow;
+/** The sky a window reflects, and the Fresnel weight of the reflection, shared by both kinds of glass. */
+const glassPars = /* glsl */ `
 uniform vec3 uZenith;
 uniform vec3 uHorizon;
 uniform vec3 uSnow;
-varying vec3 vPos;
+varying vec2 vGlass;
 varying vec3 vNormal;
 varying vec3 vView;
 #include <fog_pars_fragment>
-float hash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
 vec3 sky( vec3 r ) {
   return r.y > 0.0 ? mix( uHorizon, uZenith, pow( r.y, 0.55 ) ) : uSnow * 0.35;
 }
+float fresnel( vec3 V, vec3 n ) {
+  float cosT = clamp( -dot( V, n ), 0.0, 1.0 );
+  return 0.04 + 0.96 * pow( 1.0 - cosT, 5.0 );
+}`;
+
+/**
+ * Interior mapping: a pane looks into the one room behind its Glazing Face,
+ * sized from the House record (`interiorRoom`): x along the glass from its
+ * left edge seen from outside, y up from the room's floor, z inward from the
+ * glass. The room has no furniture: oak boards brighter toward a lamp,
+ * downlights, and a sofa and a canvas drawn on its back wall, lit warm.
+ */
+const glazingFragment = /* glsl */ `
+uniform vec3 uWarm;
+uniform float uGlow;
+uniform vec3 uRoom;
+uniform vec2 uGlass;
+${glassPars}
+float hash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
 void main() {
   vec3 n = normalize( vNormal );
   vec3 V = normalize( vView );
   if ( abs( n.y ) > 0.5 || dot( V, n ) > 0.0 ) { gl_FragColor = vec4( 0.01, 0.011, 0.012, 1.0 ); return; }
   vec3 t = normalize( cross( vec3( 0.0, 1.0, 0.0 ), n ) );
-  vec3 room = vec3( 3.3, 3.3, 5.0 );
-  vec2 pp = vec2( dot( vPos, t ), vPos.y - 0.12 );
-  vec2 cell = floor( pp / room.xy );
-  vec3 q = vec3( fract( pp / room.xy ), 0.0 );
-  vec3 d = vec3( dot( V, t ), V.y, -dot( V, n ) ) / room;
-  vec3 tt = ( step( 0.0, d ) - q ) / d;
+  vec3 q = vec3( vGlass.x * uRoom.x, uGlass.x + vGlass.y * uGlass.y, 0.0 );
+  vec3 d = vec3( dot( V, t ), V.y, -dot( V, n ) );
+  vec3 far = vec3( d.x > 0.0 ? uRoom.x : 0.0, d.y > 0.0 ? uRoom.y : 0.0, uRoom.z );
+  vec3 tt = ( far - q ) / d;
   float tm = min( min( tt.x, tt.y ), tt.z );
   vec3 h = q + d * tm;
-  float lit = 0.55 + 0.9 * hash( cell + floor( dot( vPos, n ) * 3.0 ) );
+  vec3 f = h / uRoom;
   vec3 warm = uWarm;
   vec3 c;
   if ( tm == tt.y && d.y < 0.0 ) {
-    // floor: oak, brighter toward the lamp
-    float pool = exp( -8.0 * dot( h.xz - vec2( 0.5, 0.55 ), h.xz - vec2( 0.5, 0.55 ) ) );
+    // floor: oak boards, brighter toward the lamp
+    vec2 lamp = h.xz - vec2( 0.5 * uRoom.x, min( 2.5, 0.5 * uRoom.z ) );
+    float pool = exp( -0.35 * dot( lamp, lamp ) );
     c = vec3( 0.42, 0.24, 0.12 ) * ( 0.35 + 1.4 * pool ) * warm;
-    c *= 0.85 + 0.15 * step( 0.5, fract( h.x * 9.0 ) );
+    c *= 0.85 + 0.15 * step( 0.5, fract( h.x / 0.36 ) );
   } else if ( tm == tt.y ) {
-    // ceiling with recessed lights
-    vec2 g = fract( h.xz * 2.0 ) - 0.5;
-    float spot = 1.0 - smoothstep( 0.03, 0.06, length( g * vec2( 1.0, 2.5 ) ) );
+    // ceiling with recessed lights on a 1.2 m grid
+    vec2 g = fract( h.xz / 1.2 ) - 0.5;
+    float spot = 1.0 - smoothstep( 0.03, 0.06, length( g ) );
     c = vec3( 0.75 ) * warm * 0.5 + warm * spot * 5.0;
   } else if ( tm == tt.z ) {
     // back wall: plaster, a low dark sofa, a lit artwork
-    c = vec3( 0.8, 0.74, 0.66 ) * warm * ( 0.45 + 0.6 * h.y );
-    if ( h.y < 0.22 && abs( h.x - 0.45 ) < 0.28 ) c = vec3( 0.12, 0.1, 0.09 ) * warm;
-    if ( abs( h.x - 0.45 ) < 0.14 && abs( h.y - 0.55 ) < 0.1 ) c = vec3( 0.25, 0.3, 0.32 ) * warm * 1.4;
+    float mid = abs( h.x - 0.5 * uRoom.x );
+    c = vec3( 0.8, 0.74, 0.66 ) * warm * ( 0.45 + 0.6 * min( 1.0, h.y / 3.3 ) );
+    if ( h.y < 0.75 && mid < min( 1.3, 0.35 * uRoom.x ) ) c = vec3( 0.12, 0.1, 0.09 ) * warm;
+    if ( mid < min( 0.6, 0.2 * uRoom.x ) && abs( h.y - 1.65 ) < 0.35 ) c = vec3( 0.25, 0.3, 0.32 ) * warm * 1.4;
   } else {
     // side walls
-    c = vec3( 0.78, 0.72, 0.64 ) * warm * ( 0.3 + 0.5 * h.z * h.y );
+    c = vec3( 0.78, 0.72, 0.64 ) * warm * ( 0.3 + 0.5 * f.z * min( 1.0, h.y / 3.3 ) );
   }
-  c *= lit * uGlow;
-  float cosT = clamp( -dot( V, n ), 0.0, 1.0 );
-  float F = 0.04 + 0.96 * pow( 1.0 - cosT, 5.0 );
-  gl_FragColor = vec4( mix( c, sky( reflect( V, n ) ) * 1.2, F ), 1.0 );
+  c *= ( 0.55 + 0.9 * hash( uRoom.xz + uGlass ) ) * uGlow;
+  gl_FragColor = vec4( mix( c, sky( reflect( V, n ) ) * 1.2, fresnel( V, n ) ), 1.0 );
   #include <fog_fragment>
 }`;
 
-/** One House's windows. `house` is the inverse of its root's world matrix. */
-export function glazingMaterial(house: Matrix4): ShaderMaterial {
+/**
+ * Glass over the Interior's real room (ADR 0005): only the sky it reflects,
+ * as much as Fresnel gives, laid over the room behind it. The room brings
+ * its own light, which hover and dim scale as they do the glow.
+ */
+const heroGlassFragment = /* glsl */ `
+${glassPars}
+void main() {
+  vec3 n = normalize( vNormal );
+  vec3 V = normalize( vView );
+  gl_FragColor = vec4( sky( reflect( V, n ) ) * 1.2, fresnel( V, n ) );
+  #include <fog_fragment>
+}`;
+
+/** The room a Glazing Face looks into, from the GLB extras: width, height, depth, and the glass's sill and height. */
+export type GlazingRoom = { size: readonly [number, number, number]; sill: number; glass: number };
+
+const skyUniforms = () => ({
+  uHouse: { value: new Matrix4() },
+  uZenith: { value: SKY_ZENITH },
+  uHorizon: { value: SKY_HORIZON },
+  uSnow: { value: SNOW_SHADOW },
+});
+
+/**
+ * One Glazing Face's window onto its procedural `room`. `house` is the
+ * inverse of its House root's world matrix, and `glow` the House's shared
+ * glow, which hover, selection and dim set.
+ */
+export function glazingMaterial(house: Matrix4, glow: { value: number }, room: GlazingRoom): ShaderMaterial {
   const material = new ShaderMaterial({
     vertexShader: glazingVertex,
     fragmentShader: glazingFragment,
     fog: true,
     uniforms: UniformsUtils.merge([
       UniformsLib.fog,
+      skyUniforms(),
       {
-        uHouse: { value: new Matrix4() },
         uWarm: { value: WINDOW.clone().multiplyScalar(2.2) },
-        uGlow: { value: 1 },
-        uZenith: { value: SKY_ZENITH },
-        uHorizon: { value: SKY_HORIZON },
-        uSnow: { value: SNOW_SHADOW },
+        uRoom: { value: new Vector3(...room.size) },
+        uGlass: { value: new Vector2(room.sill, room.glass) },
       },
     ]),
   });
-  // merge() clones every value, so the House's matrix goes in afterwards
+  // merge() clones every value, so the shared ones go in afterwards
+  material.uniforms.uHouse.value = house;
+  material.uniforms.uGlow = glow;
+  return material;
+}
+
+/** A Glazing Face into the Interior: glass over the real room, drawn after it. */
+export function interiorGlassMaterial(house: Matrix4): ShaderMaterial {
+  const material = new ShaderMaterial({
+    vertexShader: glazingVertex,
+    fragmentShader: heroGlassFragment,
+    fog: true,
+    transparent: true,
+    depthWrite: false,
+    uniforms: UniformsUtils.merge([UniformsLib.fog, skyUniforms()]),
+  });
   material.uniforms.uHouse.value = house;
   return material;
 }

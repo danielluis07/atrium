@@ -7,10 +7,11 @@ import math
 
 # ---------------------------------------------------------------- bake modes
 
-# res: shell lightmap size; plinth_res: snow plinth lightmap size; samples: Cycles spp
+# res: shell lightmap size; plinth_res: snow plinth lightmap size; samples: Cycles spp;
+# interior_res: the Interior's baked texture size
 MODES = {
-    "draft": {"res": 512, "plinth_res": 256, "samples": 64},
-    "final": {"res": 1024, "plinth_res": 512, "samples": 256},
+    "draft": {"res": 512, "plinth_res": 256, "samples": 64, "interior_res": 512},
+    "final": {"res": 1024, "plinth_res": 512, "samples": 256, "interior_res": 1024},
 }
 
 # ---------------------------------------------------------------- openings
@@ -80,6 +81,19 @@ UNSEEN_TEXEL_RATIO = 0.25
 # ---------------------------------------------------------------- light (blue hour)
 
 # OKLCH (L, C, h), converted to linear sRGB by the builder
+def oklch_to_linear(L, C_, h):
+    a = C_ * math.cos(math.radians(h))
+    b = C_ * math.sin(math.radians(h))
+    l_ = L + 0.3963377774 * a + 0.2158037573 * b
+    m_ = L - 0.1055613458 * a - 0.0638541728 * b
+    s_ = L - 0.0894841775 * a - 1.2914855480 * b
+    l, m, s = l_**3, m_**3, s_**3
+    r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
+    g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
+    bb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
+    return (max(r, 0), max(g, 0), max(bb, 0))
+
+
 SKY_ZENITH = (0.26, 0.06, 262)
 SKY_HORIZON = (0.55, 0.06, 250)
 WINDOW = (0.82, 0.12, 70)
@@ -97,6 +111,29 @@ CYCLES = {
     "sample_clamp_indirect": 4.0,  # kills downlight and window fireflies in the indirect term
 }
 
+# ---------------------------------------------------------------- the Interior (ADR 0005)
+
+# the options each kind's template honours: mirrors `Interior` in lib/house/schema.ts
+INTERIOR_OPTIONS = {
+    "lounge": {"fireplace": bool, "lamp": ("floor", "pendant"), "shelving": bool},
+    "dining": {"lamp": ("floor", "pendant"), "shelving": bool},
+    "kitchen": {"lamp": ("floor", "pendant"), "shelving": bool},
+    "library": {"fireplace": bool, "lamp": ("floor", "pendant")},
+    "bedroom": {"lamp": ("floor", "pendant")},
+}
+INTERIOR_FINISH = 0.02  # the finished floor and ceiling stand this far inside the room shell, clear of the concrete
+INTERIOR_COLOR_SAMPLES = 16  # spp for the colour and emission bakes, which are noiseless
+INTERIOR_LAMP = (0.8, 0.15, 62)  # OKLCH: lamps and downlights, a little warmer than the window glow
+INTERIOR_FIRE = (0.72, 0.17, 50)
+INTERIOR_LAMP_WATTS = 120.0
+INTERIOR_DOWNLIGHT_WATTS = 45.0
+INTERIOR_DOWNLIGHT_PITCH = 2.0
+INTERIOR_FIRE_WATTS = 220.0
+INTERIOR_SHADE_GLOW = 4.0  # emission strengths: lampshades, downlight discs, the fire
+INTERIOR_DISC_GLOW = 20.0
+INTERIOR_FIRE_GLOW = 12.0
+INTERIOR_EXPOSURE = 2.0  # scales the whole baked room, to sit with the procedural rooms beside it
+
 # ---------------------------------------------------------------- materials (the GLB's fixed enum)
 
 # name: (linear base colour, roughness, metallic)
@@ -110,5 +147,7 @@ MATERIALS = {
     "balustrade": ((0.8, 0.8, 0.8), 0.05, 0.0),
     "downlight": ((0.9, 0.85, 0.75), 0.5, 0.0),
     "plinth": ((0.82, 0.84, 0.86), 0.7, 0.0),
+    # the Interior's own palette is in interior.py: after its bake, the room's colours are in its texture
+    "interior": ((1.0, 1.0, 1.0), 1.0, 0.0),
 }
 DOWNLIGHT_EMISSION = 12.0

@@ -54,6 +54,14 @@ describe("bakeIsCurrent", () => {
     expect(bakeIsCurrent(draft, "x", HASH, "final")).toBe(false);
   });
 
+  test("a missing Interior texture means a new bake", () => {
+    const interior = { volume: "main", kind: "lounge", texture: "interior.ktx2" };
+    const dir = bakeDir({ bakeHash: HASH, mode: "draft", lightmaps: LIGHTMAPS, interior });
+    expect(bakeIsCurrent(dir, "x", HASH, "draft")).toBe(false);
+    writeFileSync(join(dir, "x", "interior.ktx2"), "");
+    expect(bakeIsCurrent(dir, "x", HASH, "draft")).toBe(true);
+  });
+
   test("a missing lightmap or GLB means a new bake", () => {
     const dir = bakeDir({ bakeHash: HASH, mode: "draft", lightmaps: LIGHTMAPS }, { lightmaps: false });
     expect(bakeIsCurrent(dir, "x", HASH, "draft")).toBe(false);
