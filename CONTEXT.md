@@ -33,8 +33,12 @@ One named, full-height glazed opening in a House, facing one compass direction. 
 _Avoid_: window (in data), glass, pane
 
 **Interior**:
-The furnished room seen through one Glazing Face on a side of a House that visitors see. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. A Project's interior image shows the Interior behind the Glazing Face it names. Houses share one set of furniture and differ in how their Interiors are composed.
+The furnished room inside one volume of a House, seen through every Glazing Face into that volume. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. Houses share one set of furniture and differ in how their Interiors are composed. Other glazing looks into a warm room with no furniture.
 _Avoid_: room, set, furniture layout
+
+**Hero Interior**:
+A House's main Interior: the one behind the Glazing Face its Project's interior image names. For now it is the only furnished Interior in each House.
+_Avoid_: main room, showroom
 
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
