@@ -32,6 +32,10 @@ _Avoid_: storey, floor (in data), Depth
 One named, full-height glazed opening in a House, facing one compass direction. Interior images are framed by a Glazing Face and look out through it.
 _Avoid_: window (in data), glass, pane
 
+**Interior**:
+The furnished room seen through one Glazing Face on a side of a House that visitors see. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. A Project's interior image shows the Interior behind the Glazing Face it names. Houses share one set of furniture and differ in how their Interiors are composed.
+_Avoid_: room, set, furniture layout
+
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
 _Avoid_: modal, popup, card, drawer
