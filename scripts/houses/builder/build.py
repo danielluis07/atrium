@@ -7,6 +7,10 @@ cameras see, unwraps a lightmap UV (unseen faces at a quarter of the texel densi
 Cycles lightmap layers (base = sky + downlights, spill = window light) for the shell and
 the plinth with OIDN denoise, and exports a raw GLB whose root carries the contract extras.
 
+A House with an Interior (ADR 0005) also has that volume hollowed to its room shell, the Glazing Faces
+into it cut through, and the room furnished from interior.py's kit. The room bakes on its own, lit by its
+lamps and downlights and by the sky through its glass, into one texture that holds its colours too.
+
 Run it through `bun run houses:bake`, which compresses the outputs into public/houses/.
 
     uv run python build.py --json out/lyngen.json --out out/lyngen --bake-hash <sha256> [--mode draft|final]
@@ -23,10 +27,12 @@ import time
 
 import bpy  # bpy must load before bmesh/mathutils
 import bmesh
-from mathutils import Vector
+import numpy as np
+from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
 import config as C
+import interior as I
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 EPS = 1e-4
@@ -60,24 +66,10 @@ def lap(name):
 
 # ---------------------------------------------------------------- colour
 
-
-def oklch_to_linear(L, C_, h):
-    a = C_ * math.cos(math.radians(h))
-    b = C_ * math.sin(math.radians(h))
-    l_ = L + 0.3963377774 * a + 0.2158037573 * b
-    m_ = L - 0.1055613458 * a - 0.0638541728 * b
-    s_ = L - 0.0894841775 * a - 1.2914855480 * b
-    l, m, s = l_**3, m_**3, s_**3
-    r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
-    g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
-    bb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
-    return (max(r, 0), max(g, 0), max(bb, 0))
-
-
-SKY_ZENITH = oklch_to_linear(*C.SKY_ZENITH)
-SKY_HORIZON = oklch_to_linear(*C.SKY_HORIZON)
-WINDOW = oklch_to_linear(*C.WINDOW)
-DOWNLIGHT = oklch_to_linear(*C.DOWNLIGHT)
+SKY_ZENITH = C.oklch_to_linear(*C.SKY_ZENITH)
+SKY_HORIZON = C.oklch_to_linear(*C.SKY_HORIZON)
+WINDOW = C.oklch_to_linear(*C.WINDOW)
+DOWNLIGHT = C.oklch_to_linear(*C.DOWNLIGHT)
 
 # ---------------------------------------------------------------- the House, resolved to absolute boxes
 
@@ -96,6 +88,9 @@ def extent(part):
 
 
 VOLUMES = {v["name"]: extent(v) for v in H["volumes"]}
+# the Interior: its volume, the face its template turns to, and its room shell (lib/house/derive.ts)
+INTERIOR = DATA["derived"].get("interior")
+FURNISHING = next((v["interior"] for v in H["volumes"] if v.get("interior")), None)
 STONE = extent(H["stone"])
 SOLIDS = list(VOLUMES.values()) + [STONE]
 SLABS = [
@@ -226,6 +221,7 @@ for name, (color, rough, metallic) in C.MATERIALS.items():
         mat(name, DOWNLIGHT, rough, emission=DOWNLIGHT, strength=C.DOWNLIGHT_EMISSION)
     else:
         mat(name, color, rough, metallic=metallic)
+mats["interior"].use_fake_user = True  # it has no user until the Interior's bake is done
 mat("ground", C.MATERIALS["snow"][0], 0.8)  # bounce only, never exported
 
 
@@ -295,8 +291,15 @@ frames = []  # thin metal parts, bevelled together at the end
 lamps = []  # (x, y, z) of each downlight
 glazing_faces = {}  # name -> contract extras (House frame; converted to glTF at export)
 bearings = {g["name"]: g["bearing"] for g in DATA["derived"]["glazingFaces"]}
+rooms = {g["name"]: g["room"] for g in DATA["derived"]["glazingFaces"]}  # the procedural room behind each
 
 vol_ob = {name: box(name, *b, "concrete") for name, b in VOLUMES.items()}
+if INTERIOR:
+    # hollow the Interior's volume to its room shell, open top and bottom: the room brings its own floor and
+    # ceiling, and whatever stands on the volume closes it from above
+    r = INTERIOR["rect"]
+    cut(vol_ob[INTERIOR["volume"]], box("cutter", r["x0"], r["y0"], INTERIOR["floor"] - 1, r["x1"], r["y1"],
+                                        INTERIOR["ceiling"] + 1, "concrete"))
 
 
 def glazed(ff, name, a0, a1, z0, z1, d, mullions, level_lines):
@@ -327,7 +330,9 @@ for o in H["openings"]:
     ff = FaceFrame(box6, o["face"])
     (a0, a1), (z0, z1) = opening_extent(o)
     fill, d = o["fill"], o["depth"]
-    through = ff.depth + 1 if fill == "void" else d
+    # a void cuts through its volume, and glass into the Interior through to its room
+    into_room = bool(INTERIOR) and o["volume"] == INTERIOR["volume"] and fill == "glazing"
+    through = ff.depth + 1 if fill == "void" else (ff.depth / 2 if into_room else d)
     cut(vol_ob[o["volume"]], box("cutter", *ff.box(a0, a1, -1, through, z0, z1), "concrete"))
     level_lines = [l["elevation"] for l in H["levels"] if z0 + 0.3 < l["elevation"] < z1 - 0.3]
     panes = max(1, round((a1 - a0) / C.MULLION_PITCH))
@@ -338,7 +343,8 @@ for o in H["openings"]:
     elif fill == "glazing":
         glazed(ff, o["name"], a0, a1, z0, z1, d, mullions, level_lines)
         nx, ny, _ = ff.normal
-        glazing_faces[o["name"]] = {"size": (a1 - a0, z1 - z0), "normal": (nx, ny, 0.0)}
+        glazing_faces[o["name"]] = {"size": (a1 - a0, z1 - z0), "normal": (nx, ny, 0.0), "room": rooms[o["name"]],
+                                    "interior": into_room}
     elif fill == "terrace":
         # a recess with a glazed back wall, snow floor, glass balustrade and timber ceiling. Its glass
         # isn't a Glazing Face, so it joins the balustrade node, after the bake: it lights the spill layer.
@@ -365,6 +371,35 @@ for o in H["openings"]:
             lamps.append((x, y, z1 - C.SOFFIT_THICKNESS))
     # "void": the cut-through is the whole part
 
+
+
+def room_walls(ob, r):
+    """Split the room's walls, the faces the hollowing left on the room shell's sides, from the volume into
+    their own object: they belong to the Interior, and bake with it."""
+    x0, y0, x1, y1 = r["x0"], r["y0"], r["x1"], r["y1"]
+
+    def on_wall(f):
+        c, n = f.calc_center_median(), f.normal
+        return ((abs(c.x - x0) < 1e-3 and n.x > 0.9) or (abs(c.x - x1) < 1e-3 and n.x < -0.9)
+                or (abs(c.y - y0) < 1e-3 and n.y > 0.9) or (abs(c.y - y1) < 1e-3 and n.y < -0.9))
+
+    I.palette()
+    walls = bpy.data.objects.new("room-walls", ob.data.copy())
+    col.objects.link(walls)
+    for target, keep in ((ob, False), (walls, True)):
+        bm = bmesh.new()
+        bm.from_mesh(target.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if on_wall(f) != keep], context="FACES")
+        bm.to_mesh(target.data)
+        bm.free()
+    walls.data.materials.clear()
+    walls.data.materials.append(I.mats["room-plaster"])
+    for p in walls.data.polygons:
+        p.material_index = 0
+    return walls
+
+
+walls = room_walls(vol_ob[INTERIOR["volume"]], INTERIOR["rect"]) if INTERIOR else None
 for name, ob in vol_ob.items():
     bevel(ob, C.BEVEL_VOLUME)
     parts["shell"].append(ob)
@@ -515,13 +550,17 @@ def grid_lines(a, b, steps):
     return sorted(steps + [u for u in uniform if all(abs(u - s) > 0.05 for s in steps)])
 
 
-xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])])
-ys = grid_lines(py0, py1, [b[4] for b in SUNK])
+# the plinth leaves a hole under the Interior: the live plinth's polygon offset would win over its floor
+hole = (INTERIOR["rect"]["x0"], INTERIOR["rect"]["y0"], INTERIOR["rect"]["x1"], INTERIOR["rect"]["y1"]) if INTERIOR else None
+xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])] + ([hole[0], hole[2]] if hole else []))
+ys = grid_lines(py0, py1, [b[4] for b in SUNK] + ([hole[1], hole[3]] if hole else []))
 bm = bmesh.new()
 for i in range(len(xs) - 1):
     for j in range(len(ys) - 1):
         corners = [(xs[i], ys[j]), (xs[i + 1], ys[j]), (xs[i + 1], ys[j + 1]), (xs[i], ys[j + 1])]
         mx, my = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
+        if hole and hole[0] < mx < hole[2] and hole[1] < my < hole[3]:
+            continue
         # each quad takes its side of a step from a point just inside it, so a step falls between quads,
         # on the face of the solid that holds it, and the weld leaves it open
         bm.faces.new([bm.verts.new((x, y, plinth_z(x, y, x + (mx - x) * 0.01, y + (my - y) * 0.01)))
@@ -589,9 +628,10 @@ def box_uv(ob):
     bm.free()
 
 
-def cull_hidden(ob):
-    """Delete faces that sit on the plinth or are buried, each sample under the plinth or inside another
-    part. They would otherwise waste lightmap texels."""
+def cull_hidden(ob, ground=plinth_z, beyond=lambda p: False):
+    """Delete faces that sit on the ground or are buried, each sample under the ground, inside another
+    part or just in front of it `beyond` (behind the room's walls, or inside them). They would otherwise
+    waste lightmap texels."""
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bm.faces.ensure_lookup_table()
@@ -600,13 +640,13 @@ def cull_hidden(ob):
     for f in bm.faces:
         n = f.normal
         c = f.calc_center_median()
-        if n.z < -0.9 and c.z < plinth_z(c.x, c.y) + 0.01:
+        if ground and n.z < -0.9 and c.z < ground(c.x, c.y) + 0.01:
             dead.append(f)
             continue
         samples = [c] + [c.lerp(v.co, 0.9) for v in f.verts]
         hidden = True
         for s in samples:
-            if s.z < plinth_z(s.x, s.y) - 0.01:
+            if (ground and s.z < ground(s.x, s.y) - 0.01) or beyond(s + n * 0.004):
                 continue
             loc, hn, idx, dist = tree.ray_cast(s + n * 0.004, n, 100.0)
             if loc is None or hn.dot(n) <= 0:
@@ -622,7 +662,76 @@ def cull_hidden(ob):
     print(f"cull {ob.name}: removed {len(dead)} faces, {before:.0f} -> {after:.0f} m2", flush=True)
 
 
-cull_hidden(shell)
+def room_frame():
+    """The room frame (x along the window wall from its left end seen from outside, y inward, z up from the
+    finished floor) as a matrix to the House frame, and the room's width, height and depth in it."""
+    r, face = INTERIOR["rect"], INTERIOR["face"]
+    x0, y0, x1, y1 = r["x0"], r["y0"], r["x1"], r["y1"]
+    (ax, ay), (dx, dy), (ox, oy) = {
+        "front": ((1, 0), (0, 1), (x0, y0)), "back": ((-1, 0), (0, -1), (x1, y1)),
+        "left": ((0, -1), (1, 0), (x0, y1)), "right": ((0, 1), (-1, 0), (x1, y0)),
+    }[face]
+    floor = INTERIOR["floor"] + C.INTERIOR_FINISH
+    m = Matrix(((ax, dx, 0, ox), (ay, dy, 0, oy), (0, 0, 1, floor), (0, 0, 0, 1)))
+    w, d = (x1 - x0, y1 - y0) if face in ("front", "back") else (y1 - y0, x1 - x0)
+    return m, w, INTERIOR["ceiling"] - C.INTERIOR_FINISH - floor, d
+
+
+def hearth(m, w, d):
+    """The wall the stone mass stands behind, in the room frame, and the span of it the room sees, as
+    ("left" | "right" | "back", u0, u1); or None when the stone stands against no wall but the window's."""
+    v, s, r = VOLUMES[INTERIOR["volume"]], STONE, INTERIOR["rect"]
+    inv = m.inverted()
+    for plane, touching in (("x0", abs(s[3] - v[0]) < EPS), ("x1", abs(s[0] - v[3]) < EPS),
+                            ("y0", abs(s[4] - v[1]) < EPS), ("y1", abs(s[1] - v[4]) < EPS)):
+        across = (s[1], s[4], r["y0"], r["y1"]) if plane[0] == "x" else (s[0], s[3], r["x0"], r["x1"])
+        lo, hi = max(across[0], across[2]), min(across[1], across[3])
+        if not touching or hi - lo < 1.2 or s[5] < INTERIOR["floor"] + 2.0:
+            continue
+        a, b = (inv @ Vector((r[plane], t, 0) if plane[0] == "x" else (t, r[plane], 0)) for t in (lo, hi))
+        if abs(a.x) < 1e-3 or abs(a.x - w) < 1e-3:
+            return ("left" if abs(a.x) < 1e-3 else "right", min(a.y, b.y), max(a.y, b.y))
+        if abs(a.y - d) < 1e-3:
+            return ("back", min(a.x, b.x), max(a.x, b.x))
+    return None
+
+
+def furnished_room(walls):
+    """The Interior: its walls, a floor and a ceiling, and the kind's template from the shared kit, joined
+    into one object in the House frame; and the lamps that light it."""
+    m, w, h, d = room_frame()
+    where = hearth(m, w, d)
+    furniture, room_lamps = I.furnish(FURNISHING, w, h, d, where, SLUG)
+    floor = quad("room-floor", [(0, 0, 0), (w, 0, 0), (w, d, 0), (0, d, 0)], [(0, 0)] * 4, "concrete")
+    ceiling = quad("room-ceiling", [(0, 0, h), (0, d, h), (w, d, h), (w, 0, h)], [(0, 0)] * 4, "concrete")
+    for ob, name in ((floor, "oak"), (ceiling, "ceiling")):
+        ob.data.materials[0] = I.mats[f"room-{name}"]
+        ob.data.uv_layers.remove(ob.data.uv_layers[0])
+    for ob in [floor, ceiling, *furniture]:
+        ob.data.transform(m)
+    for lamp in room_lamps:
+        lamp.location = m @ lamp.location
+    room = join("interior", [walls, floor, ceiling, *furniture])
+    tris = sum(len(p.vertices) - 2 for p in room.data.polygons)
+    print(f"interior: {FURNISHING['kind']} in {INTERIOR['volume']}, {w:.2f} x {d:.2f} x {h:.2f} m facing "
+          f"{INTERIOR['face']}, hearth {where}, {len(furniture)} pieces, {len(room_lamps)} lamps, {tris} tris",
+          flush=True)
+    return room, room_lamps
+
+
+def in_room(p, finish=0.0):
+    """Whether a point is inside the room shell, or with `finish`, inside its finished floor and ceiling."""
+    r = INTERIOR["rect"]
+    return (r["x0"] < p.x < r["x1"] and r["y0"] < p.y < r["y1"]
+            and INTERIOR["floor"] + finish < p.z < INTERIOR["ceiling"] - finish)
+
+
+room, room_lamps = furnished_room(walls) if INTERIOR else (None, [])
+bpy.data.orphans_purge(do_recursive=True)
+# the shell loses what the room encloses, and the room what stands flush against its shell
+cull_hidden(shell, beyond=in_room if INTERIOR else lambda p: False)
+if room:
+    cull_hidden(room, ground=None, beyond=lambda p: not in_room(p, C.INTERIOR_FINISH))
 for ob in (shell, balustrade, plinth):
     if ob:
         box_uv(ob)
@@ -663,6 +772,17 @@ for name, ob in glazing.items():
         print(f"warning: Glazing Face {name} is entirely unseen from the overview and arc cameras", flush=True)
 print(f"seen: {sum(seen)} of {len(seen)} shell faces, "
       f"{sum(g['seen'] for g in glazing_faces.values())} of {len(glazing_faces)} Glazing Faces", flush=True)
+room_seen = []
+if room:
+    # the room is seen through its glass, which doesn't stop the rays, past the shell and its own furniture
+    bm = bmesh.new()
+    bm.from_mesh(shell.data)
+    bm.from_mesh(room.data)
+    tree = BVHTree.FromBMesh(bm)
+    bm.free()
+    room_seen = [sees(tree, [p.center] + [p.center.lerp(room.data.vertices[v].co, 0.9) for v in p.vertices], p.normal)
+                 for p in room.data.polygons]
+    print(f"seen: {sum(room_seen)} of {len(room_seen)} interior faces", flush=True)
 lap("seen faces")
 
 
@@ -724,10 +844,14 @@ def lightmap_uv(ob, margin, seen):
     bpy.ops.uv.pack_islands(rotate=True, rotate_method="CARDINAL", scale=True, margin_method="SCALED", margin=margin,
                             shape_method="AABB")
     bpy.ops.object.mode_set(mode="OBJECT")
-    me.uv_layers.active = me.uv_layers["UVMap"]
+    if "UVMap" in me.uv_layers:
+        me.uv_layers.active = me.uv_layers["UVMap"]
 
 
 lightmap_uv(shell, C.ISLAND_MARGIN, seen)
+if room:
+    # the room's only UV set: its texture's
+    lightmap_uv(room, C.ISLAND_MARGIN, room_seen)
 # plinth: planar 0..1 projection is already ideal
 me = plinth.data
 me.uv_layers.new(name="lightmap")
@@ -750,6 +874,13 @@ exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values()
 tris = sum(len(p.vertices) - 2 for o in exported for p in o.data.polygons)
 print(f"shell surface {area:.0f} m2 ({unseen_area:.0f} unseen), uv coverage {coverage:.2f}, "
       f"{texels_per_m:.0f} texels/m seen and {texels_per_m_unseen:.0f} unseen at {MODE['res']}, {tris} tris")
+room_texels_per_m = room_tris = 0
+if room:
+    room_polys = list(room.data.polygons)
+    room_texels_per_m = texel_density(room, MODE["interior_res"], [p for p in room_polys if room_seen[p.index]])
+    room_tris = sum(len(p.vertices) - 2 for p in room_polys)
+    print(f"interior surface {sum(p.area for p in room_polys):.0f} m2, "
+          f"{room_texels_per_m:.0f} texels/m seen at {MODE['interior_res']}, {room_tris} tris")
 
 # ---------------------------------------------------------------- world + bake setup
 
@@ -817,12 +948,14 @@ scene.render.bake.margin = C.BAKE_MARGIN
 scene.render.bake.margin_type = "EXTEND"
 
 glass_bsdf = mats["glazing"].node_tree.nodes["Principled BSDF"]
-lights = [o for o in scene.objects if o.type == "LIGHT"]
+lights = [o for o in scene.objects if o.type == "LIGHT" and o not in room_lamps]
 os.makedirs(OUT, exist_ok=True)
 lightmaps = {}  # node -> layer -> file name, written to the extras
 
 
-def bake_layer(ob, image_name, res, samples):
+def bake_layer(ob, image_name, res, samples, kind="DIFFUSE", passes=("DIRECT", "INDIRECT"), denoise=True):
+    """Bake one layer of `ob` on its lightmap UV into <OUT>/<image_name>.exr, OIDN-denoised unless it is
+    noiseless (a colour or emission pass)."""
     img = bpy.data.images.new(image_name, res, res, alpha=False, float_buffer=True)
     img.pixels[0]  # allocate the buffer, or save() finds no image data after the bake
     for slot in ob.material_slots:
@@ -836,15 +969,16 @@ def bake_layer(ob, image_name, res, samples):
         o.select_set(False)
     ob.select_set(True)
     bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, uv_layer="lightmap",
-                        width=res, height=res, margin=C.BAKE_MARGIN, use_clear=True, target="IMAGE_TEXTURES")
+    bpy.ops.object.bake(type=kind, pass_filter=set(passes), uv_layer="lightmap", width=res, height=res,
+                        margin=C.BAKE_MARGIN, use_clear=True, target="IMAGE_TEXTURES")
     raw = os.path.join(OUT, f"{image_name}-raw.exr")
     path = os.path.join(OUT, f"{image_name}.exr")
     img.file_format = "OPEN_EXR"
-    img.save(filepath=raw)
-    # OIDN through the compositor, in a fresh bpy process (it rebuilds the scene)
-    subprocess.run([sys.executable, os.path.join(HERE, "denoise.py"), raw, path], check=True,
-                   stdout=subprocess.DEVNULL)
+    img.save(filepath=raw if denoise else path)
+    if denoise:
+        # OIDN through the compositor, in a fresh bpy process (it rebuilds the scene)
+        subprocess.run([sys.executable, os.path.join(HERE, "denoise.py"), raw, path], check=True,
+                       stdout=subprocess.DEVNULL)
     print(f"  {image_name}: {os.path.getsize(path) / 1e6:.2f} MB exr", flush=True)
     return img
 
@@ -866,6 +1000,9 @@ def set_layer(layer):
 # the balustrade is hidden; glazing stays as the emitter for the spill layer.
 if balustrade:
     balustrade.hide_render = True
+# the room is sealed behind opaque glass in the House's bakes: its lamps would only cost samples
+for lamp in room_lamps:
+    lamp.hide_render = True
 if not args.no_bake:
     for layer in ("base", "spill"):
         set_layer(layer)
@@ -881,9 +1018,58 @@ if balustrade:
     balustrade.hide_render = False
 if downlights:
     downlights.hide_render = False
+
+
+def pixels(img):
+    """An image's linear RGB, as a float array."""
+    px = np.empty(len(img.pixels), np.float32)
+    img.pixels.foreach_get(px)
+    return px.reshape(-1, 4)[:, :3]
+
+
+def bake_room(res, samples):
+    """The Interior's texture, <OUT>/interior.exr: its colour times its light, plus what glows. The light
+    comes from its lamps and downlights, the House's downlights and the sky through its glass, which hides
+    for the bake; it is denoised on its own, so the colours keep their edges."""
+    set_layer("base")
+    for lamp in room_lamps:
+        lamp.hide_render = False
+    for ob in glazing.values():
+        ob.hide_render = True
+    bake_layer(room, "interior-light", res, samples)
+    bake_layer(room, "interior-color", res, C.INTERIOR_COLOR_SAMPLES, passes=("COLOR",), denoise=False)
+    bake_layer(room, "interior-glow", res, C.INTERIOR_COLOR_SAMPLES, kind="EMIT", passes=(), denoise=False)
+    light, color, glow = (pixels(bpy.data.images.load(os.path.join(OUT, f"interior-{layer}.exr")))
+                          for layer in ("light", "color", "glow"))
+    for ob in glazing.values():
+        ob.hide_render = False
+    out = bpy.data.images.new("interior", res, res, alpha=False, float_buffer=True)
+    rgba = np.ones((res * res, 4), np.float32)
+    rgba[:, :3] = (color * light + glow) * C.INTERIOR_EXPOSURE
+    out.pixels.foreach_set(rgba.ravel())
+    # as denoise.py writes the lightmaps: half-float RGB, linear, which ktx create encodes as UASTC HDR
+    settings = scene.render.image_settings
+    was = settings.file_format, settings.color_mode, settings.color_depth
+    settings.file_format, settings.color_mode, settings.color_depth = "OPEN_EXR", "RGB", "16"
+    out.save_render(os.path.join(OUT, "interior.exr"), scene=scene)
+    settings.file_format, settings.color_mode, settings.color_depth = was
+    print(f"  interior: {os.path.getsize(os.path.join(OUT, 'interior.exr')) / 1e6:.2f} MB exr", flush=True)
+
+
+if room and not args.no_bake:
+    bake_room(MODE["interior_res"], MODE["samples"])
+    lap(f"bake interior {MODE['interior_res']}")
+if room:
+    # its colours are in its texture now: one material for the GLB, and one UV set, the texture's
+    room.data.materials.clear()
+    room.data.materials.append(mats["interior"])
+    for p in room.data.polygons:
+        p.material_index = 0
+    for layer in [l for l in room.data.uv_layers if l.name != "lightmap"]:
+        room.data.uv_layers.remove(layer)
 if terrace_glass:
     balustrade = join("balustrade", ([balustrade] if balustrade else []) + terrace_glass)
-exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values()] if o]
+exported = [o for o in [shell, balustrade, downlights, plinth, room, *glazing.values()] if o]
 
 # ---------------------------------------------------------------- export
 
@@ -898,7 +1084,7 @@ col.objects.link(root)
 for o in exported:
     o.parent = root
 
-corners = [o.matrix_world @ Vector(c) for o in exported if o is not plinth for c in o.bound_box]
+corners = [o.matrix_world @ Vector(c) for o in exported if o not in (plinth, room) for c in o.bound_box]
 lo = gltf((min(c.x for c in corners), max(c.y for c in corners), min(c.z for c in corners)))
 hi = gltf((max(c.x for c in corners), min(c.y for c in corners), max(c.z for c in corners)))
 extras = {
@@ -910,10 +1096,14 @@ extras = {
     "bbox": {"min": lo, "max": hi},
     "glazingFaces": {
         name: {"size": [round(f["size"][0], 4), round(f["size"][1], 4)], "normal": gltf(f["normal"]),
-               "bearing": bearings[name], "seen": f["seen"]}
+               "bearing": bearings[name], "seen": f["seen"], "interior": f["interior"],
+               "room": {"size": [round(f["room"][k], 4) for k in ("width", "height", "depth")],
+                        "sill": round(f["room"]["sill"], 4)}}
         for name, f in glazing_faces.items()
     },
     "lightmaps": lightmaps,
+    **({"interior": {"volume": INTERIOR["volume"], "kind": FURNISHING["kind"], "texture": "interior.ktx2"}}
+       if room else {}),
 }
 
 for o in scene.objects:
@@ -968,4 +1158,4 @@ if args.preview:
 with open(os.path.join(OUT, "timings.json"), "w") as f:
     json.dump({"mode": args.mode, **MODE, "texels_per_m": round(texels_per_m),
                "texels_per_m_unseen": round(texels_per_m_unseen), "unseen_m2": round(unseen_area), "tris": tris,
-               **timings}, f, indent=1)
+               "interior_texels_per_m": round(room_texels_per_m), "interior_tris": room_tris, **timings}, f, indent=1)

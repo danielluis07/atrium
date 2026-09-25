@@ -30,6 +30,71 @@ describe("parseHouse", () => {
   });
 });
 
+describe("Interiors", () => {
+  const withInterior = (interior: unknown) => {
+    const house = structuredClone(lyngen.house) as { volumes: Record<string, unknown>[] };
+    house.volumes.find((v) => v.name === "main")!.interior = interior;
+    return parseHouse(house);
+  };
+  const volume = (house: House, name: string) => house.volumes.find((v) => v.name === name)!;
+
+  test("a volume takes a kind and the options its template honours", () => {
+    expect(withInterior({ kind: "library", fireplace: true, lamp: "pendant" }).ok).toBe(true);
+    expect(withInterior({ kind: "bedroom" }).ok).toBe(true);
+  });
+
+  test("refuses an unknown kind, an option the kind doesn't take, and a bad option value", () => {
+    for (const bad of [{ kind: "ballroom" }, { kind: "bedroom", fireplace: true }, { kind: "lounge", lamp: "candle" }]) {
+      const result = withInterior(bad);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.issues[0].part).toStartWith("volumes.main.interior");
+    }
+  });
+
+  test("the stone mass takes no Interior", () => {
+    const house = structuredClone(lyngen.house) as { stone: Record<string, unknown> };
+    house.stone.interior = { kind: "lounge" };
+    expect(parseHouse(house).ok).toBe(true);
+    const parsed = parseHouse(house);
+    if (parsed.ok) expect(parsed.house.stone).not.toHaveProperty("interior");
+  });
+
+  test("a House has one Interior", () => {
+    const house = broken((h) => (volume(h, "lower").interior = { kind: "dining" }));
+    expect(validateHouse(house, { floorArea })).toEqual([
+      { part: "volume lower", message: "has an Interior, but main already has the House's one Interior" },
+    ]);
+  });
+
+  test("its volume spans one Level", () => {
+    const house = broken((h) => {
+      volume(h, "main").to = "L1";
+      delete volume(h, "main").top;
+    });
+    expect(validateHouse(house, { floorArea })).toContainEqual({
+      part: "volume main",
+      message: "has an Interior, so it must span one Level, not L0 to L1",
+    });
+  });
+
+  test("some glass looks into it", () => {
+    const house = broken((h) => (h.openings = h.openings.filter((o) => o.volume !== "main")));
+    expect(validateHouse(house, { floorArea })).toEqual([
+      { part: "volume main", message: "has an Interior, but no Glazing Face looks into it" },
+    ]);
+  });
+
+  test("no void or terrace cuts through it", () => {
+    const house = broken((h) => {
+      volume(h, "frame").interior = volume(h, "main").interior;
+      delete volume(h, "main").interior;
+    });
+    expect(validateHouse(house, { floorArea })).toEqual([
+      { part: "opening terrace", message: "is a terrace, which would cut through the Interior in frame" },
+    ]);
+  });
+});
+
 describe("validateHouse", () => {
   test("accepts the Lyngen House", () => {
     expect(validateHouse(lyngen.house, { floorArea })).toEqual([]);

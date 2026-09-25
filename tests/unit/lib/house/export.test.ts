@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { projectOrder } from "@/content/projects";
 import { lyngen } from "@/content/projects/lyngen";
+import { senja } from "@/content/projects/senja";
 import { sceneLayout } from "@/content/scene";
 import type { Project } from "@/content/schema";
 import { exportHouse, HouseExportError } from "@/lib/house/export";
@@ -46,6 +47,15 @@ describe("exportHouse", () => {
     expect(json.camera).toEqual(lyngen.camera);
     expect(json.house.openings).toHaveLength(lyngen.house.openings.length);
     expect(json.derived.glazingFaces.map((f: { name: string }) => f.name)).toContain("living-front");
+  });
+
+  test("gives each Glazing Face its room, and the Interior its shell and the face it turns to", () => {
+    const { derived } = JSON.parse(exportHouse(lyngen, sceneLayout));
+    const front = derived.glazingFaces.find((f: { name: string }) => f.name === "living-front");
+    expect(front.room).toEqual({ depth: 9.1, height: 6.8, sill: 0, width: 6.6 });
+    // the interior image looks out through living-front, on main's front
+    expect(derived.interior).toMatchObject({ volume: "main", face: "front", floor: 0, ceiling: 6.8 });
+    expect(JSON.parse(exportHouse(senja, sceneLayout)).derived.interior).toBeUndefined();
   });
 
   test("the same input gives byte-identical output, whatever the key order", () => {

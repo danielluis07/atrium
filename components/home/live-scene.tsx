@@ -85,7 +85,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
 
   const downloading = live?.path ?? decision?.preload;
   if (downloading) {
-    for (const url of sceneDownloads(Object.keys(layout.houses), downloading)) {
+    for (const url of sceneDownloads(projects, downloading)) {
       preload(url, { as: "fetch", crossOrigin: "anonymous" });
     }
   }

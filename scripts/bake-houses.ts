@@ -3,8 +3,9 @@
  * builder JSON, skips every House whose committed bake is current, checks
  * the tools, then compiles and bakes the rest in headless Blender and
  * compresses the outputs into public/houses/<slug>/: a meshopt GLB and one
- * KTX2 (UASTC HDR) per lightmap. One House at a time: a bake takes the
- * whole CPU and most of the RAM.
+ * KTX2 (UASTC HDR) per lightmap and, for a House with an Interior, its
+ * baked texture. One House at a time: a bake takes the whole CPU and most
+ * of the RAM.
  *
  *   bun run houses:bake [--mode draft|final] [--force] [slug…]
  *
@@ -45,15 +46,19 @@ export function readExtras(dir: string, slug: string): HouseExtras | undefined {
 
 /**
  * Whether a House's bake in `dir` can stand: baked from `hash`, in `mode` or
- * a better one, with every lightmap it names beside it.
+ * a better one, with every lightmap and texture it names beside it.
  */
 export function bakeIsCurrent(dir: string, slug: string, hash: string, mode: Mode): boolean {
   const extras = readExtras(dir, slug);
   if (extras?.bakeHash !== hash || !(MODES.indexOf(extras.mode) >= MODES.indexOf(mode))) return false;
-  return Object.values(extras.lightmaps ?? {}).every((layers) =>
-    Object.values(layers).every((file) => existsSync(join(dir, slug, file))),
-  );
+  return bakedFiles(extras).every((file) => existsSync(join(dir, slug, file)));
 }
+
+/** The KTX2 files a House's extras name: its lightmaps, then its Interior's texture. */
+const bakedFiles = (extras: HouseExtras) => [
+  ...Object.values(extras.lightmaps ?? {}).flatMap((layers) => Object.values(layers)),
+  ...(extras.interior ? [extras.interior.texture] : []),
+];
 
 /** The bake hash of a House's exported JSON, as the builder will write it. */
 export const exportedBakeHash = (slug: string) =>
@@ -102,16 +107,15 @@ export function bakeHouse(slug: string, mode: Mode, hash: string): void {
   ], { quiet: true });
   console.log(`  ${glb} ${kb(glb)}`);
 
-  for (const layers of Object.values(extras.lightmaps)) {
-    for (const file of Object.values(layers)) {
-      const ktx2 = join(out, file);
-      step(`${slug}: ktx create ${file}`, [
-        "ktx", "create", "--format", "R16G16B16_SFLOAT", "--encode", "uastc-hdr-4x4",
-        "--generate-mipmap", "--zstd", "18",
-        join(work, file.replace(/\.ktx2$/, ".exr")), ktx2,
-      ], { quiet: true });
-      console.log(`  ${ktx2} ${kb(ktx2)}`);
-    }
+  // the Interior's texture is baked light too, colours and all
+  for (const file of bakedFiles(extras)) {
+    const ktx2 = join(out, file);
+    step(`${slug}: ktx create ${file}`, [
+      "ktx", "create", "--format", "R16G16B16_SFLOAT", "--encode", "uastc-hdr-4x4",
+      "--generate-mipmap", "--zstd", "18",
+      join(work, file.replace(/\.ktx2$/, ".exr")), ktx2,
+    ], { quiet: true });
+    console.log(`  ${ktx2} ${kb(ktx2)}`);
   }
 }
 

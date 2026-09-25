@@ -1,6 +1,14 @@
 import type { Project, SceneLayout } from "@/content/schema";
-import { faceNormal, glazingFaces, levelElevations, openingExtent, verticalExtent } from "@/lib/house/derive";
-import { SCHEMA_VERSION } from "@/lib/house/schema";
+import {
+  faceNormal,
+  glazingFaces,
+  interiorRoom,
+  interiorVolume,
+  levelElevations,
+  openingExtent,
+  verticalExtent,
+} from "@/lib/house/derive";
+import { SCHEMA_VERSION, type InteriorKind } from "@/lib/house/schema";
 
 /**
  * The GLB contract from `docs/design/house-schema.md`: what the builder hands
@@ -19,6 +27,7 @@ export const MATERIALS = [
   "balustrade",
   "downlight",
   "plinth",
+  "interior",
 ] as const;
 
 /** Which materials each node may carry. */
@@ -29,6 +38,7 @@ const NODE_MATERIALS: Record<string, readonly string[]> = {
   balustrade: ["balustrade", "glazing"],
   downlights: ["downlight"],
   plinth: ["plinth"],
+  interior: ["interior"],
 };
 
 type Vec3 = [number, number, number];
@@ -46,8 +56,20 @@ export type HouseExtras = {
   datum: { level: string; plinth: number };
   /** Everything but the plinth, in glTF axes (y up, front +z). */
   bbox: { min: Vec3; max: Vec3 };
-  /** `seen`: whether the overview or arc cameras see any of the Glazing Face. */
-  glazingFaces: Record<string, { size: [number, number]; normal: Vec3; bearing: number; seen: boolean }>;
+  /**
+   * `seen`: whether the overview or arc cameras see any of the Glazing Face. `room`: the room it looks
+   * into (`interiorRoom`), its width, height and depth and the glass's sill above its floor, which the
+   * glazing shader draws. `interior`: whether it looks into the Interior instead, as glass over the room.
+   */
+  glazingFaces: Record<
+    string,
+    { size: [number, number]; normal: Vec3; bearing: number; seen: boolean; room: { size: Vec3; sill: number }; interior: boolean }
+  >;
+  /**
+   * The Interior, when the House has one: the volume it is in, its kind, and its baked texture beside the
+   * GLB, the `interior` node's full light with its colours, on its first UV set.
+   */
+  interior?: { volume: string; kind: InteriorKind; texture: string };
   /** Lightmap files beside the GLB, per node and layer. */
   lightmaps: Record<string, { base: string; spill: string }>;
 };
@@ -115,7 +137,13 @@ export function expectedNodes(project: Project): { required: string[]; optional:
   const glazing = house.openings.filter((o) => o.fill === "glazing").map((o) => `glazing:${o.name}`);
   const hasBalustrade = house.balustrades.length > 0 || house.openings.some((o) => o.fill === "terrace");
   return {
-    required: ["shell", "plinth", ...glazing, ...(hasBalustrade ? ["balustrade"] : [])],
+    required: [
+      "shell",
+      "plinth",
+      ...glazing,
+      ...(hasBalustrade ? ["balustrade"] : []),
+      ...(interiorVolume(house) ? ["interior"] : []),
+    ],
     // a soffit that the volumes below cover entirely gets no downlights
     optional: ["downlights"],
   };
@@ -174,9 +202,12 @@ export function checkGlbContract(
       if (!material || !allowed.includes(material)) {
         issues.push(`node ${node.name} uses material ${material ?? "(none)"}, expected one of ${allowed.join(", ")}`);
       }
-      // the detail maps tile in metres on the shell's first UV set
+      // the detail maps tile in metres on the shell's first UV set, and the Interior's texture is on its own
       if (kind === "shell" && p.attributes?.TEXCOORD_0 === undefined) {
         issues.push(`node shell's ${material ?? "(none)"} has no TEXCOORD_0 for the detail maps`);
+      }
+      if (kind === "interior" && p.attributes?.TEXCOORD_0 === undefined) {
+        issues.push("node interior has no TEXCOORD_0 for its baked texture");
       }
     }
   }
@@ -239,6 +270,26 @@ export function checkGlbContract(
     if (!nearAll(face.normal, normal)) issues.push(`extras.glazingFaces.${g.name}.normal is ${show(face.normal)}, expected ${show(normal)}`);
     if (!near(face.bearing, g.bearing)) issues.push(`extras.glazingFaces.${g.name}.bearing is ${show(face.bearing)}, expected ${g.bearing}`);
     if (typeof face.seen !== "boolean") issues.push(`extras.glazingFaces.${g.name}.seen is ${show(face.seen)}, expected true or false`);
+    const room = interiorRoom(house, opening);
+    const size3 = [room.width, room.height, room.depth];
+    if (!nearAll(face.room?.size, size3) || !near(face.room?.sill, room.sill)) {
+      issues.push(`extras.glazingFaces.${g.name}.room is ${show(face.room)}, expected ${show({ size: size3, sill: room.sill })}`);
+    }
+    const into = opening.volume === interiorVolume(house)?.name;
+    if (face.interior !== into) issues.push(`extras.glazingFaces.${g.name}.interior is ${show(face.interior)}, expected ${into}`);
+  }
+
+  // the Interior: in the volume the record gives it, of its kind, with its texture
+  const hero = interiorVolume(house);
+  if (hero) {
+    const { volume, kind, texture } = extras.interior ?? {};
+    if (volume !== hero.name) issues.push(`extras.interior.volume is ${show(volume)}, expected ${hero.name}`);
+    if (kind !== hero.interior!.kind) issues.push(`extras.interior.kind is ${show(kind)}, expected ${hero.interior!.kind}`);
+    if (typeof texture !== "string" || !texture.endsWith(".ktx2")) {
+      issues.push(`extras.interior.texture ${show(texture)} is not a .ktx2 file name`);
+    }
+  } else if (extras.interior !== undefined) {
+    issues.push(`extras.interior is ${show(extras.interior)}, but the record has no Interior`);
   }
 
   for (const node of ["shell", "plinth"]) {

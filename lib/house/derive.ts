@@ -60,6 +60,57 @@ export function openingExtent(
   };
 }
 
+/** How deep a volume is behind one of its faces. */
+export function faceDepth(rect: Rect, face: Face): number {
+  return face === "front" || face === "back" ? rect.y1 - rect.y0 : rect.x1 - rect.x0;
+}
+
+/**
+ * The room a Glazing Face looks into, metres: as wide as the glass, as deep
+ * as the volume behind the recess. It stands on the floor of the opening's
+ * Level and rises to the top of that Level (or of `to`), except in a volume
+ * of one Level, whose room rises to the volume's top: a double-height room
+ * is one room. `sill` is how far the glass starts above the room's floor.
+ * The builder mirrors it (`interior_room`), and the glazing shader draws the
+ * procedural room from the numbers it writes to the GLB.
+ */
+export function interiorRoom(
+  house: House,
+  opening: Opening,
+): { width: number; height: number; depth: number; sill: number } {
+  const volume = house.volumes.find((v) => v.name === opening.volume);
+  if (!volume) throw new Error(`Unknown volume ${opening.volume}`);
+  const { top } = verticalExtent(house, volume);
+  const single = volume.from === volume.to;
+  const floor = level(house, single ? volume.from : opening.level).elevation;
+  const ceiling = single ? top : Math.min(top, levelTop(level(house, opening.to ?? opening.level)));
+  return {
+    width: opening.width,
+    height: ceiling - floor,
+    depth: faceDepth(volume.rect, opening.face) - opening.depth,
+    sill: openingExtent(house, opening).z[0] - floor,
+  };
+}
+
+/** How thick the walls round an Interior are, metres. */
+export const INTERIOR_WALL = 0.3;
+
+/** The volume that holds the House's Interior, when it has one. */
+export const interiorVolume = (house: House): Volume | undefined => house.volumes.find((v) => v.interior);
+
+/**
+ * The room shell of the Interior in `volume` (ADR 0005): the volume's plan
+ * inside walls `INTERIOR_WALL` thick, from its floor to its top, since a
+ * volume with an Interior spans one Level. The builder hollows the volume to
+ * it, and every Glazing Face into the volume looks into it.
+ */
+export function interiorShell(house: House, volume: Volume): { rect: Rect; floor: number; ceiling: number } {
+  const { bottom, top } = verticalExtent(house, volume);
+  const { x0, y0, x1, y1 } = volume.rect;
+  const w = INTERIOR_WALL;
+  return { rect: { x0: x0 + w, y0: y0 + w, x1: x1 - w, y1: y1 - w }, floor: bottom, ceiling: top };
+}
+
 type Point = readonly [number, number];
 
 /**

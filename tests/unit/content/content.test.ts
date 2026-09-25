@@ -11,7 +11,9 @@ import {
   getSiteCopy,
 } from "@/content";
 import { lyngen } from "@/content/projects/lyngen";
+import { senja } from "@/content/projects/senja";
 import { sceneLayout } from "@/content/scene";
+import { sceneProject, type Project } from "@/content/schema";
 import { validateHouse } from "@/lib/house/validate";
 
 describe("the site's Content", () => {
@@ -121,6 +123,20 @@ describe("createContent", () => {
     const bad = copy("senja", "Senja House");
     bad.images.interior.glazingFace = "garage";
     expect(() => createContent([bad], layout)).toThrow(/images.interior: looks out through garage/);
+  });
+
+  test("when a House has an Interior, its interior image looks out of it", () => {
+    const bad = structuredClone(lyngen) as Project;
+    bad.images.interior.glazingFace = "dining-front";
+    expect(() => createContent([bad], sceneLayout)).toThrow(
+      /images.interior: looks out through dining-front, which is in lower, not main, which has the Interior/,
+    );
+  });
+
+  test("the Scene learns only whether a House has an Interior", () => {
+    expect(sceneProject(lyngen).interior).toBe(true);
+    expect(sceneProject(senja).interior).toBe(false);
+    expect(sceneProject(lyngen)).not.toHaveProperty("house");
   });
 
   test("refuses a Project the Scene layout doesn't place, and a placement with no Project", () => {

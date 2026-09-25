@@ -115,6 +115,7 @@ export default function Scene({
           {/* the mobile Scene has no shadow */}
           <Houses
             layout={layout}
+            houses={projects}
             shadows={ladder === "desktop"}
             detail={detail}
             store={store}

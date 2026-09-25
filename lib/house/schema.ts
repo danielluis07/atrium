@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 
 /** Bumped whenever the builder JSON changes shape. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const name = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "use lowercase-kebab-case");
 const levelName = z.string().regex(/^L-?\d+$/, "Levels are named L-1, L0, L1…");
@@ -32,12 +32,7 @@ export const Level = z.object({
   height: positive,
 });
 
-/**
- * Board-formed concrete from the floor of `from` to the top of `to`
- * (its elevation plus height). `top` overrides that, for parapets,
- * double-height rooms and frames that rise past their Level.
- */
-export const Volume = z.object({
+const Mass = z.object({
   name,
   rect: Rect,
   from: levelName,
@@ -45,8 +40,34 @@ export const Volume = z.object({
   top: metres.optional(),
 });
 
+export const InteriorKind = z.enum(["lounge", "dining", "kitchen", "library", "bedroom"]);
+
+const Lamp = z.enum(["floor", "pendant"]);
+
+/**
+ * The furnished room inside a volume (ADR 0005): a kind and the few named
+ * options its template in the builder honours. Each kind accepts only its
+ * own options. It is a room shell, not a plan: the drawings never show it.
+ */
+export const Interior = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("lounge"), fireplace: z.boolean().optional(), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal("kitchen"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal("library"), fireplace: z.boolean().optional(), lamp: Lamp.optional() }),
+  z.strictObject({ kind: z.literal("bedroom"), lamp: Lamp.optional() }),
+]);
+
+/**
+ * Board-formed concrete from the floor of `from` to the top of `to`
+ * (its elevation plus height). `top` overrides that, for parapets,
+ * double-height rooms and frames that rise past their Level. With an
+ * `interior`, the volume is hollow, and every Glazing Face into it looks
+ * into that furnished room.
+ */
+export const Volume = Mass.extend({ interior: Interior.optional() });
+
 /** Chimney, hearth or wall. One per House. Placed like a volume. */
-export const StoneMass = Volume;
+export const StoneMass = Mass;
 
 /**
  * Roof, canopy or balcony. Its underside sits at the top of `level`
@@ -111,6 +132,8 @@ export const House = z.object({
 
 export type Rect = z.infer<typeof Rect>;
 export type Level = z.infer<typeof Level>;
+export type InteriorKind = z.infer<typeof InteriorKind>;
+export type Interior = z.infer<typeof Interior>;
 export type Volume = z.infer<typeof Volume>;
 export type StoneMass = z.infer<typeof StoneMass>;
 export type Slab = z.infer<typeof Slab>;

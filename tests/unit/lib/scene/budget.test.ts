@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { projectOrder } from "@/content/projects";
+import { sceneProject } from "@/content/schema";
 import { houseAssets, LIVE_PATHS } from "@/lib/scene/assets";
 import {
   budgetIssues,
@@ -18,7 +19,8 @@ import {
 import { detailMaps, detailSet } from "@/lib/scene/detail";
 
 const readPublic = (url: string) => new Uint8Array(readFileSync(join("public", url)));
-const slugs = projectOrder.map((p) => p.slug);
+const houses = projectOrder.map(sceneProject);
+const lyngen = houses.find((h) => h.slug === "lyngen")!;
 /** Bytes no compressor can shrink. */
 function noise(length: number): Uint8Array {
   const bytes = new Uint8Array(length);
@@ -28,7 +30,7 @@ function noise(length: number): Uint8Array {
 
 for (const path of LIVE_PATHS) {
   describe(`the committed Scene at ?scene=${path}`, () => {
-    const report = measureBudget(slugs, path, readPublic);
+    const report = measureBudget(houses, path, readPublic);
 
     test("fits its download budgets", () => {
       console.log(`\n${formatBudget(report)}\n`);
@@ -36,14 +38,15 @@ for (const path of LIVE_PATHS) {
     });
 
     test("counts every House file and the path's detail maps within the Scene", () => {
-      expect(report.sets.houses.files).toHaveLength(slugs.length * 5);
+      const interiors = houses.filter((h) => h.interior).length;
+      expect(report.sets.houses.files).toHaveLength(houses.length * 5 + interiors);
       const scene = new Set(report.sets.scene.files.map((f) => f.url));
       expect(report.sets.houses.files.every((f) => scene.has(f.url))).toBe(true);
       expect(detailMaps(detailSet(path)).every((m) => scene.has(m.url))).toBe(true);
       expect(report.sets.scene.wire).toBeGreaterThan(report.sets.houses.wire);
     });
 
-    test("estimates GPU memory from every lightmap and detail map", () => {
+    test("estimates GPU memory from every lightmap, Interior texture and detail map", () => {
       const ktx2 = report.sets.scene.files.filter((f) => f.url.endsWith(".ktx2"));
       expect(ktx2.every((f) => f.gpu && f.gpu.compressed > 0)).toBe(true);
       const sum = (files: typeof ktx2) => files.reduce((n, f) => n + f.gpu!.compressed, 0);
@@ -82,14 +85,14 @@ describe("the budget check", () => {
 
   test("fails on a committed asset set that is too big", () => {
     // the real files, with Lyngen's shell lightmap swapped for 17 MB of noise
-    const big = houseAssets("lyngen").lightmaps.shell.base;
-    const report = measureBudget(slugs, "lean", (url) => (url === big ? noise(17 * MB) : readPublic(url)));
+    const big = houseAssets(lyngen).lightmaps.shell.base;
+    const report = measureBudget(houses, "lean", (url) => (url === big ? noise(17 * MB) : readPublic(url)));
     expect(budgetIssues(report).map((i) => i.split(" ")[0])).toContain("houses");
   });
 
   test("counts the detail maps against the Scene: big enough maps put it over", () => {
     const big = detailMaps("full")[0].url;
-    const report = measureBudget(slugs, "target", (url) => (url === big ? noise(16 * MB) : readPublic(url)));
+    const report = measureBudget(houses, "target", (url) => (url === big ? noise(16 * MB) : readPublic(url)));
     expect(budgetIssues(report).map((i) => i.split(" ").slice(0, 2).join(" "))).toEqual(["scene (target)"]);
   });
 });
@@ -101,7 +104,7 @@ describe("sizes", () => {
   });
 
   test("GPU memory counts 4x4 blocks down the mip chain", () => {
-    const bytes = readPublic(houseAssets("lyngen").lightmaps.shell.base);
+    const bytes = readPublic(houseAssets(lyngen).lightmaps.shell.base);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const width = view.getUint32(20, true);
     const levels = view.getUint32(40, true);

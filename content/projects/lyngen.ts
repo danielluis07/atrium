@@ -49,7 +49,10 @@ export const lyngen = {
     volumes: [
       { name: "wing", rect: { x0: -12.6, y0: -5.0, x1: -5.0, y1: 4.0 }, from: "L0", to: "L0" },
       // double height under the roof slab, so it counts once in the floor area
-      { name: "main", rect: { x0: -3.4, y0: -4.4, x1: 4.6, y1: 5.0 }, from: "L0", to: "L0", top: 6.8 },
+      {
+        name: "main", rect: { x0: -3.4, y0: -4.4, x1: 4.6, y1: 5.0 }, from: "L0", to: "L0", top: 6.8,
+        interior: { kind: "lounge", fireplace: true, lamp: "floor", shelving: true },
+      },
       { name: "lower", rect: { x0: 4.6, y0: -3.4, x1: 11.4, y1: 5.0 }, from: "L0", to: "L0" },
       // the upper frame rises past its Level
       { name: "frame", rect: { x0: 5.0, y0: -5.0, x1: 12.6, y1: 5.4 }, from: "L1", to: "L1", top: 7.2 },
