@@ -27,7 +27,7 @@ The room cards of ADR 0004 were cheap, but they read as flat drawings when a sel
 ## Consequences
 
 - The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan.
-- The record-derived room sizing and the Interior validation from the archived prototype (`interiors-prototype` branch) carry over.
+- The record-derived room sizing and the Interior validation from the #57 prototype carried over into #60.
 - The Interior lives on its volume in the House record, and every Glazing Face into that volume looks into it. A volume with an Interior spans one Level, and no void or terrace cuts through it.
 
 ## Evidence

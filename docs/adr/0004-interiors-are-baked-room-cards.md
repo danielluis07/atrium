@@ -1,6 +1,6 @@
 # Interiors are baked room cards, not geometry
 
-Status: superseded by ADR 0005 (2026-09-25). The Lyngen prototype (#57) passed its frame and download budget (see Evidence), but orbiting a selected House showed the furniture as flat drawings sliding over the floor. The prototype code is archived on the `interiors-prototype` branch.
+Status: superseded by ADR 0005 (2026-09-25). The Lyngen prototype (#57) passed its frame and download budget (see Evidence), but orbiting a selected House showed the furniture as flat drawings sliding over the floor. Its code was not kept.
 
 Each House's windows look into Interiors. Until now these were the same procedural box room in every pane: a fixed 3.3 × 3.3 × 5 m grid with a flat sofa and artwork drawn in the glazing shader. We want each House's Interiors to be furnished differently and textured for real, and they have to stay cheap on a laptop iGPU (the Vega 10 starts at rung 4, Lean).
 
