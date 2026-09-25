@@ -1,6 +1,6 @@
 import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
 import { dropPose, type Cut } from "@/lib/scene/cut";
-import { clampAngle, heroAngle, orbitPose, type OrbitAngle } from "@/lib/scene/orbit";
+import { ASIDE, clampAngle, heroAngle, orbitPose, type Aim, type OrbitAngle } from "@/lib/scene/orbit";
 
 /** The overview's vertical field of view on a wide screen, degrees. */
 export const OVERVIEW_FOV = 35;
@@ -14,6 +14,23 @@ const deg = (r: number) => (r * 180) / Math.PI;
 export function overviewFov(aspect: number): number {
   const fromWidth = deg(2 * Math.atan(Math.tan(rad(MIN_HORIZONTAL_FOV) / 2) / aspect));
   return Math.max(OVERVIEW_FOV, fromWidth);
+}
+
+/**
+ * How high the House's look-at point sits over the bottom sheet, as a
+ * fraction of the viewport's upper half: the band between the header and
+ * the sheet's top edge.
+ */
+const ABOVE_SHEET = 0.6;
+
+/**
+ * Where the view at a House turns so the Project Panel leaves it clear: left
+ * of a Panel on the right, or, for the mobile Scene's bottom sheet, centred
+ * across and raised into the viewport's upper part, whatever its aspect.
+ */
+export function panelAim(panel: "right" | "bottom", aspect: number): Aim {
+  if (panel === "right") return ASIDE;
+  return { aside: 0, below: deg(Math.atan(ABOVE_SHEET * Math.tan(rad(overviewFov(aspect)) / 2))) };
 }
 
 // ---------------------------------------------------------------- the overview rig
@@ -33,6 +50,8 @@ export type OverviewRig = {
   time: number;
   /** The cursor as the camera has caught up with it: −1…1 across and up the viewport. */
   lean: [number, number];
+  /** The mobile Scene's calmer camera: the drift and the sway at a House shrink to `CALM`. */
+  calm?: boolean;
 };
 
 export type OverviewInput = {
@@ -48,6 +67,8 @@ export type OverviewInput = {
  * seconds.
  */
 const DRIFT = { across: 2.5, acrossPeriod: 47, up: 0.8, upPeriod: 31 };
+/** How much of the drift and sway a calm camera keeps. */
+export const CALM = 0.4;
 
 /**
  * The lean toward the cursor at full reach, metres: the look-at turns toward
@@ -64,7 +85,8 @@ const LEAN_LAG = 0.8;
 const MAX_STEP = 0.1;
 
 /** The rig at rest: the pose the still was taken from. */
-export const startOverview = (): OverviewRig => ({ time: 0, lean: [0, 0] });
+export const startOverview = ({ calm = false } = {}): OverviewRig =>
+  calm ? { time: 0, lean: [0, 0], calm } : { time: 0, lean: [0, 0] };
 
 /** The overview camera's state one frame on. */
 export function stepOverview(rig: OverviewRig, input: OverviewInput): OverviewRig {
@@ -73,6 +95,7 @@ export function stepOverview(rig: OverviewRig, input: OverviewInput): OverviewRi
   const [x, y] = pointer ? pointer.map((v) => Math.min(1, Math.max(-1, v))) : [0, 0];
   const k = 1 - Math.exp(-dt / LEAN_LAG);
   return {
+    ...rig,
     time: rig.time + dt,
     lean: [rig.lean[0] + (x - rig.lean[0]) * k, rig.lean[1] + (y - rig.lean[1]) * k],
   };
@@ -81,8 +104,9 @@ export function stepOverview(rig: OverviewRig, input: OverviewInput): OverviewRi
 /** The overview camera's pose for its state. */
 export function overviewPose(overview: Overview, rig: OverviewRig): CameraPose {
   const { right, up } = basis(overview);
-  const across = DRIFT.across * Math.sin((2 * Math.PI * rig.time) / DRIFT.acrossPeriod);
-  const rise = DRIFT.up * Math.sin((2 * Math.PI * rig.time) / DRIFT.upPeriod);
+  const k = rig.calm ? CALM : 1;
+  const across = k * DRIFT.across * Math.sin((2 * Math.PI * rig.time) / DRIFT.acrossPeriod);
+  const rise = k * DRIFT.up * Math.sin((2 * Math.PI * rig.time) / DRIFT.upPeriod);
   const [leanX, leanY] = rig.lean;
   return {
     position: add(
@@ -109,6 +133,8 @@ export type HouseShot = {
   angle: OrbitAngle;
   /** Seconds of sway so far; it starts once the camera arrives. */
   time: number;
+  /** Where the view turns, clear of the Project Panel (`panelAim`). */
+  aim: Aim;
 };
 
 /** Where the camera is headed, or at rest: the drifting overview, or a House on its orbit. */
@@ -130,8 +156,8 @@ export type Rig = { overview: OverviewRig; shot: Shot; flight?: Flight; held?: C
  */
 const FLY = { min: 1.2, max: 2, reach: 150 };
 
-/** The camera at rest at overview. */
-export const startRig = (): Rig => ({ overview: startOverview(), shot: "overview" });
+/** The camera at rest at overview; a calm one (the mobile Scene's) drifts and sways less. */
+export const startRig = ({ calm = false } = {}): Rig => ({ overview: startOverview({ calm }), shot: "overview" });
 
 /**
  * The idle drift at a House: the camera sways along its orbit around where
@@ -142,13 +168,13 @@ const SWAY = { azimuth: 1.5, pitch: 0.5 };
 const ORBIT_LAG = 0.15;
 
 /** A House's hero angle, from its camera block, in the layout frame. */
-export const heroPose = (camera: CameraBlock, placement: Placement): CameraPose =>
-  orbitPose(camera, placement, heroAngle(camera));
+export const heroPose = (camera: CameraBlock, placement: Placement, aim: Aim = ASIDE): CameraPose =>
+  orbitPose(camera, placement, heroAngle(camera), aim);
 
 /** A House's shot at its hero angle: where selecting it, or selecting it again, takes the camera. */
-export function houseShot(camera: CameraBlock, placement: Placement): HouseShot {
+export function houseShot(camera: CameraBlock, placement: Placement, aim: Aim = ASIDE): HouseShot {
   const hero = heroAngle(camera);
-  return { camera, placement, target: hero, angle: hero, time: 0 };
+  return { camera, placement, target: hero, angle: hero, time: 0, aim };
 }
 
 /**
@@ -197,13 +223,14 @@ function stepOrbit(shot: HouseShot, dt: number): HouseShot {
   };
 }
 
-/** A House shot's pose: its angle, swayed and held to the orbit's limits. */
-function housePose({ camera, placement, angle, time }: HouseShot): CameraPose {
+/** A House shot's pose: its angle, swayed (less by a calm camera) and held to the orbit's limits. */
+function housePose({ camera, placement, angle, time, aim }: HouseShot, calm = false): CameraPose {
+  const k = calm ? CALM : 1;
   const swayed = {
-    azimuth: angle.azimuth + SWAY.azimuth * Math.sin((2 * Math.PI * time) / DRIFT.acrossPeriod),
-    pitch: angle.pitch + SWAY.pitch * Math.sin((2 * Math.PI * time) / DRIFT.upPeriod),
+    azimuth: angle.azimuth + k * SWAY.azimuth * Math.sin((2 * Math.PI * time) / DRIFT.acrossPeriod),
+    pitch: angle.pitch + k * SWAY.pitch * Math.sin((2 * Math.PI * time) / DRIFT.upPeriod),
   };
-  return orbitPose(camera, placement, clampAngle(camera, swayed));
+  return orbitPose(camera, placement, clampAngle(camera, swayed), aim);
 }
 
 /** Where the camera is: on its shot, eased along the way there, or held where the drop absorbed a fly-back. */
@@ -238,7 +265,7 @@ export const cutPose = (overview: Overview, rig: Rig, cut: Cut, aspect: number):
   dropPose(overview, rigPose(overview, rig), cut, { fov: overviewFov(aspect), aspect });
 
 const shotPose = (overview: Overview, rig: OverviewRig, shot: Shot): CameraPose =>
-  shot === "overview" ? overviewPose(overview, rig) : housePose(shot);
+  shot === "overview" ? overviewPose(overview, rig) : housePose(shot, rig.calm);
 
 function flyDuration(from: CameraPose, to: CameraPose): number {
   const travel = Math.hypot(...sub(to.position, from.position));

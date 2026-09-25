@@ -5,7 +5,17 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { PerspectiveCamera } from "three";
 
 import type { CameraBlock, Placement, SceneLayout } from "@/content/schema";
-import { cutPose, cutRig, flyTo, houseShot, orbitRig, overviewFov, startRig, stepRig } from "@/lib/scene/camera";
+import {
+  cutPose,
+  cutRig,
+  flyTo,
+  houseShot,
+  orbitRig,
+  overviewFov,
+  panelAim,
+  startRig,
+  stepRig,
+} from "@/lib/scene/camera";
 import type { Cut } from "@/lib/scene/cut";
 import { toThree } from "@/lib/scene/frame";
 import { moveGesture, pressGesture, releaseGesture, type Gesture } from "@/lib/scene/gesture";
@@ -29,6 +39,10 @@ export type HouseCamera = { camera: CameraBlock; placement: Placement };
  * selects the House pressed (the Houses mark it in `gesture`) or closes, and
  * a mouse or pen drag at a selected House orbits it. With the Scene focused,
  * ←/→ step the orbit.
+ *
+ * The mobile Scene's camera is calmer: a smaller drift and sway, no lean,
+ * and no orbit at all, so a selected House holds its hero angle, raised
+ * above the bottom-sheet Panel.
  */
 export function CameraRig({
   overview,
@@ -36,6 +50,7 @@ export function CameraRig({
   store,
   gesture,
   cut,
+  mobile = false,
 }: {
   overview: SceneLayout["overview"];
   /** Each House's camera block and placement, by Project slug. */
@@ -45,12 +60,15 @@ export function CameraRig({
   gesture: RefObject<Gesture | undefined>;
   /** Where the section line is on the stage, read every frame. */
   cut: RefObject<Cut>;
+  /** Whether this is the mobile Scene's camera: calm, with no lean and no orbit. */
+  mobile?: boolean;
 }) {
   const get = useThree((s) => s.get);
   const canvas = useThree((s) => s.gl.domElement);
   const aspect = useThree((s) => s.size.width / s.size.height);
   const events = useThree((s) => s.events);
-  const rig = useRef(startRig());
+  // the path never changes mid-session, so the rig is calm from its start or never
+  const rig = useRef(startRig({ calm: mobile }));
   const pointer = useRef<[number, number]>(undefined);
 
   useLayoutEffect(() => {
@@ -65,7 +83,7 @@ export function CameraRig({
       gesture.current = pressGesture(e.clientX, e.clientY);
     };
     const move = (e: PointerEvent) => {
-      if (e.pointerType !== "touch") {
+      if (e.pointerType !== "touch" && !mobile) {
         const r = canvas.getBoundingClientRect();
         pointer.current = [((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2];
       }
@@ -73,8 +91,8 @@ export function CameraRig({
       const { gesture: next, drag } = moveGesture(gesture.current, e.clientX, e.clientY);
       const started = next.dragging && !gesture.current.dragging;
       gesture.current = next;
-      // touch has no orbit: its drags scroll the page
-      if (!drag || e.pointerType === "touch") return;
+      // touch, and the mobile Scene, have no orbit: a touch drag scrolls the page
+      if (!drag || e.pointerType === "touch" || mobile) return;
       if (started) {
         store.dispatch({ type: "drag", dragging: true });
         if (store.get().dragging) canvas.setPointerCapture(e.pointerId);
@@ -98,7 +116,7 @@ export function CameraRig({
     };
     const key = (e: KeyboardEvent) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (mobile || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       // the Scene is focused: the element that holds the canvas, not the page (the body holds it too) or
       // a control inside the Project Panel
       const focused = document.activeElement;
@@ -122,7 +140,7 @@ export function CameraRig({
       canvas.removeEventListener("pointerleave", leave);
       window.removeEventListener("keydown", key);
     };
-  }, [canvas, store, gesture]);
+  }, [canvas, store, gesture, mobile]);
 
   useEffect(
     () =>
@@ -130,10 +148,13 @@ export function CameraRig({
         if (next.flight === prev.flight) return;
         const house = next.selected ? houses[next.selected] : undefined;
         // a new shot each time, so selecting the House again starts from its hero angle
-        const shot = house ? houseShot(house.camera, house.placement) : "overview";
+        // aimed for the Panel as the viewport is shaped now
+        const { size } = get();
+        const aim = panelAim(mobile ? "bottom" : "right", size.width / size.height);
+        const shot = house ? houseShot(house.camera, house.placement, aim) : "overview";
         rig.current = flyTo(overview, rig.current, shot, { reducedMotion: reducedMotion() });
       }),
-    [store, overview, houses],
+    [store, overview, houses, get, mobile],
   );
 
   useFrame(({ camera }, dt) => {

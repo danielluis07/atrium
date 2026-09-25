@@ -51,8 +51,9 @@ export type SceneProps = {
  * falling snow, seen from the drifting overview camera, rendered at the
  * rung's config (DPR, MSAA, SMAA, N8AO, bloom). Hovering a House names it;
  * clicking one selects it and flies to its hero angle, where a drag or ←/→
- * orbits it, and a click on empty snow closes it. Client-only; the home
- * page loads it with SSR off.
+ * orbits it, and a click on empty snow closes it. The mobile Scene is
+ * lighter: fewer snowflakes, no shadow and a calmer camera with no orbit.
+ * Client-only; the home page loads it with SSR off.
  */
 export default function Scene({
   layout,
@@ -93,7 +94,14 @@ export default function Scene({
         onCreated={({ gl }) => {
           gl.toneMappingExposure = EXPOSURE;
         }}>
-        <CameraRig overview={layout.overview} houses={houses} store={store} gesture={gesture} cut={cut} />
+        <CameraRig
+          overview={layout.overview}
+          houses={houses}
+          store={store}
+          gesture={gesture}
+          cut={cut}
+          mobile={ladder === "mobile"}
+        />
         <Atmosphere north={layout.north} />
         <Mountains />
         <Snowfall count={SNOWFLAKES[ladder]} />

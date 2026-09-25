@@ -49,6 +49,10 @@ const Scene = dynamic(() => import("@/components/scene/scene"), { ssr: false });
  * lighting and naming the one the keyboard is on, and Enter or Space
  * selects it. ←/→ stay free to orbit a selected House. A status beside the
  * Scene announces the open Project.
+ *
+ * Touch-primary visitors get the mobile Scene: lighter, on its own short
+ * ladder, with no orbit (a selected House holds its hero angle) and swipes
+ * that always scroll the page. Its Project Panel is a bottom sheet.
  */
 export function LiveScene({ layout, projects }: { layout: SceneLayout; projects: SceneProject[] }) {
   const decision = useSyncExternalStore(onDecision, getDecision, () => undefined);
@@ -59,7 +63,6 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const [ready, setReady] = useState(false);
   const [stepped, setStepped] = useState<number>();
   const [store] = useState(createSelectionStore);
-  const cursor = useSelection(store, sceneCursor);
   const selected = useSelection(store, (s) => s.selected);
   // the House the keyboard is on; a House the pointer selects becomes it too
   const [active, setActive] = useState(0);
@@ -74,9 +77,10 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const open = projects.find((p) => p.slug === selected);
   const ref = useRef<HTMLDivElement>(null);
   const choice = decision?.choice;
-  // the mobile Scene isn't built yet, so touch keeps the still
-  const live = choice && (choice.path === "target" || choice.path === "lean") ? choice : undefined;
+  const live = choice && choice.path !== "still" ? choice : undefined;
   const rung = live && (stepped ?? live.rung);
+  const ladder = live?.path === "mobile" ? "mobile" : "desktop";
+  const cursor = useSelection(store, (s) => sceneCursor(s, ladder === "desktop"));
 
   if (live || decision?.preload) {
     for (const url of sceneDownloads(Object.keys(layout.houses))) {
@@ -117,7 +121,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
 
   const stepDown = (next: number) => {
     setStepped(next);
-    if (!decision?.forced) rememberRung("desktop", next);
+    if (!decision?.forced) rememberRung(ladder, next);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -191,7 +195,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
               layout={layout}
               projects={projects}
               store={store}
-              ladder="desktop"
+              ladder={ladder}
               rung={rung}
               onStepDown={stepDown}
               active={rendering}
@@ -204,10 +208,10 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
       {live && (
         <>
           {/* beside the listbox, not in it: the non-modal Panel is owned (`aria-owns`) and tabbed to where it renders */}
-          <ProjectPanel store={store} projects={projects} scene={ref} />
+          <ProjectPanel store={store} projects={projects} scene={ref} side={ladder === "mobile" ? "bottom" : "right"} />
           <p id={`${id}-keys`} hidden>
-            Up and down arrows move between the Houses, and Enter opens one. At an open House, left and right
-            arrows turn around it.
+            Up and down arrows move between the Houses, and Enter opens one.
+            {ladder === "desktop" && " At an open House, left and right arrows turn around it."}
           </p>
           <p role="status" className="sr-only">
             {open && `${open.name} is open.`}
@@ -218,11 +222,14 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   );
 }
 
-/** Over the Scene: grabbing while a drag orbits, a pointer over a House, and grab while a House is selected. */
-function sceneCursor({ dragging, hovered, selected }: Selection): string | undefined {
+/**
+ * Over the Scene: grabbing while a drag orbits, a pointer over a House, and
+ * grab while a House is selected, where the Scene can `orbit` it.
+ */
+function sceneCursor({ dragging, hovered, selected }: Selection, orbit: boolean): string | undefined {
   if (dragging) return "cursor-grabbing";
   if (hovered) return "cursor-pointer";
-  if (selected) return "cursor-grab";
+  if (selected && orbit) return "cursor-grab";
 }
 
 /** A Scene that fails leaves the still in place rather than taking the page down with it. */
@@ -249,7 +256,7 @@ type Decision = {
   choice?: SceneChoice;
   /** Whether `?scene=` forced the path; a forced session leaves no memory. */
   forced: boolean;
-  /** Whether the desktop Scene's downloads are worth starting before the tier is in. */
+  /** Whether the Scene's downloads are worth starting before the tier is in. */
   preload: boolean;
 };
 
@@ -262,7 +269,7 @@ function getDecision(): Decision {
   if (decision) return decision;
   caps = capabilities();
   const settled = chooseWithoutGpu(caps);
-  decision = { choice: settled, forced: !!caps.override, preload: !settled && !caps.touchPrimary };
+  decision = { choice: settled, forced: !!caps.override, preload: !settled };
   return decision;
 }
 
