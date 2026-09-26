@@ -2,7 +2,9 @@
  * The rung monitor (`DESIGN.md` § Render tiers, Stepping down): a reducer over
  * frame-time samples and events. It steps down one rung when the p90 frame
  * time over a rolling window runs over the threshold, then waits a cool-down
- * before judging again. It never steps up, and at the floor it stops.
+ * before judging again. The step onto the floor needs the p90 over the threshold
+ * for longer, so a short slow spell doesn't cost the floor's lost effects for the
+ * rest of the visit. It never steps up, and at the floor it stops.
  * Times are in milliseconds on one clock (`performance.now()`).
  */
 
@@ -14,6 +16,8 @@ export const P90_LIMIT = 18;
 export const WINDOW = 3000;
 /** How long after a step, or after the monitor (re)starts, before it judges. */
 export const COOL_DOWN = 3000;
+/** How long the p90 must stay over the threshold, window after window, before the step onto the floor. */
+export const FLOOR_SUSTAIN = 10_000;
 /** How much of a fly-to is ignored. */
 export const FLY_TO_EXCLUDED = 500;
 
@@ -25,6 +29,8 @@ export type MonitorState = {
   samples: readonly { t: number; ms: number }[];
   /** When counting (re)started; undefined until the first counted frame. */
   since?: number;
+  /** Since when the window's p90 has been over the threshold without a break; undefined while it fits. */
+  overSince?: number;
   /** Frames before this are ignored (a fly-to). */
   excludedUntil: number;
   /** A shader compile is under way. */
@@ -50,7 +56,7 @@ export function startMonitor(rung: number, floor: number): MonitorState {
 }
 
 /** Starts the window over: after a step, a pause or an excluded stretch. */
-const restart = (s: MonitorState): MonitorState => ({ ...s, samples: [], since: undefined });
+const restart = (s: MonitorState): MonitorState => ({ ...s, samples: [], since: undefined, overSince: undefined });
 
 export function monitor(s: MonitorState, e: MonitorEvent): MonitorState {
   if (s.rung >= s.floor) return s;
@@ -73,9 +79,11 @@ function frame(s: MonitorState, t: number, ms: number): MonitorState {
   if (t < s.excludedUntil) return s;
   const since = s.since ?? t;
   const samples = [...s.samples.filter((x) => x.t > t - WINDOW), { t, ms }];
-  const next = { ...s, since, samples };
-  if (t - since < COOL_DOWN) return next;
-  if (p90(samples.map((x) => x.ms)) <= P90_LIMIT) return next;
+  const over = p90(samples.map((x) => x.ms)) > P90_LIMIT;
+  const overSince = over ? (s.overSince ?? t) : undefined;
+  const next = { ...s, since, samples, overSince };
+  if (overSince === undefined || t - since < COOL_DOWN) return next;
+  if (s.rung + 1 === s.floor && t - overSince < FLOOR_SUSTAIN) return next;
   return restart({ ...next, rung: s.rung + 1 });
 }
 

@@ -77,6 +77,25 @@ describe("the rung monitor", () => {
     expect(run(floor, frames(0, 10_000, 100))).toBe(floor);
   });
 
+  test("doesn't step onto the floor for a short spell over the bar", () => {
+    // a 6 s slow spell between stretches that fit the budget
+    const events = [...frames(0, 5000, 16), ...frames(5000, 6000, 33), ...frames(11_000, 20_000, 16)];
+    expect(rungs(startMonitor(FLOOR - 1, FLOOR), events)).toEqual([FLOOR - 1]);
+    // the same spell steps down any rung above
+    expect(rungs(startMonitor(FLOOR - 2, FLOOR), events)).toEqual([FLOOR - 2, FLOOR - 1]);
+  });
+
+  test("steps onto the floor when the p90 stays over the bar for 10 s", () => {
+    expect(run(startMonitor(FLOOR - 1, FLOOR), frames(0, 9900, 33)).rung).toBe(FLOOR - 1);
+    expect(run(startMonitor(FLOOR - 1, FLOOR), frames(0, 10_100, 33)).rung).toBe(FLOOR);
+  });
+
+  test("starts the floor's 10 s over when frames fit the budget in between", () => {
+    // 12 s of slow frames, but never 10 s of them in a row
+    const events = [...frames(0, 6000, 33), ...frames(6000, 4000, 16), ...frames(10_000, 6000, 33)];
+    expect(rungs(startMonitor(FLOOR - 1, FLOOR), events)).toEqual([FLOOR - 1]);
+  });
+
   test("ignores frames during a shader compile", () => {
     const events: MonitorEvent[] = [
       { type: "compile", compiling: true },
