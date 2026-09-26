@@ -127,7 +127,16 @@ export default function Scene({
         </Suspense>
         {/* keyed by rung: the composer sizes its buffers from the canvas's CSS size, so a new DPR needs
             a new composer */}
-        <EffectComposer key={rung} multisampling={config.msaa} enableNormalPass={false}>
+        <EffectComposer
+          key={rung}
+          ref={(composer) => {
+            // only N8AO reads depth: without it, the MSAA resolve copies colour alone
+            if (composer)
+              for (const buffer of [composer.inputBuffer, composer.outputBuffer])
+                buffer.resolveDepthBuffer = Boolean(config.ao);
+          }}
+          multisampling={config.msaa}
+          enableNormalPass={false}>
           {config.ao && (
             <N8AO
               halfRes={config.ao === "half"}
