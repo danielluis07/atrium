@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { lyngen } from "@/content/projects/lyngen";
-import { reine } from "@/content/projects/reine";
+import { senja } from "@/content/projects/senja";
 import {
   bearing,
   compassPoint,
@@ -49,7 +49,7 @@ describe("the room behind a Glazing Face", () => {
 describe("the Interior", () => {
   test("is in the volume that has one, if any", () => {
     expect(interiorVolume(lyngen.house)?.name).toBe("main");
-    expect(interiorVolume(reine.house)).toBeUndefined();
+    expect(interiorVolume(senja.house)).toBeUndefined();
   });
 
   test("its room shell is its volume inside the walls, floor to top", () => {
