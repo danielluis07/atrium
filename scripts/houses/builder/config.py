@@ -116,7 +116,7 @@ CYCLES = {
 # the options each kind's template honours: mirrors `Interior` in lib/house/schema.ts
 INTERIOR_OPTIONS = {
     "lounge": {"fireplace": bool, "lamp": ("floor", "pendant"), "shelving": bool, "partition": float, "door": bool},
-    "dining": {"lamp": ("floor", "pendant"), "shelving": bool},
+    "dining": {"lamp": ("floor", "pendant"), "shelving": bool, "kitchen": bool},
     "kitchen": {"lamp": ("floor", "pendant"), "shelving": bool},
     "library": {"fireplace": bool, "lamp": ("floor", "pendant")},
     "bedroom": {"lamp": ("floor", "pendant"), "partition": float},
@@ -137,6 +137,7 @@ DOOR_WIDTH = 0.9  # a bedroom's hinged door
 DOOR_HEIGHT = 2.1
 PIVOT_WIDTH = 1.6  # a lounge's pivot door
 PIVOT_HEIGHT = 2.7
+WORKTOP_DEPTH = 0.64  # a kitchen run, out from its wall
 INTERIOR_EXPOSURE = 2.0  # scales the whole baked room, to sit with the procedural rooms beside it
 
 # ---------------------------------------------------------------- materials (the GLB's fixed enum)

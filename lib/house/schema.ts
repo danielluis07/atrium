@@ -52,7 +52,8 @@ const Lamp = z.enum(["floor", "pendant"]);
  * across the room this many metres in from the window wall: the room is
  * furnished in front of it, and the room behind it is left empty. A
  * lounge's `door` is a closed door in a side wall, into the room beside it:
- * another volume on its floor stands against that wall.
+ * another volume on its floor stands against that wall. A dining room's
+ * `kitchen` is a kitchen run along its back wall, behind the table.
  */
 export const Interior = z.discriminatedUnion("kind", [
   z.strictObject({
@@ -63,7 +64,7 @@ export const Interior = z.discriminatedUnion("kind", [
     partition: positive.optional(),
     door: z.boolean().optional(),
   }),
-  z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional(), kitchen: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("kitchen"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("library"), fireplace: z.boolean().optional(), lamp: Lamp.optional() }),
   z.strictObject({ kind: z.literal("bedroom"), lamp: Lamp.optional(), partition: positive.optional() }),
