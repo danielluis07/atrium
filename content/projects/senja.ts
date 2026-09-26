@@ -66,7 +66,7 @@ export const senja = {
       { name: "lower-front", volume: "lower", face: "front", at: 0.5, width: 13.0, level: "L-1", depth: 0.35, fill: "glazing", mullions: 7 },
       { name: "lower-side", volume: "lower", face: "left", at: 1.0, width: 4.4, level: "L-1", depth: 0.25, fill: "glazing" },
       { name: "bar-end", volume: "bar", face: "front", at: 0.3, width: 5.4, level: "L0", depth: 0.4, fill: "glazing", mullions: 2 },
-      { name: "bar-side", volume: "bar", face: "left", at: 3.0, width: 9.0, level: "L0", sill: 0.9, head: 2.6, depth: 0.25, fill: "glazing", mullions: 4 },
+      { name: "bar-side", volume: "bar", face: "left", at: 3.0, width: 9.0, level: "L0", sill: 0.9, head: 2.6, depth: 0.25, fill: "glazing", mullions: 4, curtain: 1 },
       { name: "entry", volume: "bar", face: "back", at: 2.4, width: 1.2, level: "L0", head: 2.4, depth: 0.3, fill: "door" },
     ],
     balustrades: [],

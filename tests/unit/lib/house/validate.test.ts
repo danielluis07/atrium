@@ -102,6 +102,33 @@ describe("Interiors", () => {
   });
 });
 
+describe("Curtains", () => {
+  const withCurtain = (name: string, curtain: unknown) => {
+    const house = structuredClone(lyngen.house) as { openings: Record<string, unknown>[] };
+    house.openings.find((o) => o.name === name)!.curtain = curtain;
+    return house;
+  };
+
+  test("a Glazing Face takes one drawn from 0 to 1 of the way across", () => {
+    for (const curtain of [0, 0.5, 1]) expect(parseHouse(withCurtain("dining-front", curtain)).ok).toBe(true);
+  });
+
+  test("refuses an amount outside 0 to 1", () => {
+    for (const curtain of [-0.1, 1.2, "half"]) {
+      const result = parseHouse(withCurtain("dining-front", curtain));
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.issues[0].part).toBe("openings.dining-front.curtain");
+    }
+  });
+
+  test("only a Glazing Face hangs one", () => {
+    const house = withCurtain("garage", 0.5) as House;
+    expect(validateHouse(house, { floorArea })).toEqual([
+      { part: "opening garage", message: "is a door, and only a Glazing Face hangs a Curtain" },
+    ]);
+  });
+});
+
 describe("validateHouse", () => {
   test("accepts the Lyngen House", () => {
     expect(validateHouse(lyngen.house, { floorArea })).toEqual([]);

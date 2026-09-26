@@ -144,6 +144,32 @@ describe("createContent", () => {
     expect(at(18.8)).toThrow(/its partition is 18.8 m in from bar-end/);
   });
 
+  test("a Curtain never hangs in front of the Interior", () => {
+    const bad = structuredClone(lyngen) as Project;
+    bad.house.openings.find((o) => o.name === "living-side")!.curtain = 0.5;
+    expect(() => createContent([bad], sceneLayout)).toThrow(
+      /opening living-side: hangs a Curtain, but looks into the Interior in main$/m,
+    );
+  });
+
+  test("but may hang in the empty room behind a bedroom's partition", () => {
+    const at = (partition: number) => {
+      const record = structuredClone(senja) as Project;
+      record.house.volumes.find((v) => v.name === "bar")!.interior = { kind: "bedroom", partition };
+      return () => createContent([record], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } });
+    };
+    // bar-side runs from 7.7 m to 16.7 m in from bar-end
+    expect(senja.house.openings.find((o) => o.name === "bar-side")!.curtain).toBeGreaterThan(0);
+    expect(at(5.2)).not.toThrow();
+    expect(at(7.7)).not.toThrow();
+    expect(at(8)).toThrow(/opening bar-side: hangs a Curtain, but looks into the Interior in bar in front of its partition/);
+    const glass = structuredClone(senja) as Project;
+    glass.house.openings.find((o) => o.name === "bar-end")!.curtain = 1;
+    expect(() => createContent([glass], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } })).toThrow(
+      /opening bar-end: hangs a Curtain, but looks into the Interior in bar in front of its partition/,
+    );
+  });
+
   test("the Scene learns only whether a House has an Interior", () => {
     const bare = structuredClone(lyngen) as Project;
     delete bare.house.volumes.find((v) => v.name === "main")!.interior;

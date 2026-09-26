@@ -62,8 +62,8 @@ export const kvaloya = {
       { name: "living-court", volume: "living", face: "left", at: 0.8, width: 4.0, level: "L0", depth: 0.3, fill: "glazing", mullions: 1 },
       // the full depth of the studio: a covered way through from the slope
       { name: "passage", volume: "studio", face: "front", at: 0.6, width: 2.6, level: "L0", depth: 6.0, fill: "void" },
-      { name: "studio-front", volume: "studio", face: "front", at: 3.8, width: 2.8, level: "L0", depth: 0.3, fill: "glazing" },
-      { name: "sleeping-side", volume: "sleeping", face: "right", at: 1.5, width: 5.0, level: "L0", sill: 0.9, depth: 0.25, fill: "glazing", mullions: 2 },
+      { name: "studio-front", volume: "studio", face: "front", at: 3.8, width: 2.8, level: "L0", depth: 0.3, fill: "glazing", curtain: 1 },
+      { name: "sleeping-side", volume: "sleeping", face: "right", at: 1.5, width: 5.0, level: "L0", sill: 0.9, depth: 0.25, fill: "glazing", mullions: 2, curtain: 1 },
       { name: "entry", volume: "sleeping", face: "back", at: 2.0, width: 1.2, level: "L0", head: 2.4, depth: 0.3, fill: "door" },
     ],
     balustrades: [],

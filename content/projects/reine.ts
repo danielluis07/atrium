@@ -67,12 +67,12 @@ export const reine = {
     ],
     openings: [
       { name: "entry", volume: "base", face: "front", at: 1.0, width: 1.2, level: "L0", head: 2.4, depth: 0.3, fill: "door" },
-      { name: "kitchen-front", volume: "base", face: "front", at: 3.0, width: 5.6, level: "L0", depth: 0.3, fill: "glazing", mullions: 2 },
-      { name: "stair", volume: "base", face: "right", at: 2.0, width: 0.8, level: "L0", sill: 0.3, head: 2.8, depth: 0.25, fill: "glazing" },
+      { name: "kitchen-front", volume: "base", face: "front", at: 3.0, width: 5.6, level: "L0", depth: 0.3, fill: "glazing", mullions: 2, curtain: 1 },
+      { name: "stair", volume: "base", face: "right", at: 2.0, width: 0.8, level: "L0", sill: 0.3, head: 2.8, depth: 0.25, fill: "glazing", curtain: 1 },
       { name: "living-front", volume: "middle", face: "front", at: 0.6, width: 8.8, level: "L1", depth: 0.3, fill: "glazing", mullions: 4 },
       { name: "living-side", volume: "middle", face: "right", at: 1.0, width: 6.0, level: "L1", depth: 0.3, fill: "glazing", mullions: 2 },
       { name: "bedroom-front", volume: "top", face: "front", at: 3.0, width: 5.0, level: "L2", depth: 0.3, fill: "glazing", mullions: 2 },
-      { name: "bedroom-side", volume: "top", face: "right", at: 1.0, width: 3.2, level: "L2", depth: 0.25, fill: "glazing" },
+      { name: "bedroom-side", volume: "top", face: "right", at: 1.0, width: 3.2, level: "L2", depth: 0.25, fill: "glazing", curtain: 1 },
     ],
     balustrades: [
       { slab: "balcony-upper", edges: ["front", "right"] },

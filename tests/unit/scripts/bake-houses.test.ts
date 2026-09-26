@@ -7,7 +7,7 @@ import { lyngen } from "@/content/projects/lyngen";
 import { sceneLayout } from "@/content/scene";
 import type { Project, SceneLayout } from "@/content/schema";
 import { bakeHash, exportHouse } from "@/lib/house/export";
-import { bakeIsCurrent, builderVersion, PUBLIC_DIR, readExtras } from "@/scripts/bake-houses";
+import { bakeIsCurrent, builderVersion, PUBLIC_DIR, readExtras, stampHouse } from "@/scripts/bake-houses";
 
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })));
@@ -97,6 +97,40 @@ describe("the bake cache key", () => {
       expect(hash).not.toBe(committed);
       expect(bakeIsCurrent(PUBLIC_DIR, "lyngen", hash, "draft")).toBe(false);
     }
+  });
+
+  test("a Curtain doesn't re-bake: the Scene draws it", () => {
+    const drawn = changed((p) => (p.house.openings.find((o) => o.name === "dining-front")!.curtain = 0.5));
+    const hung = changed((p) => (p.house.openings.find((o) => o.name === "study-side")!.curtain = undefined));
+    expect(hashOf(drawn)).toBe(hashOf(lyngen));
+    expect(hashOf(hung)).toBe(hashOf(lyngen));
+  });
+});
+
+describe("stampHouse", () => {
+  const record = { ...structuredClone(lyngen), slug: "x" } as Project;
+  const faces = () => Object.fromEntries(["dining-front", "hall-front", "living-front"].map((name) => [name, { seen: true }]));
+
+  test("writes each Glazing Face's Curtain, 0 without one, into the GLB, once", () => {
+    const dir = bakeDir({ bakeHash: HASH, mode: "draft", lightmaps: LIGHTMAPS, glazingFaces: faces() });
+    expect(stampHouse(dir, record)).toBe(true);
+    const stamped = readExtras(dir, "x")!;
+    expect(stamped.glazingFaces["dining-front"]).toEqual({ seen: true, curtain: 1 } as never);
+    expect(stamped.glazingFaces["hall-front"].curtain).toBe(1);
+    expect(stamped.glazingFaces["living-front"].curtain).toBe(0);
+    // and leaves the rest of the extras as they were
+    expect(stamped.bakeHash).toBe(HASH);
+    expect(bakeIsCurrent(dir, "x", HASH, "draft")).toBe(true);
+    expect(stampHouse(dir, record)).toBe(false);
+  });
+
+  test("a new amount is stamped over the old one", () => {
+    const dir = bakeDir({ bakeHash: HASH, mode: "draft", lightmaps: LIGHTMAPS, glazingFaces: faces() });
+    stampHouse(dir, record);
+    const drawn = structuredClone(record);
+    drawn.house.openings.find((o) => o.name === "dining-front")!.curtain = 0.6;
+    expect(stampHouse(dir, drawn)).toBe(true);
+    expect(readExtras(dir, "x")!.glazingFaces["dining-front"].curtain).toBe(0.6);
   });
 });
 

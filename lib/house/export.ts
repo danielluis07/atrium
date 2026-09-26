@@ -11,7 +11,7 @@ import {
   interiorVolume,
   levelElevations,
 } from "@/lib/house/derive";
-import { SCHEMA_VERSION } from "@/lib/house/schema";
+import { SCHEMA_VERSION, type House } from "@/lib/house/schema";
 import { formatIssues, type HouseIssue } from "@/lib/house/validate";
 
 export class HouseExportError extends Error {
@@ -29,7 +29,8 @@ export class HouseExportError extends Error {
  * into the GLB extras, each with the room it looks into, the Interior's room
  * shell and the face its template turns to (the one the interior image looks
  * out through), and the viewpoints (the overview and arc cameras in the
- * House frame) it marks faces seen from.
+ * House frame) it marks faces seen from. It leaves out the Curtains: the
+ * Scene draws them, so they don't change a bake (`stampCurtains`).
  * Serialized with sorted keys so the same input always gives the same bytes.
  * Refuses a Project that fails validation, naming the offending parts.
  */
@@ -39,7 +40,7 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
   if (!placement) issues.push({ part: "placement", message: `the Scene layout has no placement for ${project.slug}` });
   if (issues.length) throw new HouseExportError(project.name, issues);
 
-  const { house } = project;
+  const house = withoutCurtains(project.house);
   const orientation = { rotation: placement.rotation, north: layout.north };
   const opening = (name: string) => house.openings.find((o) => o.name === name)!;
   const room = interiorVolume(house);
@@ -62,6 +63,12 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
     },
   });
 }
+
+/** The House without its Curtains, which the builder never sees. */
+const withoutCurtains = (house: House): House => ({
+  ...house,
+  openings: house.openings.map((o) => ({ ...o, curtain: undefined })),
+});
 
 /**
  * The bake hash written to a House's GLB extras: the builder JSON (House,

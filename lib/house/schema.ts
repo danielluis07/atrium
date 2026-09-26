@@ -94,7 +94,9 @@ export const Fill = z.enum(["glazing", "door", "terrace", "void"]);
  * edge seen from outside. `sill` and `head` are measured up from the floor
  * of `level`; they default to full height, from that floor to the
  * underside of what is above (the top of `to`, or of `level`, capped by the
- * volume's top). A glazing opening is a Glazing Face.
+ * volume's top). A glazing opening is a Glazing Face. A Glazing Face
+ * that looks into no Interior may hang a Curtain: `curtain` is how far it
+ * is drawn across the glass, from 0 (drawn back) to 1 (closed).
  */
 export const Opening = z.object({
   name,
@@ -109,6 +111,7 @@ export const Opening = z.object({
   depth: metres.nonnegative(),
   fill: Fill,
   mullions: z.number().int().nonnegative().optional(),
+  curtain: z.number().min(0).max(1).optional(),
 });
 
 /** Glass with a metal rail along one or more edges of a slab. */

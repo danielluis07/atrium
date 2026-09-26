@@ -5,21 +5,23 @@
  * compresses the outputs into public/houses/<slug>/: a meshopt GLB and one
  * KTX2 (UASTC HDR) per lightmap and, for a House with an Interior, its
  * baked texture. One House at a time: a bake takes the whole CPU and most
- * of the RAM.
+ * of the RAM. Last, it stamps every House's Curtains into its GLB, which
+ * needs no bake.
  *
  *   bun run houses:bake [--mode draft|final] [--force] [slug…]
  *
  * Needs uv, KTX-Software 5+ and `uv sync --project scripts/houses/builder`;
  * see scripts/houses/README.md.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 import { projectOrder } from "@/content/projects";
 import { sceneLayout } from "@/content/scene";
+import type { Project } from "@/content/schema";
 import { bakeHash } from "@/lib/house/export";
-import { readGlb, type HouseExtras } from "@/lib/house/glb-contract";
+import { readGlb, stampCurtains, writeGlb, type HouseExtras } from "@/lib/house/glb-contract";
 import { DEFAULT_OUT_DIR, runExport } from "@/scripts/export-houses";
 import { BUILDER_DIR, preflight } from "@/scripts/houses/preflight";
 
@@ -52,6 +54,19 @@ export function bakeIsCurrent(dir: string, slug: string, hash: string, mode: Mod
   const extras = readExtras(dir, slug);
   if (extras?.bakeHash !== hash || !(MODES.indexOf(extras.mode) >= MODES.indexOf(mode))) return false;
   return bakedFiles(extras).every((file) => existsSync(join(dir, slug, file)));
+}
+
+/**
+ * Stamps a House's Curtains into its GLB in `dir` (`stampCurtains`), which
+ * needs no bake. Returns whether the GLB changed.
+ */
+export function stampHouse(dir: string, project: Project): boolean {
+  const path = join(dir, project.slug, `${project.slug}.glb`);
+  const bytes = new Uint8Array(readFileSync(path));
+  const gltf = readGlb(bytes);
+  if (!stampCurtains(gltf, project)) return false;
+  writeFileSync(path, writeGlb(bytes, gltf));
+  return true;
 }
 
 /** The KTX2 files a House's extras name: its lightmaps, then its Interior's texture. */
@@ -150,17 +165,22 @@ if (import.meta.main) {
       stale.push([slug, hash]);
     }
   }
-  if (!stale.length) process.exit(0);
-
-  const problems = preflight();
-  if (problems.length) {
-    console.error(`Can't bake, missing tools:\n${problems.map((p) => `  - ${p}`).join("\n")}`);
-    process.exit(1);
+  if (stale.length) {
+    const problems = preflight();
+    if (problems.length) {
+      console.error(`Can't bake, missing tools:\n${problems.map((p) => `  - ${p}`).join("\n")}`);
+      process.exit(1);
+    }
+    try {
+      for (const [slug, hash] of stale) bakeHouse(slug, mode, hash);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
   }
-  try {
-    for (const [slug, hash] of stale) bakeHouse(slug, mode, hash);
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
+
+  // Curtains aren't baked: every House gets its record's, fresh bake or not
+  for (const slug of chosen) {
+    if (stampHouse(PUBLIC_DIR, projectOrder.find((p) => p.slug === slug)!)) console.log(`${slug}: Curtains stamped`);
   }
 }

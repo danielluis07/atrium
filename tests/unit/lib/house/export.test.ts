@@ -60,6 +60,14 @@ describe("exportHouse", () => {
     expect(JSON.parse(exportHouse(bare, sceneLayout)).derived.interior).toBeUndefined();
   });
 
+  test("leaves out the Curtains, which the builder never draws", () => {
+    const json = exportHouse(lyngen, sceneLayout);
+    expect(json).not.toContain("curtain");
+    const bare = structuredClone(lyngen) as Project;
+    for (const o of bare.house.openings) delete o.curtain;
+    expect(exportHouse(bare, sceneLayout)).toBe(json);
+  });
+
   test("the same input gives byte-identical output, whatever the key order", () => {
     const first = exportHouse(lyngen, sceneLayout);
     expect(exportHouse(structuredClone(lyngen), structuredClone(sceneLayout))).toBe(first);
