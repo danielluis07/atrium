@@ -12,7 +12,11 @@
     "typecheck": "tsc --noEmit",
     "houses:export": "bun scripts/export-houses.ts",
     "houses:bake": "bun scripts/bake-houses.ts",
-    "houses:detail": "bun scripts/detail-maps.ts"
+    "houses:detail": "bun scripts/detail-maps.ts",
+    "perf:probe": "bun scripts/perf/probe.ts",
+    "perf:frames": "bun scripts/perf/frames.ts",
+    "perf:settle": "bun scripts/perf/settle.ts",
+    "perf:report": "bun scripts/perf/report.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -2,3 +2,5 @@
 public/decoders/** binary
 # detect-gpu's benchmarks copied verbatim (lib/scene/assets.ts): keep their bytes exact
 public/detect-gpu/** binary
+# shell scripts run under Git Bash sh, which chokes on CRLF
+*.sh text eol=lf

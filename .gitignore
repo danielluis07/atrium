@@ -49,6 +49,9 @@ next-env.d.ts
 # house builder JSON and raw bake outputs (from bun run houses:export / houses:bake)
 /scripts/houses/out/
 
+# Scene performance measurements (scripts/perf)
+/scripts/perf/out/
+
 # house builder Python environment (uv sync --project scripts/houses/builder)
 /scripts/houses/builder/.venv/
 __pycache__/
