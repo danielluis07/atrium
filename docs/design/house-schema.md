@@ -24,13 +24,13 @@ The House lives in the Project's record (`content/projects/<slug>.ts`) and is va
 | **slab** | plan rectangle, Level | Roof, canopy or balcony: thickness, fascia depth, soffit yes/no. The overhang is what extends past the volumes below. |
 | **opening** | `volume` + `face` (`front`/`back`/`left`/`right`), `at` + `width`, `level` | `at` is the offset from the face's left edge, seen from outside. Sill and head default to full height (the Level floor to the underside of what is above) with optional overrides. `depth` sets the recess. May span Levels; the builder adds a transom at each Level line it crosses. Fill: `glazing`, `door` (timber), `terrace` (recess with glazed back wall, snow floor, glass balustrade, timber ceiling) or `void` (a covered cut-through). Optional `mullions` count. |
 | **balustrade** | slab + edge(s) | Glass with a metal rail, for balconies outside a terrace recess. |
-| **Interior** | on a volume | The furnished room inside that volume (`docs/adr/0005-hero-interior-is-real-baked-geometry.md`), seen through every Glazing Face into it: a `kind` (`lounge`, `dining`, `kitchen`, `library`, `bedroom`) plus the options its template honours: `fireplace` (lounge, library), `lamp` (`floor` or `pendant`, every kind) and `shelving` (lounge, dining, kitchen). A room shell, not a plan. |
+| **Interior** | on a volume | The furnished room inside that volume (`docs/adr/0005-hero-interior-is-real-baked-geometry.md`), seen through every Glazing Face into it: a `kind` (`lounge`, `dining`, `kitchen`, `library`, `bedroom`) plus the options its template honours: `fireplace` (lounge, library), `lamp` (`floor` or `pendant`, every kind), `shelving` (lounge, dining, kitchen) and `partition` (bedroom: a wall with a door across the room, this many metres in from the glass the interior image looks out through; the bedroom is furnished in front of it and the room behind it is left empty). A room shell, not a plan. |
 
 Every opening has a required `name`, unique within the House and stable (e.g. `living-front`). A glazing opening is a **Glazing Face**: the image briefs, the drawings and the GLB all key on its name.
 
 Also on the House: `section`, one authored cut (axis and offset) for the section drawing.
 
-Out of the vocabulary on purpose: steps, landscape walls, flues, timber wall cladding, interior walls and rooms. The one exception is the Interior's room shell, which the drawings never show.
+Out of the vocabulary on purpose: steps, landscape walls, flues, timber wall cladding, interior walls and rooms. The one exception is the Interior's room shell, and a bedroom's partition inside it, which the drawings never show.
 
 Field-level choices (the zod schema in `lib/house/schema.ts` is the reference):
 
@@ -40,7 +40,7 @@ Field-level choices (the zod schema in `lib/house/schema.ts` is the reference):
 - An opening's `sill` and `head` are measured up from the floor of its `level`. It spans up to `to` when given.
 - `section` is `{ axis, at }`: the cut plane `axis = at`.
 - Only `glazing` openings are Glazing Faces. A Project's interior image names one.
-- A House has at most one Interior for now, its Hero Interior. Its volume spans one Level, some Glazing Face looks into it, and no `void` or `terrace` cuts through it. When a House has one, its interior image looks out through a Glazing Face into that volume, so the image shows it.
+- A House has at most one Interior for now, its Hero Interior. Its volume spans one Level, some Glazing Face looks into it, and no `void` or `terrace` cuts through it. A bedroom's partition leaves at least 3.5 m in front of it for the bed and 1 m behind it. When a House has one, its interior image looks out through a Glazing Face into that volume, so the image shows it.
 
 ## Derived by the builder, never authored
 

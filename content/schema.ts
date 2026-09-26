@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { interiorVolume } from "@/lib/house/derive";
+import { interiorShell, interiorVolume } from "@/lib/house/derive";
 import { House } from "@/lib/house/schema";
 import { validateHouse, type HouseIssue } from "@/lib/house/validate";
 
@@ -103,6 +103,10 @@ export const sceneProject = ({ slug, name, location, elevation, year, floorArea,
   interior: !!interiorVolume(house),
 });
 
+/** How much room a bedroom's partition leaves in front of it, for the bed, and behind it, metres. */
+const PARTITION_FRONT = 3.5;
+const PARTITION_BEHIND = 1.0;
+
 /** Everything `validateHouse` checks, plus the parts of the record that point into the House. */
 export function validateProject(project: Project): HouseIssue[] {
   const issues = validateHouse(project.house, { floorArea: project.floorArea });
@@ -121,6 +125,18 @@ export function validateProject(project: Project): HouseIssue[] {
         part: "images.interior",
         message: `looks out through ${face}, which is in ${opening.volume}, not ${room.name}, which has the Interior`,
       });
+    }
+    // a bedroom's partition runs across the room, measured in from the glass the image looks out through
+    const partition = room?.interior?.kind === "bedroom" ? room.interior.partition : undefined;
+    if (room && partition !== undefined && opening.volume === room.name) {
+      const { rect } = interiorShell(project.house, room);
+      const depth = opening.face === "front" || opening.face === "back" ? rect.y1 - rect.y0 : rect.x1 - rect.x0;
+      if (partition < PARTITION_FRONT || partition > depth - PARTITION_BEHIND) {
+        issues.push({
+          part: `volumes.${room.name}.interior`,
+          message: `its partition is ${partition} m in from ${face}, in a room ${depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the bedroom and ${PARTITION_BEHIND} m behind`,
+        });
+      }
     }
   }
   return issues;

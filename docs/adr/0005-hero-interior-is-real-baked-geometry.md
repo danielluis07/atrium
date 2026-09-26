@@ -26,7 +26,7 @@ The room cards of ADR 0004 were cheap, but they read as flat drawings when a sel
 
 ## Consequences
 
-- The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan.
+- The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan. The one wall inside it is a bedroom's `partition` (#64): a wall with a closed door across the room, which furnishes a bedroom at the glass and leaves the room behind it empty. It is part of the Interior, so the drawings don't show it.
 - The record-derived room sizing and the Interior validation from the #57 prototype carried over into #60.
 - The Interior lives on its volume in the House record, and every Glazing Face into that volume looks into it. A volume with an Interior spans one Level, and no void or terrace cuts through it.
 
@@ -82,3 +82,22 @@ A kitchen in `middle` (L1, 10 × 8 m), seen through `living-front` and `living-s
 - **Step-downs.** In 3 alternating pairs with the rung left free, both builds start at rung 4 and settle at rung 6 in every run. The branch adds no step-down.
 - **Download.** `interior.ktx2` is 0.75 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Reine's GLB grew by 0.01 MB over the wire. The Scene (Target and Lean) went from 16.69 to 17.38 MB over the wire, of 24 MB, and the Houses from 11.04 to 11.74 MB, of 16 MB.
 - **Bake.** The room adds about 8 minutes to Reine's final bake (15.5 minutes in all).
+
+### Senja (#64)
+
+A bedroom at the end of `bar` (L0, 5.4 × 19.4 m inside), seen through `bar-end`: a partition with a closed walnut door 5.2 m in from the glass, the bed's head against it facing north, nightstands with table lamps, a bench at the foot of the bed, a wardrobe on the right wall, and a reading chair and floor lamp in the window's left corner. The issue asked for a library, but a library's furniture would sit at the far end of a 20 m bar, and the owner of the site asked instead for a bedroom by the glass with the rest of the bar left empty. That needed the `partition` option and a wardrobe and bench in the bedroom template. No other House has a bedroom, so the other bakes are unchanged and the builder version stays. `bar-side` looks into the empty part behind the partition, lit by its downlights, so every Glazing Face into the volume still looks into the same room.
+
+- **The room.** 1,541 triangles after culling, with 27 lamps (24 downlights, the two table lamps and the floor lamp). At the overview, all four hero Interiors are on screen.
+- **Jambs.** `bar-end` is as wide as the room, so the reveals of its jambs lie in the planes of the room's side walls. The builder used to take them for room walls and then cull them as outside the room, which left the jambs as thin strips standing clear of the glass. It now keeps a face in a wall's plane but beyond the room on the shell. No other House's glass reaches its room's walls, and their builds are unchanged. The frame costs above were measured before this fix, which adds the two 0.3 m reveals to the shell.
+- **Texture.** It stays at 1024². The seen faces get 49 texels/m, against 62 in Reine's kitchen and 85 in Kvaløya's dining room, which is finer than a pixel at the arc's distance. In screenshots across the arc the bed, wardrobe and door read sharp, so the 2048² allowance (+3 MB) isn't needed.
+- **Frame cost.** Measured the same way against `main` at d73a844 (Lyngen's, Kvaløya's and Reine's Interiors), with no bake running and the selected camera on Senja. GPU p90, branch minus `main`, as mean / median of runs:
+
+  | Rung | Runs per build | Overview | Senja selected |
+  |---|---|---|---|
+  | 4 (Lean), held | 7 | +0.43 / +0.38 ms | +0.79 / +0.53 ms |
+  | 6 (DPR 0.75, no bloom), held from the start | 12 | −0.51 / −0.21 ms | +0.34 / +0.22 ms |
+
+  Both rungs are inside the +1.5 ms bar. At rung 6 a few runs fell into the whole-frame slow state seen in #62, in both builds (overview p90 over 12 ms in two `main` runs and one branch run). The median p50s show the room's steady cost at rung 4: +0.43 ms at the overview and +0.60 ms at the selected camera, higher in 6 of 7 pairs. The rung-6 runs were split across two sessions by an overnight stop, 6 pairs each, with the order kept.
+- **Step-downs.** In 3 alternating pairs with the rung left free, both builds start at rung 4. `main` settles at rung 6 in every run, and the branch at rung 6 in two and rung 5 in one. The branch adds no step-down.
+- **Download.** `interior.ktx2` is 0.71 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Senja's GLB grew by 0.01 MB over the wire. The Scene (Target and Lean) went from 17.38 to 17.99 MB over the wire, of 24 MB, and the Houses from 11.74 to 12.35 MB, of 16 MB.
+- **Bake.** The room adds about 7 minutes to Senja's final bake (12 minutes in all).

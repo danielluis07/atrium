@@ -55,7 +55,9 @@ describe("exportHouse", () => {
     expect(front.room).toEqual({ depth: 9.1, height: 6.8, sill: 0, width: 6.6 });
     // the interior image looks out through living-front, on main's front
     expect(derived.interior).toMatchObject({ volume: "main", face: "front", floor: 0, ceiling: 6.8 });
-    expect(JSON.parse(exportHouse(senja, sceneLayout)).derived.interior).toBeUndefined();
+    const bare = structuredClone(senja) as Project;
+    delete bare.house.volumes.find((v) => v.name === "bar")!.interior;
+    expect(JSON.parse(exportHouse(bare, sceneLayout)).derived.interior).toBeUndefined();
   });
 
   test("the same input gives byte-identical output, whatever the key order", () => {

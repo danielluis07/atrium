@@ -385,14 +385,43 @@ def artwork(wall, c, z, w, h):
     wall.box(c - w / 2, 0.0, z + h * 0.45, c + w / 2, 0.045, z + h, "canvas-dark")
 
 
-def downlights(w, h, d):
-    """Recessed downlights in rows across the ceiling, the front row a pitch in from the glass."""
+def partition(w, h, v, door):
+    """A plastered wall across the room, its near face `v` in from the window wall, with a closed walnut
+    door from u = door to door + DOOR_WIDTH along it."""
+    t, dw, dh = C.PARTITION_THICKNESS, C.DOOR_WIDTH, C.DOOR_HEIGHT
+    box(0.0, v, 0.0, door, v + t, h, "plaster")
+    box(door + dw, v, 0.0, w, v + t, h, "plaster")
+    box(door, v, dh, door + dw, v + t, h, "plaster")
+    box(door, v + 0.04, 0.0, door + dw, v + t - 0.04, dh, "walnut")
+    for y0, y1 in ((v - 0.05, v + 0.04), (v + t - 0.04, v + t + 0.05)):  # a handle either side
+        box(door + dw - 0.14, y0, 1.0, door + dw - 0.08, y1, 1.03, "brass")
+
+
+def wardrobe(wall, u0, u1, top):
+    """Built-in walnut doors against a wall, floor to `top`, a brass pull on every door."""
+    depth = 0.6
+    wall.box(u0, 0.0, 0.0, u1, depth, top, "walnut")
+    n = max(2, round((u1 - u0) / 0.55))
+    for i in range(n):
+        a, b = u0 + (u1 - u0) * i / n, u0 + (u1 - u0) * (i + 1) / n
+        if i:
+            wall.box(a - 0.004, depth, 0.02, a + 0.004, depth + 0.004, top - 0.02, "black")  # the door joint
+        pull = b - 0.05 if i % 2 == 0 else a + 0.05
+        wall.box(pull - 0.012, depth, 0.9, pull + 0.012, depth + 0.03, 1.3, "brass")
+
+
+def downlights(w, h, d, skip=None):
+    """Recessed downlights in rows across the ceiling, the front row a pitch in from the glass, none within
+    a pitch's third of `skip` (a wall across the room, as the span of v it stands on)."""
     pitch = C.INTERIOR_DOWNLIGHT_PITCH
     nx = max(1, round(w / pitch))
     for i in range(nx):
         x = w * (i + 0.5) / nx
         y = pitch * 0.75
         while y < d - 0.4:
+            if skip and skip[0] - pitch / 3 < y < skip[1] + pitch / 3:
+                y += pitch
+                continue
             cyl(x, y, h - 0.005, h, 0.05, "disc", verts=8)
             light("SPOT", x, y, h - 0.02, C.INTERIOR_DOWNLIGHT_WATTS, lamp_light(), radius=0.03,
                   spot_size=math.radians(110), spot_blend=0.8)
@@ -534,9 +563,17 @@ def library(w, h, d, o, hearth, rng):
 
 
 def bedroom(w, h, d, o, hearth, rng):
+    """A bed facing the window, its head to the back wall, or to the partition, which closes the bedroom off
+    from the room behind it and leaves that empty. Nightstands, a bench at the foot of the bed, a wardrobe
+    on the right wall and a reading chair in the window's left corner, where they fit."""
+    door = None
+    if o.get("partition"):
+        d, door = o["partition"], 0.3
+        partition(w, h, d, door)
     back = Wall("back", w, d)
     width = min(1.8, w - 1.4) if w > 2.6 else w - 0.6
-    cx = w / 2
+    # centred, or clear of the door by a quarter metre, nightstand and all
+    cx = w / 2 if door is None else max(w / 2, door + C.DOOR_WIDTH + 0.25 + width / 2 + 0.575)
     f = Frame(cx, d - 1.1, "window")
     f.box(-width / 2 - 0.05, 0.95, 0.0, width / 2 + 0.05, 1.05, 1.1, "wool", soft=0.03)  # headboard
     f.box(-width / 2, -1.05, 0.08, width / 2, 1.0, 0.36, "walnut")
@@ -557,6 +594,21 @@ def bedroom(w, h, d, o, hearth, rng):
             pendant(cx + s * (width / 2 + 0.35), d - 0.3, 1.1, h)
     artwork(back, cx, 1.45, min(1.4, width * 0.8), 0.7)
     rug(max(0.2, cx - width / 2 - 0.6), d - 2.6, min(w - 0.2, cx + width / 2 + 0.6), d - 0.3)
+    foot = d - 2.15  # the foot of the bed
+    if foot > 1.4:
+        f.box(-width / 2 + 0.15, -1.5, 0.36, width / 2 - 0.15, -1.12, 0.46, "linen", soft=0.03)
+        for u in (-width / 2 + 0.2, width / 2 - 0.2):
+            f.box(u - 0.02, -1.45, 0.0, u + 0.02, -1.17, 0.36, "walnut")
+    # the wardrobe runs alongside the bed where the room is wide enough, or else stops short of the bench
+    right = Wall("right", w, d)
+    beside = w - 0.6 - (cx + width / 2 + 0.575) > 0.3
+    end = min(3.0, d - 0.3 if beside else foot - 0.6)
+    if end - 0.6 > 1.0:
+        wardrobe(right, 0.6, end, min(2.4, h - 0.1))
+    if foot - 0.5 > 1.8 and cx - width / 2 > 1.6:
+        armchair(Frame(0.8, 1.1, "right"))
+        if lamp == "floor":
+            floor_lamp(Frame(0.4, 0.45))
 
 
 TEMPLATES = {"lounge": lounge, "dining": dining, "kitchen": kitchen, "library": library, "bedroom": bedroom}
@@ -570,5 +622,6 @@ def furnish(interior, w, h, d, hearth, seed):
     lamps.clear()
     palette()
     TEMPLATES[interior["kind"]](w, h, d, interior, hearth, random.Random(seed))
-    downlights(w, h, d)
+    v = interior.get("partition")
+    downlights(w, h, d, skip=v and (v, v + C.PARTITION_THICKNESS))
     return list(parts), list(lamps)
