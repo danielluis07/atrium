@@ -389,8 +389,8 @@ export function glazingMaterial(house: Matrix4, glow: { value: number }, room: G
 
 /**
  * A Glazing Face into the Interior: glass over the real room, drawn after
- * it. Glass `width` metres wide into the empty room behind a bedroom's
- * partition may hang a Curtain (`curtain`), which glows with the House's
+ * it. Glass `width` metres wide into the empty room behind a partition
+ * may hang a Curtain (`curtain`), which glows with the House's
  * `glow`.
  */
 export function interiorGlassMaterial(

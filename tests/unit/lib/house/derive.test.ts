@@ -17,6 +17,17 @@ import {
 } from "@/lib/house/derive";
 import type { House } from "@/lib/house/schema";
 
+/** Lyngen as it was before its loft: the main volume double height, its front glass spanning both Levels. */
+function doubleHeight(): House {
+  const house = structuredClone(lyngen.house) as House;
+  house.volumes = house.volumes.filter((v) => v.name !== "loft");
+  house.volumes.find((v) => v.name === "main")!.top = 6.8;
+  house.openings = house.openings.filter((o) => o.name !== "loft-front");
+  house.openings.find((o) => o.name === "living-front")!.to = "L1";
+  Object.assign(house.openings.find((o) => o.name === "loft-side")!, { name: "living-side", volume: "main" });
+  return house;
+}
+
 describe("the room behind a Glazing Face", () => {
   const room = (house: House, name: string) => {
     const r = interiorRoom(house, house.openings.find((o) => o.name === name)!);
@@ -25,9 +36,9 @@ describe("the room behind a Glazing Face", () => {
 
   test("a double-height volume is one room, floor to top, whichever Level its glass is on", () => {
     // the main volume: 8.0 × 9.4 m on L0, raised to 6.8 m; the front glass is recessed 0.3 m
-    expect(room(lyngen.house, "living-front")).toEqual({ width: 6.6, height: 6.8, depth: 9.1, sill: 0 });
+    expect(room(doubleHeight(), "living-front")).toEqual({ width: 6.6, height: 6.8, depth: 9.1, sill: 0 });
     // its side glass starts on L1, 3.9 m up the same room
-    expect(room(lyngen.house, "living-side")).toEqual({ width: 2.4, height: 6.8, depth: 7.75, sill: 3.9 });
+    expect(room(doubleHeight(), "living-side")).toEqual({ width: 2.4, height: 6.8, depth: 7.75, sill: 3.9 });
   });
 
   test("a volume of one Level that rises past it is one room to its top", () => {
@@ -36,7 +47,7 @@ describe("the room behind a Glazing Face", () => {
   });
 
   test("a volume over several Levels holds a room per Level", () => {
-    const house = structuredClone(lyngen.house) as House;
+    const house = doubleHeight();
     const main = house.volumes.find((v) => v.name === "main")!;
     main.to = "L1";
     delete main.top;
@@ -63,7 +74,8 @@ describe("the Interior", () => {
     expect(rect.y0).toBeCloseTo(-4.1);
     expect(rect.x1).toBeCloseTo(4.3);
     expect(rect.y1).toBeCloseTo(4.7);
-    expect({ floor, ceiling }).toEqual({ floor: 0, ceiling: 6.8 });
+    // the lounge is on L0, under the loft
+    expect({ floor, ceiling }).toEqual({ floor: 0, ceiling: 3.5 });
   });
 });
 
@@ -100,7 +112,8 @@ describe("Glazing Face bearings", () => {
     expect(faces.map((f) => [f.name, f.bearing, f.point])).toEqual([
       ["hall-front", 350, "N"],
       ["living-front", 350, "N"],
-      ["living-side", 80, "E"],
+      ["loft-front", 350, "N"],
+      ["loft-side", 80, "E"],
       ["dining-front", 350, "N"],
       ["study-side", 260, "W"],
     ]);
@@ -125,8 +138,12 @@ describe("gross floor area", () => {
     expect(area).toBe(28);
   });
 
-  test("Lyngen: three volumes on L0, the frame on L1, the double-height room once", () => {
-    expect(grossFloorArea(lyngen.house)).toBeCloseTo(68.4 + 75.2 + 57.12 + 79.04, 6);
+  test("Lyngen: three volumes on L0, the loft and the frame on L1", () => {
+    expect(grossFloorArea(lyngen.house)).toBeCloseTo(68.4 + 75.2 + 57.12 + 75.2 + 79.04, 6);
+  });
+
+  test("a double-height room counts once", () => {
+    expect(grossFloorArea(doubleHeight())).toBeCloseTo(68.4 + 75.2 + 57.12 + 79.04, 6);
   });
 });
 
@@ -144,7 +161,7 @@ describe("opening recesses", () => {
   });
 
   test("a left opening runs from the face's left edge seen from outside (+y) and cuts in toward +x", () => {
-    const { rect, back } = recess("living-side");
+    const { rect, back } = recess("loft-side");
     expect(rect.x0).toBeCloseTo(-3.4);
     expect(rect.x1).toBeCloseTo(-3.15);
     expect(rect.y0).toBeCloseTo(2.2);

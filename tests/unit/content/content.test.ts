@@ -144,11 +144,64 @@ describe("createContent", () => {
     expect(at(18.8)).toThrow(/its partition is 18.8 m in from bar-end/);
   });
 
+  test("so does a lounge's, by the same margins", () => {
+    const at = (partition: number) => {
+      const record = structuredClone(lyngen) as Project;
+      record.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true, partition };
+      return () => createContent([record], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } });
+    };
+    expect(at(3.5)).not.toThrow();
+    expect(at(7.8)).not.toThrow();
+    expect(at(3.4)).toThrow(
+      /volumes.main.interior: its partition is 3.4 m in from living-front, in a room 8.80 m deep: it must leave 3.5 m for the lounge and 1 m behind/,
+    );
+    expect(at(7.9)).toThrow(/its partition is 7.9 m in from living-front/);
+  });
+
   test("a Curtain never hangs in front of the Interior", () => {
     const bad = structuredClone(lyngen) as Project;
-    bad.house.openings.find((o) => o.name === "living-side")!.curtain = true;
+    bad.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true };
+    bad.house.openings.find((o) => o.name === "living-front")!.curtain = true;
     expect(() => createContent([bad], sceneLayout)).toThrow(
-      /opening living-side: hangs a Curtain, but looks into the Interior in main$/m,
+      /opening living-front: hangs a Curtain, but looks into the Interior in main$/m,
+    );
+  });
+
+  test("a lounge's door needs another volume on its floor against one of its walls", () => {
+    // the dining room in lower stands against the lounge's right wall
+    expect(lyngen.house.volumes.find((v) => v.name === "main")!.interior).toMatchObject({ door: true });
+    const bad = structuredClone(lyngen) as Project;
+    bad.house.volumes.find((v) => v.name === "lower")!.rect.x0 = 5.0;
+    bad.house.openings.find((o) => o.name === "dining-front")!.at = 0.4;
+    expect(() => createContent([bad], sceneLayout)).toThrow(
+      /volumes.main.interior: has a door, but no other volume on its floor stands against its walls in front of the partition for 2.1 m/,
+    );
+  });
+
+  test("the door's room must be high enough, and meet the lounge in front of its partition", () => {
+    const load = (edit: (p: Project) => void) => {
+      const record = structuredClone(lyngen) as Project;
+      edit(record);
+      return () => createContent([record], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } });
+    };
+    const lower = (p: Project) => p.house.volumes.find((v) => v.name === "lower")!;
+    // a room too low for a door beside it
+    expect(load((p) => (lower(p).top = 2.2))).toThrow(/has a door, but no other volume/);
+    // lower meets the lounge's right wall from 4.6 m in; the partition at 5.8 m leaves 1.2 m of it, too little
+    expect(load((p) => (lower(p).rect.y0 = 0.5))).toThrow(/has a door, but no other volume/);
+    expect(
+      load((p) => {
+        lower(p).rect.y0 = 0.5;
+        p.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true, partition: 7.8, door: true };
+      }),
+    ).not.toThrow();
+  });
+
+  test("a lounge with a partition can't have its fireplace on the back wall, behind the partition", () => {
+    const bad = structuredClone(lyngen) as Project;
+    bad.house.stone.rect = { x0: -2.0, y0: 5.0, x1: 2.0, y1: 6.0 };
+    expect(() => createContent([bad], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } })).toThrow(
+      /volumes.main.interior: has a fireplace and a partition, but the stone stands behind the back wall, behind the partition/,
     );
   });
 

@@ -385,16 +385,41 @@ def artwork(wall, c, z, w, h):
     wall.box(c - w / 2, 0.0, z + h * 0.45, c + w / 2, 0.045, z + h, "canvas-dark")
 
 
-def partition(w, h, v, door):
+def partition(w, h, v, door, pivot=False):
     """A plastered wall across the room, its near face `v` in from the window wall, with a closed walnut
-    door from u = door to door + DOOR_WIDTH along it."""
-    t, dw, dh = C.PARTITION_THICKNESS, C.DOOR_WIDTH, C.DOOR_HEIGHT
+    door from u = door along it: a hinged door with a lever handle, or a wide, tall pivot door set nearly
+    flush with the wall, with a long pull."""
+    t = C.PARTITION_THICKNESS
+    dw, dh = (C.PIVOT_WIDTH, min(C.PIVOT_HEIGHT, h - 0.3)) if pivot else (C.DOOR_WIDTH, C.DOOR_HEIGHT)
     box(0.0, v, 0.0, door, v + t, h, "plaster")
     box(door + dw, v, 0.0, w, v + t, h, "plaster")
     box(door, v, dh, door + dw, v + t, h, "plaster")
-    box(door, v + 0.04, 0.0, door + dw, v + t - 0.04, dh, "walnut")
-    for y0, y1 in ((v - 0.05, v + 0.04), (v + t - 0.04, v + t + 0.05)):  # a handle either side
-        box(door + dw - 0.14, y0, 1.0, door + dw - 0.08, y1, 1.03, "brass")
+    inset = 0.015 if pivot else 0.04
+    box(door, v + inset, 0.0, door + dw, v + t - inset, dh, "walnut")
+    for y0, y1 in ((v - 0.05, v + inset), (v + t - inset, v + t + 0.05)):  # a handle either side
+        if pivot:
+            box(door + dw - 0.2, y0, 0.5, door + dw - 0.16, y1, 2.0, "brass")
+        else:
+            box(door + dw - 0.14, y0, 1.0, door + dw - 0.08, y1, 1.03, "brass")
+
+
+def side_door(w, d, beside, hearth, limit):
+    """A closed walnut door into the room beside this one, on a wall another volume stands against: the one
+    away from the fire if there is a choice, towards the back of what the room sees of it, short of `limit`
+    (a partition, or the back wall)."""
+    dw, dh = C.DOOR_WIDTH, C.DOOR_HEIGHT
+    # a side wall's span runs in from the window, so a partition cuts it short; the back wall is behind one
+    spans = [(name, u0, u1 if name == "back" else min(u1, limit)) for name, u0, u1 in beside
+             if name != "back" or limit >= d]
+    fits = [(name, u0, u1) for name, u0, u1 in spans if u1 - u0 >= dw + 1.2]
+    if not fits:
+        raise SystemExit(f"interior: a door needs a wall another volume stands against, and none fits: {beside}")
+    name, u0, u1 = sorted(fits, key=lambda f: (hearth is not None and f[0] == hearth[0], f[0] == "back"))[0]
+    wall = Wall(name, w, d)
+    a = max(u0 + 0.6, u1 - 0.8 - dw)
+    wall.box(a, 0.0, 0.0, a + dw, 0.04, dh, "walnut")
+    lever = a + 0.08 if name == "right" else a + dw - 0.14  # on the leaf's far side from its hinges
+    wall.box(lever, 0.04, 1.0, lever + 0.06, 0.1, 1.03, "brass")
 
 
 def wardrobe(wall, u0, u1, top):
@@ -439,7 +464,24 @@ def feature_wall(w, d, o, hearth):
 
 
 def lounge(w, h, d, o, hearth, rng):
-    """Seating round the fire, or round a table facing the back wall, with shelving and a lamp."""
+    """Seating round the fire, or round a table facing the back wall, with shelving and a lamp. A partition
+    stands in for the back wall, with a wide pivot door in it off-centre, on the side away from the fire,
+    and leaves the room behind it empty."""
+    # the plaster of the back wall, from u0 to u1: all of it, or the partition's either side of its door
+    u0, u1 = 0.0, w
+    if o.get("partition"):
+        d = o["partition"]
+        # the stone behind the room's back wall is behind the partition; on a side wall, clip it at the partition
+        if hearth and hearth[0] == "back" and o.get("fireplace"):
+            raise SystemExit("interior: the stone stands behind the back wall, behind the partition: no wall for the fire")
+        if hearth and hearth[0] == "back":
+            hearth = None
+        elif hearth:
+            hearth = (hearth[0], hearth[1], min(hearth[2], d)) if min(hearth[2], d) - hearth[1] >= 1.2 else None
+        left = hearth and o.get("fireplace") and hearth[0] == "right"
+        door = 1.0 if left else w - 1.0 - C.PIVOT_WIDTH
+        partition(w, h, d, door, pivot=True)
+        u0, u1 = (door + C.PIVOT_WIDTH, w) if left else (0.0, door)
     wall, c, span = feature_wall(w, d, o, hearth)
     back = Wall("back", w, d)
     breast = min(2.4, span, wall.length * 0.36)
@@ -448,11 +490,12 @@ def lounge(w, h, d, o, hearth, rng):
     top = min(3.2, h - 0.3)
     if wall.name != "back":
         # the fire is on a side wall: shelving, or a canvas over a sideboard, across from the window
+        m = (u0 + u1) / 2
         if o.get("shelving"):
-            shelving(back, 0.4, w - 0.4, 0.36, top, rng)
+            shelving(back, u0 + 0.4, u1 - 0.4, 0.36, top, rng)
         else:
-            back.box(w / 2 - 1.2, 0.0, 0.0, w / 2 + 1.2, 0.45, 0.75, "walnut")
-            artwork(back, w / 2, 1.3, min(1.8, w * 0.3), 1.2)
+            back.box(m - 1.2, 0.0, 0.0, m + 1.2, 0.45, 0.75, "walnut")
+            artwork(back, m, 1.3, min(1.8, (u1 - u0) * 0.4), 1.2)
     elif o.get("shelving"):
         side = (w - breast) / 2 - 0.4 if o.get("fireplace") else min(2.2, w / 2 - 0.2)
         if o.get("fireplace") and side > 0.8:
@@ -614,14 +657,18 @@ def bedroom(w, h, d, o, hearth, rng):
 TEMPLATES = {"lounge": lounge, "dining": dining, "kitchen": kitchen, "library": library, "bedroom": bedroom}
 
 
-def furnish(interior, w, h, d, hearth, seed):
-    """Build the kind's template in a room w wide, h high and d deep (room frame), with its downlights.
-    `hearth` is the wall the House's stone mass stands behind and the span of it the room sees, as
-    ("left" | "right" | "back", u0, u1), or None. Returns the parts and the lamps."""
+def furnish(interior, w, h, d, hearth, beside, seed):
+    """Build the kind's template in a room w wide, h high and d deep (room frame), with its downlights and,
+    when the Interior asks for one, a door into the room beside it. `hearth` is the wall the House's stone
+    mass stands behind and the span of it the room sees, as ("left" | "right" | "back", u0, u1), or None;
+    `beside` lists the walls the House's other volumes stand against, the same way. Returns the parts and the
+    lamps."""
     parts.clear()
     lamps.clear()
     palette()
     TEMPLATES[interior["kind"]](w, h, d, interior, hearth, random.Random(seed))
     v = interior.get("partition")
+    if interior.get("door"):
+        side_door(w, d, beside, hearth, v or d)
     downlights(w, h, d, skip=v and (v, v + C.PARTITION_THICKNESS))
     return list(parts), list(lamps)

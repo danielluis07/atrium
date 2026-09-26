@@ -48,12 +48,21 @@ const Lamp = z.enum(["floor", "pendant"]);
  * The furnished room inside a volume (ADR 0005): a kind and the few named
  * options its template in the builder honours. Each kind accepts only its
  * own options. It is a room shell, not a plan: the drawings never show it.
- * A bedroom's `partition` is the one exception, a wall with a door across
- * the room this many metres in from the window wall: the bedroom is
- * furnished in front of it, and the room behind it is left empty.
+ * A `partition` (bedroom, lounge) is the one exception, a wall with a door
+ * across the room this many metres in from the window wall: the room is
+ * furnished in front of it, and the room behind it is left empty. A
+ * lounge's `door` is a closed door in a side wall, into the room beside it:
+ * another volume on its floor stands against that wall.
  */
 export const Interior = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("lounge"), fireplace: z.boolean().optional(), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
+  z.strictObject({
+    kind: z.literal("lounge"),
+    fireplace: z.boolean().optional(),
+    lamp: Lamp.optional(),
+    shelving: z.boolean().optional(),
+    partition: positive.optional(),
+    door: z.boolean().optional(),
+  }),
   z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("kitchen"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("library"), fireplace: z.boolean().optional(), lamp: Lamp.optional() }),

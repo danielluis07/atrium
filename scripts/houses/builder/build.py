@@ -679,31 +679,49 @@ def room_frame():
     return m, w, INTERIOR["ceiling"] - C.INTERIOR_FINISH - floor, d
 
 
-def hearth(m, w, d):
-    """The wall the stone mass stands behind, in the room frame, and the span of it the room sees, as
-    ("left" | "right" | "back", u0, u1); or None when the stone stands against no wall but the window's."""
-    v, s, r = VOLUMES[INTERIOR["volume"]], STONE, INTERIOR["rect"]
+def against(s, m, w, d):
+    """The walls of the room a solid `s` stands against outside, in the room frame, and the span of each the
+    room sees, as [("left" | "right" | "back", u0, u1)]: never the window's wall, nor a span under 1.2 m."""
+    v, r = VOLUMES[INTERIOR["volume"]], INTERIOR["rect"]
     inv = m.inverted()
+    walls = []
     for plane, touching in (("x0", abs(s[3] - v[0]) < EPS), ("x1", abs(s[0] - v[3]) < EPS),
                             ("y0", abs(s[4] - v[1]) < EPS), ("y1", abs(s[1] - v[4]) < EPS)):
         across = (s[1], s[4], r["y0"], r["y1"]) if plane[0] == "x" else (s[0], s[3], r["x0"], r["x1"])
         lo, hi = max(across[0], across[2]), min(across[1], across[3])
-        if not touching or hi - lo < 1.2 or s[5] < INTERIOR["floor"] + 2.0:
+        if not touching or hi - lo < 1.2:
             continue
         a, b = (inv @ Vector((r[plane], t, 0) if plane[0] == "x" else (t, r[plane], 0)) for t in (lo, hi))
         if abs(a.x) < 1e-3 or abs(a.x - w) < 1e-3:
-            return ("left" if abs(a.x) < 1e-3 else "right", min(a.y, b.y), max(a.y, b.y))
-        if abs(a.y - d) < 1e-3:
-            return ("back", min(a.x, b.x), max(a.x, b.x))
-    return None
+            walls.append(("left" if abs(a.x) < 1e-3 else "right", min(a.y, b.y), max(a.y, b.y)))
+        elif abs(a.y - d) < 1e-3:
+            walls.append(("back", min(a.x, b.x), max(a.x, b.x)))
+    return walls
+
+
+def hearth(m, w, d):
+    """The wall the stone mass stands behind, in the room frame, and the span of it the room sees, as
+    ("left" | "right" | "back", u0, u1); or None when the stone stands against no wall but the window's."""
+    if STONE[5] < INTERIOR["floor"] + 2.0:
+        return None
+    return next(iter(against(STONE, m, w, d)), None)
+
+
+def beside(m, w, d):
+    """The walls the House's other volumes on the room's floor stand against, as `against` gives them: where
+    a door into the room beside it can go."""
+    floor = INTERIOR["floor"]
+    return [wall for name, s in VOLUMES.items()
+            if name != INTERIOR["volume"] and s[2] <= floor + EPS and s[5] >= floor + 2.4
+            for wall in against(s, m, w, d)]
 
 
 def furnished_room(walls):
     """The Interior: its walls, a floor and a ceiling, and the kind's template from the shared kit, joined
     into one object in the House frame; and the lamps that light it."""
     m, w, h, d = room_frame()
-    where = hearth(m, w, d)
-    furniture, room_lamps = I.furnish(FURNISHING, w, h, d, where, SLUG)
+    where, doors = hearth(m, w, d), beside(m, w, d)
+    furniture, room_lamps = I.furnish(FURNISHING, w, h, d, where, doors, SLUG)
     floor = quad("room-floor", [(0, 0, 0), (w, 0, 0), (w, d, 0), (0, d, 0)], [(0, 0)] * 4, "concrete")
     ceiling = quad("room-ceiling", [(0, 0, h), (0, d, h), (w, d, h), (w, 0, h)], [(0, 0)] * 4, "concrete")
     for ob, name in ((floor, "oak"), (ceiling, "ceiling")):
@@ -716,7 +734,7 @@ def furnished_room(walls):
     room = join("interior", [walls, floor, ceiling, *furniture])
     tris = sum(len(p.vertices) - 2 for p in room.data.polygons)
     print(f"interior: {FURNISHING['kind']} in {INTERIOR['volume']}, {w:.2f} x {d:.2f} x {h:.2f} m facing "
-          f"{INTERIOR['face']}, hearth {where}, {len(furniture)} pieces, {len(room_lamps)} lamps, {tris} tris",
+          f"{INTERIOR['face']}, hearth {where}, beside {doors}, {len(furniture)} pieces, {len(room_lamps)} lamps, {tris} tris",
           flush=True)
     return room, room_lamps
 

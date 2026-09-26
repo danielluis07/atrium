@@ -52,9 +52,9 @@ describe("exportHouse", () => {
   test("gives each Glazing Face its room, and the Interior its shell and the face it turns to", () => {
     const { derived } = JSON.parse(exportHouse(lyngen, sceneLayout));
     const front = derived.glazingFaces.find((f: { name: string }) => f.name === "living-front");
-    expect(front.room).toEqual({ depth: 9.1, height: 6.8, sill: 0, width: 6.6 });
+    expect(front.room).toEqual({ depth: 9.1, height: 3.5, sill: 0, width: 6.6 });
     // the interior image looks out through living-front, on main's front
-    expect(derived.interior).toMatchObject({ volume: "main", face: "front", floor: 0, ceiling: 6.8 });
+    expect(derived.interior).toMatchObject({ volume: "main", face: "front", floor: 0, ceiling: 3.5 });
     const bare = structuredClone(senja) as Project;
     delete bare.house.volumes.find((v) => v.name === "bar")!.interior;
     expect(JSON.parse(exportHouse(bare, sceneLayout)).derived.interior).toBeUndefined();
