@@ -65,3 +65,20 @@ A dining room in `living` (L0, 9.2 × 6 m), seen through `living-front` and `liv
 - **Step-downs.** In 3 alternating pairs with the rung left free, both builds start at rung 4 and settle at rung 6 in every run. The branch adds no step-down.
 - **Download.** `interior.ktx2` is 0.87 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Kvaløya's GLB grew by 0.02 MB over the wire. The Scene (Target and Lean) went from 15.84 to 16.69 MB over the wire, of 24 MB, and the Houses from 10.20 to 11.04 MB, of 16 MB.
 - **Bake.** The room adds about 9.5 minutes to Kvaløya's final bake (16 minutes in all).
+
+### Reine (#63)
+
+A kitchen in `middle` (L1, 10 × 8 m), seen through `living-front` and `living-side`: walnut units with a stone worktop along the back wall under open shelves, and an island with four stools under three pendants. It is built from the kitchen template with no builder change. From the arc's height the fascia hides most of the back wall, so the island and pendants carry the room.
+
+- **The room.** 1,140 triangles after culling, with 18 lamps (15 downlights and the 3 pendants). At the overview, three hero Interiors are on screen: Lyngen's, Kvaløya's and Reine's.
+- **Frame cost.** Measured the same way against `main` at fc70cbc (Lyngen's and Kvaløya's Interiors), with no bake running and the selected camera on Reine. GPU p90, branch minus `main`, as mean / median of runs:
+
+  | Rung | Runs per build | Overview | Reine selected |
+  |---|---|---|---|
+  | 4 (Lean), held | 7 | +0.43 / +0.19 ms | +0.18 / +0.52 ms |
+  | 6 (DPR 0.75, no bloom), held from the start | 12 | −0.17 / +0.02 ms | −0.39 / +0.07 ms |
+
+  Both rungs are inside the +1.5 ms bar. At rung 6, 3 of the 12 pairs fell into the whole-frame slow state seen in #62, in both builds. The median p50s show the room's steady cost at rung 4: +0.29 ms at the overview and +0.49 ms at the selected camera, higher in all 7 pairs, as Lyngen's and Kvaløya's were.
+- **Step-downs.** In 3 alternating pairs with the rung left free, both builds start at rung 4 and settle at rung 6 in every run. The branch adds no step-down.
+- **Download.** `interior.ktx2` is 0.75 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Reine's GLB grew by 0.01 MB over the wire. The Scene (Target and Lean) went from 16.69 to 17.38 MB over the wire, of 24 MB, and the Houses from 11.04 to 11.74 MB, of 16 MB.
+- **Bake.** The room adds about 8 minutes to Reine's final bake (15.5 minutes in all).

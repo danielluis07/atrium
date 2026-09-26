@@ -51,7 +51,10 @@ export const reine = {
     // each Level shifts: the middle west and forward, the top east and back
     volumes: [
       { name: "base", rect: { x0: -5.0, y0: -4.0, x1: 5.0, y1: 4.0 }, from: "L0", to: "L0" },
-      { name: "middle", rect: { x0: -2.0, y0: -5.0, x1: 8.0, y1: 3.0 }, from: "L1", to: "L1" },
+      {
+        name: "middle", rect: { x0: -2.0, y0: -5.0, x1: 8.0, y1: 3.0 }, from: "L1", to: "L1",
+        interior: { kind: "kitchen", lamp: "pendant", shelving: true },
+      },
       { name: "top", rect: { x0: -7.2, y0: -3.0, x1: 1.8, y1: 5.0 }, from: "L2", to: "L2" },
     ],
     stone: { name: "wall", rect: { x0: -8.0, y0: -4.0, x1: -7.2, y1: 4.0 }, from: "L0", to: "L2", top: 10.2 },
