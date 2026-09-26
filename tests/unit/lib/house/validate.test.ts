@@ -42,6 +42,7 @@ describe("Interiors", () => {
     expect(withInterior({ kind: "library", fireplace: true, lamp: "pendant" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom", lamp: "floor", partition: 5 }).ok).toBe(true);
+    expect(withInterior({ kind: "lounge", fireplace: true, partition: 5.8 }).ok).toBe(true);
   });
 
   test("refuses an unknown kind, an option the kind doesn't take, and a bad option value", () => {
@@ -49,7 +50,8 @@ describe("Interiors", () => {
       { kind: "ballroom" },
       { kind: "bedroom", fireplace: true },
       { kind: "lounge", lamp: "candle" },
-      { kind: "lounge", partition: 5 },
+      { kind: "dining", partition: 5 },
+      { kind: "lounge", partition: -1 },
       { kind: "bedroom", partition: 0 },
     ]) {
       const result = withInterior(bad);

@@ -144,8 +144,23 @@ describe("createContent", () => {
     expect(at(18.8)).toThrow(/its partition is 18.8 m in from bar-end/);
   });
 
+  test("so does a lounge's, by the same margins", () => {
+    const at = (partition: number) => {
+      const record = structuredClone(lyngen) as Project;
+      record.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true, partition };
+      return () => createContent([record], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } });
+    };
+    expect(at(3.5)).not.toThrow();
+    expect(at(7.8)).not.toThrow();
+    expect(at(3.4)).toThrow(
+      /volumes.main.interior: its partition is 3.4 m in from living-front, in a room 8.80 m deep: it must leave 3.5 m for the lounge and 1 m behind/,
+    );
+    expect(at(7.9)).toThrow(/its partition is 7.9 m in from living-front/);
+  });
+
   test("a Curtain never hangs in front of the Interior", () => {
     const bad = structuredClone(lyngen) as Project;
+    bad.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true };
     bad.house.openings.find((o) => o.name === "living-side")!.curtain = true;
     expect(() => createContent([bad], sceneLayout)).toThrow(
       /opening living-side: hangs a Curtain, but looks into the Interior in main$/m,

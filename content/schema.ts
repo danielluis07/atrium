@@ -103,7 +103,7 @@ export const sceneProject = ({ slug, name, location, elevation, year, floorArea,
   interior: !!interiorVolume(house),
 });
 
-/** How much room a bedroom's partition leaves in front of it, for the bed, and behind it, metres. */
+/** How much room a partition leaves in front of it, for the furniture, and behind it, metres. */
 const PARTITION_FRONT = 3.5;
 const PARTITION_BEHIND = 1.0;
 
@@ -126,14 +126,15 @@ export function validateProject(project: Project): HouseIssue[] {
         message: `looks out through ${face}, which is in ${opening.volume}, not ${room.name}, which has the Interior`,
       });
     }
-    // a bedroom's partition runs across the room, measured in from the glass the image looks out through
-    const partition = room?.interior?.kind === "bedroom" ? room.interior.partition : undefined;
+    // a partition (bedroom, lounge) runs across the room, measured in from the glass the image looks out through
+    const interior = room?.interior;
+    const partition = interior && "partition" in interior ? interior.partition : undefined;
     const inward = room && opening.volume === room.name ? inFrom(interiorShell(project.house, room).rect, opening.face) : undefined;
-    if (room && partition !== undefined && inward) {
+    if (room && interior && partition !== undefined && inward) {
       if (partition < PARTITION_FRONT || partition > inward.depth - PARTITION_BEHIND) {
         issues.push({
           part: `volumes.${room.name}.interior`,
-          message: `its partition is ${partition} m in from ${face}, in a room ${inward.depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the bedroom and ${PARTITION_BEHIND} m behind`,
+          message: `its partition is ${partition} m in from ${face}, in a room ${inward.depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the ${interior.kind} and ${PARTITION_BEHIND} m behind`,
         });
       }
     }

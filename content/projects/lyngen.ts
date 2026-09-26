@@ -51,7 +51,8 @@ export const lyngen = {
       // double height under the roof slab, so it counts once in the floor area
       {
         name: "main", rect: { x0: -3.4, y0: -4.4, x1: 4.6, y1: 5.0 }, from: "L0", to: "L0", top: 6.8,
-        interior: { kind: "lounge", fireplace: true, lamp: "floor", shelving: true },
+        // the lounge round the fire, closed off by a partition with a pivot door
+        interior: { kind: "lounge", fireplace: true, lamp: "floor", partition: 5.8 },
       },
       { name: "lower", rect: { x0: 4.6, y0: -3.4, x1: 11.4, y1: 5.0 }, from: "L0", to: "L0" },
       // the upper frame rises past its Level
