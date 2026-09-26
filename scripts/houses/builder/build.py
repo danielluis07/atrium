@@ -375,13 +375,15 @@ for o in H["openings"]:
 
 def room_walls(ob, r):
     """Split the room's walls, the faces the hollowing left on the room shell's sides, from the volume into
-    their own object: they belong to the Interior, and bake with it."""
+    their own object: they belong to the Interior, and bake with it. A face in a wall's plane but beyond the
+    room, the reveal of glass as wide as the room, stays on the shell."""
     x0, y0, x1, y1 = r["x0"], r["y0"], r["x1"], r["y1"]
 
     def on_wall(f):
         c, n = f.calc_center_median(), f.normal
-        return ((abs(c.x - x0) < 1e-3 and n.x > 0.9) or (abs(c.x - x1) < 1e-3 and n.x < -0.9)
-                or (abs(c.y - y0) < 1e-3 and n.y > 0.9) or (abs(c.y - y1) < 1e-3 and n.y < -0.9))
+        along_x, along_y = x0 < c.x < x1, y0 < c.y < y1
+        return ((abs(c.x - x0) < 1e-3 and n.x > 0.9 and along_y) or (abs(c.x - x1) < 1e-3 and n.x < -0.9 and along_y)
+                or (abs(c.y - y0) < 1e-3 and n.y > 0.9 and along_x) or (abs(c.y - y1) < 1e-3 and n.y < -0.9 and along_x))
 
     I.palette()
     walls = bpy.data.objects.new("room-walls", ob.data.copy())
