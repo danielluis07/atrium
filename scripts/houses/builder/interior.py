@@ -422,6 +422,20 @@ def side_door(w, d, beside, hearth, limit):
     wall.box(lever, 0.04, 1.0, lever + 0.06, 0.1, 1.03, "brass")
 
 
+def worktop(wall, u0, u1, h, o, rng):
+    """A kitchen run along a wall from u0 to u1, C.WORKTOP_DEPTH deep: base units and a stone worktop, a
+    splashback, and open shelves (with `shelving`) or cupboards above."""
+    wall.box(u0, 0.0, 0.0, u1, 0.62, 0.86, "walnut")
+    wall.box(u0, 0.0, 0.86, u1, C.WORKTOP_DEPTH, 0.9, "stone")
+    wall.box(u0, 0.0, 0.9, u1, 0.02, 1.5, "ceramic")  # splashback
+    if o.get("shelving"):
+        for z in (1.62, 2.02):
+            wall.box(u0 + 0.2, 0.0, z, u1 - 0.2, 0.28, z + 0.03, "walnut")
+            books(wall, u0 + 0.3, u1 - 0.3, 0.02, 0.26, z + 0.03, 0.3, rng)
+    else:
+        wall.box(u0, 0.0, 1.55, u1, 0.36, min(h - 0.05, 2.35), "walnut")
+
+
 def wardrobe(wall, u0, u1, top):
     """Built-in walnut doors against a wall, floor to `top`, a brass pull on every door."""
     depth = 0.6
@@ -524,8 +538,12 @@ def lounge(w, h, d, o, hearth, rng):
 
 
 def dining(w, h, d, o, hearth, rng):
+    """A table facing the window, chairs either side, under two pendants or by a floor lamp. On the back wall,
+    a sideboard and a canvas, shelving, or with `kitchen` a kitchen run centred behind the table (open shelves
+    over it with `shelving`), which the table keeps clear of."""
     back = Wall("back", w, d)
-    cx, yc = w / 2, min(max(2.4, d * 0.42), d - 1.8)
+    run = C.WORKTOP_DEPTH if o.get("kitchen") else 0.0
+    cx, yc = w / 2, min(max(2.4, d * 0.42), d - 1.8 - run)
     length = min(2.8, max(1.4, w - 2.0))
     table(Frame(cx, yc), length, 1.0, 0.74, thick=0.05)
     n = max(1, round(length / 0.7))
@@ -534,7 +552,11 @@ def dining(w, h, d, o, hearth, rng):
         chair(Frame(cx + u, yc - 0.75, "back"))
         chair(Frame(cx + u, yc + 0.75, "window"))
     vase(Frame(cx, yc), 0.74)
-    if o.get("shelving"):
+    if o.get("kitchen"):
+        # a little longer than the table, and short of the side walls, clear of any glass in them
+        half = min(w / 2 - 0.6, length / 2 + 1.2)
+        worktop(back, cx - half, cx + half, h, o, rng)
+    elif o.get("shelving"):
         shelving(back, max(0.15, cx - 1.8), min(w - 0.15, cx + 1.8), 0.36, min(2.2, h - 0.4), rng)
     else:
         back.box(max(0.15, cx - 1.2), 0.0, 0.0, min(w - 0.15, cx + 1.2), 0.45, 0.75, "walnut")  # sideboard
@@ -547,17 +569,8 @@ def dining(w, h, d, o, hearth, rng):
 
 
 def kitchen(w, h, d, o, hearth, rng):
-    back = Wall("back", w, d)
-    # a run of base units and a worktop along the back wall, open shelves or cupboards above
-    back.box(0.0, 0.0, 0.0, w, 0.62, 0.86, "walnut")
-    back.box(0.0, 0.0, 0.86, w, 0.64, 0.9, "stone")
-    back.box(0.0, 0.0, 0.9, w, 0.02, 1.5, "ceramic")  # splashback
-    if o.get("shelving"):
-        for z in (1.62, 2.02):
-            back.box(0.2, 0.0, z, w - 0.2, 0.28, z + 0.03, "walnut")
-            books(back, 0.3, w - 0.3, 0.02, 0.26, z + 0.03, 0.3, rng)
-    else:
-        back.box(0.0, 0.0, 1.55, w, 0.36, min(h - 0.05, 2.35), "walnut")
+    # a run along the back wall, wall to wall
+    worktop(Wall("back", w, d), 0.0, w, h, o, rng)
     # an island, and stools at it
     cx, yc = w / 2, min(max(2.2, d * 0.4), d - 2.0)
     length = min(2.6, max(1.2, w - 1.8))

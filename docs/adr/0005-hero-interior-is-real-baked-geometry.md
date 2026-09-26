@@ -26,7 +26,7 @@ The room cards of ADR 0004 were cheap, but they read as flat drawings when a sel
 
 ## Consequences
 
-- The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan. The one wall inside it is a `partition`: a wall with a closed door across the room, which furnishes the room at the glass and leaves the room behind it empty. A bedroom takes one (Senja, #64), with a hinged door, and so does a lounge (Lyngen, #72), with a wide walnut pivot door off-centre, away from the fire. Either leaves 3.5 m in front of it and 1 m behind. A lounge may also have a closed `door` in a side wall, into the room beside it, where another volume on its floor stands against that wall. The partition and the door are part of the Interior, so the drawings don't show them.
+- The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan. The one wall inside it is a `partition`: a wall with a closed door across the room, which furnishes the room at the glass and leaves the room behind it empty. A bedroom takes one (Senja, #64), with a hinged door, and so does a lounge (Lyngen, #72), with a wide walnut pivot door off-centre, away from the fire. Either leaves 3.5 m in front of it and 1 m behind. A lounge may also have a closed `door` in a side wall, into the room beside it, where another volume on its floor stands against that wall. The partition and the door are part of the Interior, so the drawings don't show them. A dining room may take a `kitchen` (Kvaløya, #73): the kitchen template's run of units along its back wall, behind the table, in place of the sideboard.
 - The record-derived room sizing and the Interior validation from the #57 prototype carried over into #60.
 - The Interior lives on its volume in the House record, and every Glazing Face into that volume looks into it. A volume with an Interior spans one Level, and no void or terrace cuts through it.
 
@@ -127,3 +127,20 @@ The sideboard and canvas are centred on the plaster left of the pivot door. The 
   The Interiors part doesn't rise, since the room is half as high. The loft's glass moves from clear glass over the room to the glazing shader's curtained room, and glazing rises by 0.13 ms at the selected camera. The whole-frame p50 moves by +0.02 and −0.24 ms, and every load stayed at rung 4.
 - **Download.** `interior.ktx2` is 0.88 MB (from 1.05). The Houses went from 12.35 to 12.16 MB over the wire, of 16 MB, and the Scene from 17.99 to 17.80 MB, of 24 MB.
 - **Bake.** Lyngen alone, final mode: 15.8 minutes, of which the room takes 10.5.
+
+### Kvaløya's kitchen run (#73)
+
+After the grilling in #65, Kvaløya's dining room gets a kitchen. A dining option, `kitchen`, replaces the sideboard and canvas with the kitchen template's run of units: walnut base units, a stone worktop, a ceramic splashback and walnut cupboards above (open shelves with `shelving`). The builder's new `worktop` builds the run for both templates. The kitchen template's output is unchanged, so Reine keeps its bake and the builder version stays. Reine stays the kitchen House, so here the table stays the room's subject. The run is centred behind the table, 5.2 m long and 1.7 m short of either side wall, which keeps it clear of `living-court`'s glass in the left wall. In a shallow room the table moves forward to keep clear of the run. At Kvaløya (5.4 m deep) the table stays where it was, with 1.4 m between the far chairs and the worktop.
+
+- **The room.** 70 pieces and 1,064 triangles before culling, as before: the run is four boxes, as the sideboard and canvas were. The culled room has 185 m² of surface, up from 166, and the same 10 lamps. Open shelves, tried in a draft, came to 1,316 triangles and looked no different from the arc's height.
+- **Reading.** At the arc's pitch, the canopy cuts off the back wall at about 0.95 m. From the hero camera to either end of the arc, the run reads as a solid walnut counter behind the far chairs. Dragged to a lower pitch, the whole run shows behind the table and its two pendants: base units, worktop, the light splashback and the cupboards. Through `living-court` the room is seen edge-on past the table.
+- **Frame cost.** The probe check (`scripts/perf/README.md`) against `main` at 71508d6: rung 4, 3 loads per build in A B B A A B order, no bake running. The first `main` load was cold (overview p50 14.1 ms). Medians of loads, ms per frame:
+
+  | | Overview | Kvaløya selected |
+  |---|---|---|
+  | Interiors, `main` → branch | 0.12 → 0.12 | 0.13 → 0.12 |
+  | Whole-frame GPU p50, `main` → branch | 18.41 → 18.57 | 16.55 → 16.62 |
+
+  The Interiors part moves by 0.00 and −0.01 ms, inside the 0.5 ms bar. The whole-frame p50 moves by +0.16 and +0.07 ms, under 0.5 ms. Every load stayed at rung 4.
+- **Download.** `interior.ktx2` is 0.92 MB (from 0.87). The Houses went from 12.16 to 12.21 MB over the wire, of 16 MB, and the Scene from 17.80 to 17.85 MB, of 24 MB.
+- **Bake.** Kvaløya alone, final mode: 14.3 minutes, of which the room takes 8.4.
