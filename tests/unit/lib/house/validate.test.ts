@@ -41,10 +41,17 @@ describe("Interiors", () => {
   test("a volume takes a kind and the options its template honours", () => {
     expect(withInterior({ kind: "library", fireplace: true, lamp: "pendant" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom" }).ok).toBe(true);
+    expect(withInterior({ kind: "bedroom", lamp: "floor", partition: 5 }).ok).toBe(true);
   });
 
   test("refuses an unknown kind, an option the kind doesn't take, and a bad option value", () => {
-    for (const bad of [{ kind: "ballroom" }, { kind: "bedroom", fireplace: true }, { kind: "lounge", lamp: "candle" }]) {
+    for (const bad of [
+      { kind: "ballroom" },
+      { kind: "bedroom", fireplace: true },
+      { kind: "lounge", lamp: "candle" },
+      { kind: "lounge", partition: 5 },
+      { kind: "bedroom", partition: 0 },
+    ]) {
       const result = withInterior(bad);
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.issues[0].part).toStartWith("volumes.main.interior");

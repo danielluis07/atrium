@@ -49,7 +49,10 @@ describe("the room behind a Glazing Face", () => {
 describe("the Interior", () => {
   test("is in the volume that has one, if any", () => {
     expect(interiorVolume(lyngen.house)?.name).toBe("main");
-    expect(interiorVolume(senja.house)).toBeUndefined();
+    expect(interiorVolume(senja.house)?.name).toBe("bar");
+    const bare = structuredClone(lyngen.house);
+    delete bare.volumes.find((v) => v.name === "main")!.interior;
+    expect(interiorVolume(bare)).toBeUndefined();
   });
 
   test("its room shell is its volume inside the walls, floor to top", () => {

@@ -133,9 +133,22 @@ describe("createContent", () => {
     );
   });
 
+  test("a bedroom's partition leaves room for the bed in front of it and some behind", () => {
+    const at = (partition: number) => {
+      const record = structuredClone(senja) as Project;
+      record.house.volumes.find((v) => v.name === "bar")!.interior = { kind: "bedroom", partition };
+      return () => createContent([record], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } });
+    };
+    expect(at(5.2)).not.toThrow();
+    expect(at(3)).toThrow(/volumes.bar.interior: its partition is 3 m in from bar-end, in a room 19.40 m deep/);
+    expect(at(18.8)).toThrow(/its partition is 18.8 m in from bar-end/);
+  });
+
   test("the Scene learns only whether a House has an Interior", () => {
+    const bare = structuredClone(lyngen) as Project;
+    delete bare.house.volumes.find((v) => v.name === "main")!.interior;
     expect(sceneProject(lyngen).interior).toBe(true);
-    expect(sceneProject(senja).interior).toBe(false);
+    expect(sceneProject(bare).interior).toBe(false);
     expect(sceneProject(lyngen)).not.toHaveProperty("house");
   });
 

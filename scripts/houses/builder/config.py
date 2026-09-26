@@ -119,7 +119,7 @@ INTERIOR_OPTIONS = {
     "dining": {"lamp": ("floor", "pendant"), "shelving": bool},
     "kitchen": {"lamp": ("floor", "pendant"), "shelving": bool},
     "library": {"fireplace": bool, "lamp": ("floor", "pendant")},
-    "bedroom": {"lamp": ("floor", "pendant")},
+    "bedroom": {"lamp": ("floor", "pendant"), "partition": float},
 }
 INTERIOR_FINISH = 0.02  # the finished floor and ceiling stand this far inside the room shell, clear of the concrete
 INTERIOR_COLOR_SAMPLES = 16  # spp for the colour and emission bakes, which are noiseless
@@ -132,6 +132,9 @@ INTERIOR_FIRE_WATTS = 220.0
 INTERIOR_SHADE_GLOW = 4.0  # emission strengths: lampshades, downlight discs, the fire
 INTERIOR_DISC_GLOW = 20.0
 INTERIOR_FIRE_GLOW = 12.0
+PARTITION_THICKNESS = 0.12  # a bedroom's partition, and the door in it
+DOOR_WIDTH = 0.9
+DOOR_HEIGHT = 2.1
 INTERIOR_EXPOSURE = 2.0  # scales the whole baked room, to sit with the procedural rooms beside it
 
 # ---------------------------------------------------------------- materials (the GLB's fixed enum)

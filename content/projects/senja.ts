@@ -50,7 +50,11 @@ export const senja = {
     volumes: [
       { name: "lower", rect: { x0: -10.0, y0: -6.0, x1: 4.0, y1: 1.0 }, from: "L-1", to: "L-1" },
       // cantilevers 4 m past the lower room's front
-      { name: "bar", rect: { x0: -6.0, y0: -10.0, x1: 0.0, y1: 10.0 }, from: "L0", to: "L0" },
+      {
+        name: "bar", rect: { x0: -6.0, y0: -10.0, x1: 0.0, y1: 10.0 }, from: "L0", to: "L0",
+        // the bedroom at the end window, walled off from the rest of the bar
+        interior: { kind: "bedroom", lamp: "floor", partition: 5.2 },
+      },
     ],
     stone: { name: "wall", rect: { x0: 0.0, y0: 1.0, x1: 10.0, y1: 1.8 }, from: "L-1", to: "L0" },
     slabs: [
