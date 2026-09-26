@@ -60,10 +60,20 @@ export type HouseExtras = {
    * `seen`: whether the overview or arc cameras see any of the Glazing Face. `room`: the room it looks
    * into (`interiorRoom`), its width, height and depth and the glass's sill above its floor, which the
    * glazing shader draws. `interior`: whether it looks into the Interior instead, as glass over the room.
+   * `curtain`: whether it hangs a Curtain. The builder never sees Curtains: `stampCurtains` writes them in
+   * after the bake.
    */
   glazingFaces: Record<
     string,
-    { size: [number, number]; normal: Vec3; bearing: number; seen: boolean; room: { size: Vec3; sill: number }; interior: boolean }
+    {
+      size: [number, number];
+      normal: Vec3;
+      bearing: number;
+      seen: boolean;
+      room: { size: Vec3; sill: number };
+      interior: boolean;
+      curtain: boolean;
+    }
   >;
   /**
    * The Interior, when the House has one: the volume it is in, its kind, and its baked texture beside the
@@ -90,6 +100,47 @@ export function readGlb(bytes: Uint8Array): Gltf {
   const length = view.getUint32(12, true);
   if (view.getUint32(16, true) !== 0x4e4f534a) throw new Error("GLB has no JSON chunk first");
   return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)));
+}
+
+/** A binary glTF with its JSON chunk replaced by `gltf`, and every other chunk kept as it was. */
+export function writeGlb(bytes: Uint8Array, gltf: Gltf): Uint8Array {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const rest = bytes.subarray(20 + view.getUint32(12, true));
+  const json = new TextEncoder().encode(JSON.stringify(gltf));
+  // chunks align to 4 bytes, and the JSON chunk pads with spaces
+  const length = Math.ceil(json.length / 4) * 4;
+  const out = new Uint8Array(20 + length + rest.length);
+  const header = new DataView(out.buffer);
+  header.setUint32(0, 0x46546c67, true);
+  header.setUint32(4, view.getUint32(4, true), true);
+  header.setUint32(8, out.length, true);
+  header.setUint32(12, length, true);
+  header.setUint32(16, 0x4e4f534a, true);
+  out.fill(0x20, 20, 20 + length);
+  out.set(json, 20);
+  out.set(rest, 20 + length);
+  return out;
+}
+
+/**
+ * Writes each Glazing Face's Curtain from the record into the root extras
+ * of the House's GLB. The Scene draws Curtains, and the builder never sees
+ * them, so a new amount needs this and no bake. Returns whether anything
+ * changed.
+ */
+export function stampCurtains(gltf: Gltf, project: Project): boolean {
+  const root = gltf.nodes.find((n) => n.name === `house:${project.slug}`);
+  const faces = (root?.extras as Partial<HouseExtras> | undefined)?.glazingFaces;
+  if (!faces) throw new Error(`the GLB has no house:${project.slug} root with Glazing Faces`);
+  let changed = false;
+  for (const o of project.house.openings) {
+    const face = faces[o.name];
+    if (o.fill !== "glazing" || !face) continue;
+    const curtain = o.curtain ?? false;
+    changed ||= face.curtain !== curtain;
+    face.curtain = curtain;
+  }
+  return changed;
 }
 
 const KTX2_IDENTIFIER = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -277,6 +328,12 @@ export function checkGlbContract(
     }
     const into = opening.volume === interiorVolume(house)?.name;
     if (face.interior !== into) issues.push(`extras.glazingFaces.${g.name}.interior is ${show(face.interior)}, expected ${into}`);
+    const curtain = opening.curtain ?? false;
+    if (face.curtain !== curtain) {
+      issues.push(
+        `extras.glazingFaces.${g.name}.curtain is ${show(face.curtain)}, expected ${curtain}: run \`bun run houses:bake ${slug}\` to stamp it`,
+      );
+    }
   }
 
   // the Interior: in the volume the record gives it, of its kind, with its texture

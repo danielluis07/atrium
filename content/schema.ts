@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { interiorShell, interiorVolume } from "@/lib/house/derive";
-import { House } from "@/lib/house/schema";
+import { interiorShell, interiorVolume, openingRecess } from "@/lib/house/derive";
+import { House, type Face, type Rect } from "@/lib/house/schema";
 import { validateHouse, type HouseIssue } from "@/lib/house/validate";
 
 const Image = z.object({
@@ -128,16 +128,44 @@ export function validateProject(project: Project): HouseIssue[] {
     }
     // a bedroom's partition runs across the room, measured in from the glass the image looks out through
     const partition = room?.interior?.kind === "bedroom" ? room.interior.partition : undefined;
-    if (room && partition !== undefined && opening.volume === room.name) {
-      const { rect } = interiorShell(project.house, room);
-      const depth = opening.face === "front" || opening.face === "back" ? rect.y1 - rect.y0 : rect.x1 - rect.x0;
-      if (partition < PARTITION_FRONT || partition > depth - PARTITION_BEHIND) {
+    const inward = room && opening.volume === room.name ? inFrom(interiorShell(project.house, room).rect, opening.face) : undefined;
+    if (room && partition !== undefined && inward) {
+      if (partition < PARTITION_FRONT || partition > inward.depth - PARTITION_BEHIND) {
         issues.push({
           part: `volumes.${room.name}.interior`,
-          message: `its partition is ${partition} m in from ${face}, in a room ${depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the bedroom and ${PARTITION_BEHIND} m behind`,
+          message: `its partition is ${partition} m in from ${face}, in a room ${inward.depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the bedroom and ${PARTITION_BEHIND} m behind`,
+        });
+      }
+    }
+    // a Curtain hangs where no furnished room is seen: into no Interior, or into the empty room behind the partition
+    for (const o of project.house.openings) {
+      if (!o.curtain || !room || o.volume !== room.name) continue;
+      const glass = openingRecess(project.house, o).back;
+      const behind = partition !== undefined && inward && Math.min(...glass.map(inward.at)) >= partition - 1e-6;
+      if (!behind) {
+        issues.push({
+          part: `opening ${o.name}`,
+          message: `hangs a Curtain, but looks into the Interior in ${room.name}${partition === undefined ? "" : " in front of its partition"}`,
         });
       }
     }
   }
   return issues;
+}
+
+/**
+ * How far a plan point is in from one wall of a room, the wall on `face`,
+ * and how deep the room is from that wall.
+ */
+function inFrom(rect: Rect, face: Face): { at: (p: readonly [number, number]) => number; depth: number } {
+  switch (face) {
+    case "front":
+      return { at: ([, y]) => y - rect.y0, depth: rect.y1 - rect.y0 };
+    case "back":
+      return { at: ([, y]) => rect.y1 - y, depth: rect.y1 - rect.y0 };
+    case "left":
+      return { at: ([x]) => x - rect.x0, depth: rect.x1 - rect.x0 };
+    case "right":
+      return { at: ([x]) => rect.x1 - x, depth: rect.x1 - rect.x0 };
+  }
 }

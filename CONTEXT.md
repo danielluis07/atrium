@@ -40,6 +40,10 @@ _Avoid_: room, set, furniture layout
 A House's main Interior: the one behind the Glazing Face its Project's interior image names. For now it is the only furnished Interior in each House.
 _Avoid_: main room, showroom
 
+**Curtain**:
+A warm sheer hung just inside a Glazing Face that looks into no Interior, closed across all of its glass and lit from behind by the room. It is drawn by the glazing shader, not baked, and glows and lifts on hover like every window. The one exception to "no Interior" is glass into the empty room behind a bedroom's partition.
+_Avoid_: blind, drape, shade
+
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
 _Avoid_: modal, popup, card, drawer

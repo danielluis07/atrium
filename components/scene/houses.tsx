@@ -335,13 +335,15 @@ function prepareHouse(
     }
     return m;
   };
-  // each window looks into its own procedural room, or through glass into the Interior
+  // each window looks into its own procedural room, or through glass into the Interior, some behind a Curtain
   const panes: Material[] = [];
   const pane = (mesh: Mesh, part: string | undefined): Material => {
     const face = part?.startsWith("glazing:") ? extras.glazingFaces[part.slice("glazing:".length)] : undefined;
     const m = face?.interior
-      ? interiorGlassMaterial(toHouse)
-      : glazingMaterial(toHouse, glow, face ? { ...face.room, glass: face.size[1] } : terraceRoom(mesh, toHouse));
+      ? interiorGlassMaterial(toHouse, { glow, width: face.size[0], curtain: face.curtain })
+      : face
+        ? glazingMaterial(toHouse, glow, { ...face.room, glass: face.size[1] }, face.curtain)
+        : glazingMaterial(toHouse, glow, terraceRoom(mesh, toHouse));
     panes.push(m);
     return m;
   };

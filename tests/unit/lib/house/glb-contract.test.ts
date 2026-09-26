@@ -13,6 +13,8 @@ import {
   KHR_DF_MODEL_UASTC_HDR_4X4,
   readGlb,
   readKtx2Header,
+  stampCurtains,
+  writeGlb,
   type Gltf,
   type HouseExtras,
 } from "@/lib/house/glb-contract";
@@ -169,6 +171,34 @@ describe("checkGlbContract", () => {
       "extras.glazingFaces.living-side.interior is false, expected true",
       "extras.glazingFaces.dining-front.interior is true, expected false",
     ]);
+  });
+
+  test("fails when a Curtain isn't stamped, or doesn't match the record", () => {
+    const gltf = fresh();
+    const faces = extrasOf(gltf, "lyngen").glazingFaces;
+    delete (faces["hall-front"] as Partial<HouseExtras["glazingFaces"][string]>).curtain;
+    faces["dining-front"].curtain = false;
+    faces["living-front"].curtain = true;
+    expect(check(gltf)).toEqual([
+      "extras.glazingFaces.hall-front.curtain is undefined, expected true: run `bun run houses:bake lyngen` to stamp it",
+      "extras.glazingFaces.living-front.curtain is true, expected false: run `bun run houses:bake lyngen` to stamp it",
+      "extras.glazingFaces.dining-front.curtain is false, expected true: run `bun run houses:bake lyngen` to stamp it",
+    ]);
+  });
+
+  test("a stamp brings the Curtains in line with the record, and keeps the rest of the GLB", () => {
+    const bytes = new Uint8Array(readFileSync(glbPath("lyngen")));
+    const project = structuredClone(lyngen) as Project;
+    project.house.openings.find((o) => o.name === "dining-front")!.curtain = false;
+    const gltf = readGlb(bytes);
+    expect(stampCurtains(gltf, project)).toBe(true);
+    expect(stampCurtains(gltf, project)).toBe(false);
+    const written = writeGlb(bytes, gltf);
+    expect(written.byteLength % 4).toBe(0);
+    expect(checkGlbContract(readGlb(written), project, sceneLayout, { bakeHash: currentHash(project) })).toEqual([]);
+    // the binary chunk, after the JSON, is untouched
+    const tail = (b: Uint8Array) => b.subarray(20 + new DataView(b.buffer, b.byteOffset).getUint32(12, true));
+    expect(tail(written)).toEqual(tail(bytes));
   });
 
   test("fails when the Interior is missing, elsewhere or of another kind, or has no texture", () => {

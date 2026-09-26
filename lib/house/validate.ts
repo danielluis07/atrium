@@ -44,10 +44,10 @@ function describePath(input: unknown, path: PropertyKey[]): string {
 
 /**
  * Checks what zod cannot: references exist, openings fit their faces and
- * don't overlap, the one Interior sits in a volume of one Level that glass
- * looks into and no void or terrace cuts through, every slab touches a
- * volume or the stone mass, names are unique, and the gross floor area is
- * within ±15% of the authored m².
+ * don't overlap, only Glazing Faces hang Curtains, the one Interior sits
+ * in a volume of one Level that glass looks into and no void or terrace
+ * cuts through, every slab touches a volume or the stone mass, names are
+ * unique, and the gross floor area is within ±15% of the authored m².
  * Returns no issues when the House is valid.
  */
 export function validateHouse(house: House, { floorArea }: { floorArea: number }): HouseIssue[] {
@@ -110,6 +110,7 @@ export function validateHouse(house: House, { floorArea }: { floorArea: number }
   for (const o of house.openings) {
     const part = `opening ${o.name}`;
     const volume = volumes.get(o.volume);
+    if (o.curtain && o.fill !== "glazing") issue(part, `is a ${o.fill}, and only a Glazing Face hangs a Curtain`);
     const refs = [known(part, o.level, "level"), known(part, o.to, "to")].every(Boolean);
     if (!volume) issue(part, `sits on volume ${o.volume}, which the House does not declare`);
     if (!volume || !refs || !volumesOk) continue;
