@@ -150,34 +150,75 @@ export function validateProject(project: Project): HouseIssue[] {
         });
       }
     }
-    // a lounge's door opens into the room beside it: another volume on its floor, against one of its walls
-    if (room && interior && "door" in interior && interior.door && !besideRoom(project.house, room)) {
-      issues.push({
-        part: `volumes.${room.name}.interior`,
-        message: `has a door, but no other volume on its floor stands against its walls for ${DOOR_SPAN} m`,
+    if (room && interior?.kind === "lounge" && opening.volume === room.name) {
+      const { floor } = interiorShell(project.house, room);
+      const limit = partition ?? inward!.depth;
+      // a lounge's door opens into the room beside it: another volume on its floor, high enough for a door,
+      // against a wall of the room in front of any partition (the builder's `beside` and `side_door`)
+      const fits = (c: Contact) =>
+        c.wall === "side" ? Math.min(c.span[1], limit) - c.span[0] >= DOOR_SPAN : partition === undefined && c.span[1] - c.span[0] >= DOOR_SPAN;
+      const beside = project.house.volumes.filter((v) => {
+        const { bottom, top } = verticalExtent(project.house, v);
+        return v !== room && bottom <= floor + 1e-6 && top >= floor + DOOR_HEIGHT;
       });
+      if (interior.door && !beside.some((v) => contacts(project.house, room, opening.face, v.rect).some(fits))) {
+        issues.push({
+          part: `volumes.${room.name}.interior`,
+          message: `has a door, but no other volume on its floor stands against its walls in front of the partition for ${DOOR_SPAN} m`,
+        });
+      }
+      // the fireplace goes on the wall the stone stands behind (the builder's `hearth`): never the back wall
+      // behind a partition, where it would land on the partition instead
+      const stone = project.house.stone;
+      const hearth = verticalExtent(project.house, stone).top >= floor + 2 ? contacts(project.house, room, opening.face, stone.rect)[0] : undefined;
+      if (interior.fireplace && partition !== undefined && hearth?.wall === "back") {
+        issues.push({
+          part: `volumes.${room.name}.interior`,
+          message: `has a fireplace and a partition, but the stone stands behind the back wall, behind the partition`,
+        });
+      }
     }
   }
   return issues;
 }
 
-/** How much wall a door into the room beside the Interior needs in common with that room, metres. */
+/** How much wall a door into the room beside the Interior needs in common with that room, and how high that room must be, metres. */
 const DOOR_SPAN = 2.1;
+const DOOR_HEIGHT = 2.4;
 
-/** Whether another volume standing on the room's floor meets one of its walls for a door's span. */
-function besideRoom(house: House, room: House["volumes"][number]): boolean {
-  const { bottom } = verticalExtent(house, room);
-  const r = room.rect;
-  const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.min(a1, b1) - Math.max(a0, b0);
-  return house.volumes.some((v) => {
-    if (v === room || verticalExtent(house, v).bottom !== bottom) return false;
-    const o = v.rect;
-    const eq = (a: number, b: number) => Math.abs(a - b) < 1e-6;
-    return (
-      ((eq(o.x1, r.x0) || eq(o.x0, r.x1)) && overlap(o.y0, o.y1, r.y0, r.y1) >= DOOR_SPAN) ||
-      ((eq(o.y1, r.y0) || eq(o.y0, r.y1)) && overlap(o.x0, o.x1, r.x0, r.x1) >= DOOR_SPAN)
-    );
-  });
+/** A wall of the room a solid stands against: a side wall, with its span measured in from the window wall, or the back wall. */
+type Contact = { wall: "side" | "back"; span: [number, number] };
+
+/**
+ * The walls of an Interior's room that a solid stands against outside, as
+ * the builder's `against` finds them: its span along the room shell, at
+ * least 1.2 m, and never the window's own wall. In the order x0, x1, y0, y1.
+ */
+function contacts(house: House, room: House["volumes"][number], face: Face, solid: Rect): Contact[] {
+  const v = room.rect;
+  const r = interiorShell(house, room).rect;
+  const inward = inFrom(r, face);
+  const eq = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+  const opposite = { front: "back", back: "front", left: "right", right: "left" }[face];
+  const planes: [Face, boolean, "x" | "y", number][] = [
+    ["left", eq(solid.x1, v.x0), "x", r.x0],
+    ["right", eq(solid.x0, v.x1), "x", r.x1],
+    ["front", eq(solid.y1, v.y0), "y", r.y0],
+    ["back", eq(solid.y0, v.y1), "y", r.y1],
+  ];
+  const found: Contact[] = [];
+  for (const [side, touching, axis, at] of planes) {
+    const [lo, hi] =
+      axis === "x" ? [Math.max(solid.y0, r.y0), Math.min(solid.y1, r.y1)] : [Math.max(solid.x0, r.x0), Math.min(solid.x1, r.x1)];
+    if (!touching || hi - lo < 1.2 || side === face) continue;
+    if (side === opposite) {
+      found.push({ wall: "back", span: [lo, hi] });
+      continue;
+    }
+    const [a, b] = [lo, hi].map((t) => inward.at(axis === "x" ? [at, t] : [t, at]));
+    found.push({ wall: "side", span: [Math.min(a, b), Math.max(a, b)] });
+  }
+  return found;
 }
 
 /**

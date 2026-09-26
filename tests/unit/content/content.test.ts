@@ -174,7 +174,34 @@ describe("createContent", () => {
     bad.house.volumes.find((v) => v.name === "lower")!.rect.x0 = 5.0;
     bad.house.openings.find((o) => o.name === "dining-front")!.at = 0.4;
     expect(() => createContent([bad], sceneLayout)).toThrow(
-      /volumes.main.interior: has a door, but no other volume on its floor stands against its walls for 2.1 m/,
+      /volumes.main.interior: has a door, but no other volume on its floor stands against its walls in front of the partition for 2.1 m/,
+    );
+  });
+
+  test("the door's room must be high enough, and meet the lounge in front of its partition", () => {
+    const load = (edit: (p: Project) => void) => {
+      const record = structuredClone(lyngen) as Project;
+      edit(record);
+      return () => createContent([record], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } });
+    };
+    const lower = (p: Project) => p.house.volumes.find((v) => v.name === "lower")!;
+    // a room too low for a door beside it
+    expect(load((p) => (lower(p).top = 2.2))).toThrow(/has a door, but no other volume/);
+    // lower meets the lounge's right wall from 4.6 m in; the partition at 5.8 m leaves 1.2 m of it, too little
+    expect(load((p) => (lower(p).rect.y0 = 0.5))).toThrow(/has a door, but no other volume/);
+    expect(
+      load((p) => {
+        lower(p).rect.y0 = 0.5;
+        p.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true, partition: 7.8, door: true };
+      }),
+    ).not.toThrow();
+  });
+
+  test("a lounge with a partition can't have its fireplace on the back wall, behind the partition", () => {
+    const bad = structuredClone(lyngen) as Project;
+    bad.house.stone.rect = { x0: -2.0, y0: 5.0, x1: 2.0, y1: 6.0 };
+    expect(() => createContent([bad], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } })).toThrow(
+      /volumes.main.interior: has a fireplace and a partition, but the stone stands behind the back wall, behind the partition/,
     );
   });
 

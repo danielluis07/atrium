@@ -408,7 +408,10 @@ def side_door(w, d, beside, hearth, limit):
     away from the fire if there is a choice, towards the back of what the room sees of it, short of `limit`
     (a partition, or the back wall)."""
     dw, dh = C.DOOR_WIDTH, C.DOOR_HEIGHT
-    fits = [(name, u0, min(u1, limit)) for name, u0, u1 in beside if min(u1, limit) - u0 >= dw + 1.2]
+    # a side wall's span runs in from the window, so a partition cuts it short; the back wall is behind one
+    spans = [(name, u0, u1 if name == "back" else min(u1, limit)) for name, u0, u1 in beside
+             if name != "back" or limit >= d]
+    fits = [(name, u0, u1) for name, u0, u1 in spans if u1 - u0 >= dw + 1.2]
     if not fits:
         raise SystemExit(f"interior: a door needs a wall another volume stands against, and none fits: {beside}")
     name, u0, u1 = sorted(fits, key=lambda f: (hearth is not None and f[0] == hearth[0], f[0] == "back"))[0]
@@ -469,6 +472,8 @@ def lounge(w, h, d, o, hearth, rng):
     if o.get("partition"):
         d = o["partition"]
         # the stone behind the room's back wall is behind the partition; on a side wall, clip it at the partition
+        if hearth and hearth[0] == "back" and o.get("fireplace"):
+            raise SystemExit("interior: the stone stands behind the back wall, behind the partition: no wall for the fire")
         if hearth and hearth[0] == "back":
             hearth = None
         elif hearth:

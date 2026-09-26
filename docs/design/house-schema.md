@@ -41,7 +41,7 @@ Field-level choices (the zod schema in `lib/house/schema.ts` is the reference):
 - `section` is `{ axis, at }`: the cut plane `axis = at`.
 - Only `glazing` openings are Glazing Faces. A Project's interior image names one.
 - Only a Glazing Face hangs a Curtain, and only where no furnished room is seen: into a volume without an Interior, or into the Interior's volume only when all its glass lies behind a partition (Senja's `bar-side`), measured in from the face the interior image looks out through.
-- A House has at most one Interior for now, its Hero Interior. Its volume spans one Level, some Glazing Face looks into it, and no `void` or `terrace` cuts through it. A partition leaves at least 3.5 m in front of it for the furniture and 1 m behind it. A lounge's `door` needs another volume on the same floor standing against one of the room's walls for at least 2.1 m. When a House has one, its interior image looks out through a Glazing Face into that volume, so the image shows it.
+- A House has at most one Interior for now, its Hero Interior. Its volume spans one Level, some Glazing Face looks into it, and no `void` or `terrace` cuts through it. A partition leaves at least 3.5 m in front of it for the furniture and 1 m behind it. A lounge's `door` needs another volume on the same floor, at least 2.4 m high, standing against one of the room's walls for at least 2.1 m in front of any partition. A lounge with a partition can't have a fireplace when the stone mass stands behind its back wall, which the partition hides. When a House has one, its interior image looks out through a Glazing Face into that volume, so the image shows it.
 
 ## Derived by the builder, never authored
 
