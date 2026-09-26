@@ -110,7 +110,7 @@ export function validateHouse(house: House, { floorArea }: { floorArea: number }
   for (const o of house.openings) {
     const part = `opening ${o.name}`;
     const volume = volumes.get(o.volume);
-    if (o.curtain !== undefined && o.fill !== "glazing") issue(part, `is a ${o.fill}, and only a Glazing Face hangs a Curtain`);
+    if (o.curtain && o.fill !== "glazing") issue(part, `is a ${o.fill}, and only a Glazing Face hangs a Curtain`);
     const refs = [known(part, o.level, "level"), known(part, o.to, "to")].every(Boolean);
     if (!volume) issue(part, `sits on volume ${o.volume}, which the House does not declare`);
     if (!volume || !refs || !volumesOk) continue;

@@ -41,7 +41,7 @@ A House's main Interior: the one behind the Glazing Face its Project's interior 
 _Avoid_: main room, showroom
 
 **Curtain**:
-A warm sheer hung just inside a Glazing Face that looks into no Interior, drawn across the glass (0 drawn back, 1 closed; every Curtain is closed for now) and lit from behind by the room. It is drawn by the glazing shader, not baked, and glows and lifts on hover like every window. The one exception to "no Interior" is glass into the empty room behind a bedroom's partition.
+A warm sheer hung just inside a Glazing Face that looks into no Interior, closed across all of its glass and lit from behind by the room. It is drawn by the glazing shader, not baked, and glows and lifts on hover like every window. The one exception to "no Interior" is glass into the empty room behind a bedroom's partition.
 _Avoid_: blind, drape, shade
 
 **Project Panel**:

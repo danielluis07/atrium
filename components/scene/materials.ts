@@ -8,7 +8,6 @@ import {
   UniformsUtils,
   Vector2,
   Vector3,
-  type IUniform,
   type Texture,
   type WebGLProgramParametersWithUniforms,
 } from "three";
@@ -229,26 +228,23 @@ float fresnel( vec3 V, vec3 n ) {
 /** How far in from the glass a Curtain hangs, metres. */
 const CURTAIN_INSET = 0.12;
 
+/** A Curtain's pleat pitch, metres. */
+const CURTAIN_PLEAT = 0.16;
+
 /**
- * A Curtain (`CURTAIN`): a sheer hung just inside the glass, drawn in from
- * both sides until it covers `uCurtain` of the width, and lit from behind by
- * the room, so it glows as warm as the room does. Its pleats bunch up the
- * further back it's drawn. `x` is where the view ray crosses the glass,
- * from its left edge, and `d` the ray in the room's frame (x along the
- * glass, y up, z inward). Returns its colour, and in `cover` how much of
- * the room it hides.
+ * A Curtain (`CURTAIN`): a softly pleated sheer hung just inside the glass,
+ * closed across all of it, and lit from behind by the room, so it glows as
+ * warm as the room does. `x` is where the view ray crosses the glass, in
+ * metres from its left edge, and `d` the ray in the room's frame (x along
+ * the glass, y up, z inward). Returns its colour, and in `cover` how much
+ * of the room it hides.
  */
 const curtainPars = /* glsl */ `
 #ifdef CURTAIN
-uniform float uCurtain;
-vec3 sheer( float x, vec3 d, float width, out float cover ) {
-  float s = x + d.x * ${CURTAIN_INSET.toFixed(2)} / max( d.z, 1e-3 );
-  // the two halves overlap a little when it's closed
-  float reach = 0.5 * uCurtain * ( width + 0.1 );
-  float drawn = 1.0 - smoothstep( reach - 0.02, reach + 0.02, min( s, width - s ) );
-  float pitch = mix( 0.08, 0.16, uCurtain );
-  float fold = mix( 0.5 + 0.5 * cos( 6.2832 * s / pitch ), 0.5 + 0.5 * cos( 6.2832 * s / ( 2.7 * pitch ) + 1.3 ), 0.35 );
-  cover = drawn * mix( 0.6, 0.88, fold );
+vec3 sheer( float x, vec3 d, out float cover ) {
+  float s = ( x + d.x * ${CURTAIN_INSET.toFixed(2)} / max( d.z, 1e-3 ) ) / ${CURTAIN_PLEAT.toFixed(2)};
+  float fold = mix( 0.5 + 0.5 * cos( 6.2832 * s ), 0.5 + 0.5 * cos( 6.2832 * s / 2.7 + 1.3 ), 0.35 );
+  cover = mix( 0.6, 0.88, fold );
   return vec3( 1.0, 0.93, 0.82 ) * uWarm * 0.55 * mix( 0.8, 1.15, fold );
 }
 #endif`;
@@ -306,7 +302,7 @@ void main() {
   }
   #ifdef CURTAIN
   float cover;
-  vec3 veil = sheer( q.x, d, uRoom.x, cover );
+  vec3 veil = sheer( q.x, d, cover );
   c = mix( c, veil, cover );
   #endif
   c *= ( 0.55 + 0.9 * hash( uRoom.xz + uGlass ) ) * uGlow;
@@ -337,7 +333,7 @@ void main() {
   #ifdef CURTAIN
   vec3 t = normalize( cross( vec3( 0.0, 1.0, 0.0 ), n ) );
   float cover;
-  vec3 veil = sheer( vGlass.x * uWidth, vec3( dot( V, t ), V.y, -dot( V, n ) ), uWidth, cover ) * uGlow;
+  vec3 veil = sheer( vGlass.x * uWidth, vec3( dot( V, t ), V.y, -dot( V, n ) ), cover ) * uGlow;
   // the reflection over the sheer over the room: what of the room shows through both
   float a = 1.0 - ( 1.0 - F ) * ( 1.0 - cover );
   gl_FragColor = vec4( ( reflected * F + ( 1.0 - F ) * cover * veil ) / a, a );
@@ -360,23 +356,21 @@ const skyUniforms = () => ({
 /** The warm light of every window's room. */
 const warm = () => WINDOW.clone().multiplyScalar(2.2);
 
-/** A Curtain drawn `curtain` of the way across, or none at 0: its define and its amount. */
-const curtained = (curtain: number): { defines: Record<string, string>; uniforms: Record<string, IUniform> } =>
-  curtain > 0 ? { defines: { CURTAIN: "" }, uniforms: { uCurtain: { value: curtain } } } : { defines: {}, uniforms: {} };
+/** The define that hangs a Curtain, when there is one. */
+const curtained = (curtain: boolean): Record<string, string> => (curtain ? { CURTAIN: "" } : {});
 
 /**
- * One Glazing Face's window onto its procedural `room`, behind a Curtain
- * drawn `curtain` of the way across (none at 0). `house` is the inverse of
- * its House root's world matrix, and `glow` the House's shared glow, which
- * hover, selection and dim set.
+ * One Glazing Face's window onto its procedural `room`, with a Curtain
+ * closed over it when `curtain` is set. `house` is the inverse of its House
+ * root's world matrix, and `glow` the House's shared glow, which hover,
+ * selection and dim set.
  */
-export function glazingMaterial(house: Matrix4, glow: { value: number }, room: GlazingRoom, curtain = 0): ShaderMaterial {
-  const sheer = curtained(curtain);
+export function glazingMaterial(house: Matrix4, glow: { value: number }, room: GlazingRoom, curtain = false): ShaderMaterial {
   const material = new ShaderMaterial({
     vertexShader: glazingVertex,
     fragmentShader: glazingFragment,
     fog: true,
-    defines: sheer.defines,
+    defines: curtained(curtain),
     uniforms: UniformsUtils.merge([
       UniformsLib.fog,
       skyUniforms(),
@@ -384,7 +378,6 @@ export function glazingMaterial(house: Matrix4, glow: { value: number }, room: G
         uWarm: { value: warm() },
         uRoom: { value: new Vector3(...room.size) },
         uGlass: { value: new Vector2(room.sill, room.glass) },
-        ...sheer.uniforms,
       },
     ]),
   });
@@ -397,28 +390,27 @@ export function glazingMaterial(house: Matrix4, glow: { value: number }, room: G
 /**
  * A Glazing Face into the Interior: glass over the real room, drawn after
  * it. Glass `width` metres wide into the empty room behind a bedroom's
- * partition may hang a Curtain drawn `curtain` of the way across, which
- * glows with the House's `glow`.
+ * partition may hang a Curtain (`curtain`), which glows with the House's
+ * `glow`.
  */
 export function interiorGlassMaterial(
   house: Matrix4,
-  { glow, width, curtain }: { glow: { value: number }; width: number; curtain: number },
+  { glow, width, curtain }: { glow: { value: number }; width: number; curtain: boolean },
 ): ShaderMaterial {
-  const sheer = curtained(curtain);
   const material = new ShaderMaterial({
     vertexShader: glazingVertex,
     fragmentShader: heroGlassFragment,
     fog: true,
     transparent: true,
     depthWrite: false,
-    defines: sheer.defines,
+    defines: curtained(curtain),
     uniforms: UniformsUtils.merge([
       UniformsLib.fog,
       skyUniforms(),
-      curtain > 0 ? { uWarm: { value: warm() }, uWidth: { value: width }, ...sheer.uniforms } : {},
+      curtain ? { uWarm: { value: warm() }, uWidth: { value: width } } : {},
     ]),
   });
   material.uniforms.uHouse.value = house;
-  if (curtain > 0) material.uniforms.uGlow = glow;
+  if (curtain) material.uniforms.uGlow = glow;
   return material;
 }

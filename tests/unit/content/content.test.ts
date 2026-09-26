@@ -146,7 +146,7 @@ describe("createContent", () => {
 
   test("a Curtain never hangs in front of the Interior", () => {
     const bad = structuredClone(lyngen) as Project;
-    bad.house.openings.find((o) => o.name === "living-side")!.curtain = 0.5;
+    bad.house.openings.find((o) => o.name === "living-side")!.curtain = true;
     expect(() => createContent([bad], sceneLayout)).toThrow(
       /opening living-side: hangs a Curtain, but looks into the Interior in main$/m,
     );
@@ -159,12 +159,12 @@ describe("createContent", () => {
       return () => createContent([record], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } });
     };
     // bar-side runs from 7.7 m to 16.7 m in from bar-end
-    expect(senja.house.openings.find((o) => o.name === "bar-side")!.curtain).toBeGreaterThan(0);
+    expect(senja.house.openings.find((o) => o.name === "bar-side")!.curtain).toBe(true);
     expect(at(5.2)).not.toThrow();
     expect(at(7.7)).not.toThrow();
     expect(at(8)).toThrow(/opening bar-side: hangs a Curtain, but looks into the Interior in bar in front of its partition/);
     const glass = structuredClone(senja) as Project;
-    glass.house.openings.find((o) => o.name === "bar-end")!.curtain = 1;
+    glass.house.openings.find((o) => o.name === "bar-end")!.curtain = true;
     expect(() => createContent([glass], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } })).toThrow(
       /opening bar-end: hangs a Curtain, but looks into the Interior in bar in front of its partition/,
     );

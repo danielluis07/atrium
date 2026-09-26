@@ -60,8 +60,8 @@ export type HouseExtras = {
    * `seen`: whether the overview or arc cameras see any of the Glazing Face. `room`: the room it looks
    * into (`interiorRoom`), its width, height and depth and the glass's sill above its floor, which the
    * glazing shader draws. `interior`: whether it looks into the Interior instead, as glass over the room.
-   * `curtain`: how far its Curtain is drawn, 0 without one. The builder never sees Curtains: `stampCurtains`
-   * writes them in after the bake.
+   * `curtain`: whether it hangs a Curtain. The builder never sees Curtains: `stampCurtains` writes them in
+   * after the bake.
    */
   glazingFaces: Record<
     string,
@@ -72,7 +72,7 @@ export type HouseExtras = {
       seen: boolean;
       room: { size: Vec3; sill: number };
       interior: boolean;
-      curtain: number;
+      curtain: boolean;
     }
   >;
   /**
@@ -136,7 +136,7 @@ export function stampCurtains(gltf: Gltf, project: Project): boolean {
   for (const o of project.house.openings) {
     const face = faces[o.name];
     if (o.fill !== "glazing" || !face) continue;
-    const curtain = o.curtain ?? 0;
+    const curtain = o.curtain ?? false;
     changed ||= face.curtain !== curtain;
     face.curtain = curtain;
   }
@@ -328,7 +328,7 @@ export function checkGlbContract(
     }
     const into = opening.volume === interiorVolume(house)?.name;
     if (face.interior !== into) issues.push(`extras.glazingFaces.${g.name}.interior is ${show(face.interior)}, expected ${into}`);
-    const curtain = opening.curtain ?? 0;
+    const curtain = opening.curtain ?? false;
     if (face.curtain !== curtain) {
       issues.push(
         `extras.glazingFaces.${g.name}.curtain is ${show(face.curtain)}, expected ${curtain}: run \`bun run houses:bake ${slug}\` to stamp it`,

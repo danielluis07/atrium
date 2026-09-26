@@ -177,19 +177,19 @@ describe("checkGlbContract", () => {
     const gltf = fresh();
     const faces = extrasOf(gltf, "lyngen").glazingFaces;
     delete (faces["hall-front"] as Partial<HouseExtras["glazingFaces"][string]>).curtain;
-    faces["dining-front"].curtain = 0.5;
-    faces["living-front"].curtain = 0.2;
+    faces["dining-front"].curtain = false;
+    faces["living-front"].curtain = true;
     expect(check(gltf)).toEqual([
-      "extras.glazingFaces.hall-front.curtain is undefined, expected 1: run `bun run houses:bake lyngen` to stamp it",
-      "extras.glazingFaces.living-front.curtain is 0.2, expected 0: run `bun run houses:bake lyngen` to stamp it",
-      "extras.glazingFaces.dining-front.curtain is 0.5, expected 1: run `bun run houses:bake lyngen` to stamp it",
+      "extras.glazingFaces.hall-front.curtain is undefined, expected true: run `bun run houses:bake lyngen` to stamp it",
+      "extras.glazingFaces.living-front.curtain is true, expected false: run `bun run houses:bake lyngen` to stamp it",
+      "extras.glazingFaces.dining-front.curtain is false, expected true: run `bun run houses:bake lyngen` to stamp it",
     ]);
   });
 
   test("a stamp brings the Curtains in line with the record, and keeps the rest of the GLB", () => {
     const bytes = new Uint8Array(readFileSync(glbPath("lyngen")));
     const project = structuredClone(lyngen) as Project;
-    project.house.openings.find((o) => o.name === "dining-front")!.curtain = 0.8;
+    project.house.openings.find((o) => o.name === "dining-front")!.curtain = false;
     const gltf = readGlb(bytes);
     expect(stampCurtains(gltf, project)).toBe(true);
     expect(stampCurtains(gltf, project)).toBe(false);

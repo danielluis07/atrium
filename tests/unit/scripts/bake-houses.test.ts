@@ -100,10 +100,10 @@ describe("the bake cache key", () => {
   });
 
   test("a Curtain doesn't re-bake: the Scene draws it", () => {
-    const drawn = changed((p) => (p.house.openings.find((o) => o.name === "dining-front")!.curtain = 0.5));
-    const hung = changed((p) => (p.house.openings.find((o) => o.name === "study-side")!.curtain = undefined));
-    expect(hashOf(drawn)).toBe(hashOf(lyngen));
-    expect(hashOf(hung)).toBe(hashOf(lyngen));
+    const down = changed((p) => (p.house.openings.find((o) => o.name === "dining-front")!.curtain = false));
+    const none = changed((p) => (p.house.openings.find((o) => o.name === "study-side")!.curtain = undefined));
+    expect(hashOf(down)).toBe(hashOf(lyngen));
+    expect(hashOf(none)).toBe(hashOf(lyngen));
   });
 });
 
@@ -111,26 +111,26 @@ describe("stampHouse", () => {
   const record = { ...structuredClone(lyngen), slug: "x" } as Project;
   const faces = () => Object.fromEntries(["dining-front", "hall-front", "living-front"].map((name) => [name, { seen: true }]));
 
-  test("writes each Glazing Face's Curtain, 0 without one, into the GLB, once", () => {
+  test("writes whether each Glazing Face hangs a Curtain into the GLB, once", () => {
     const dir = bakeDir({ bakeHash: HASH, mode: "draft", lightmaps: LIGHTMAPS, glazingFaces: faces() });
     expect(stampHouse(dir, record)).toBe(true);
     const stamped = readExtras(dir, "x")!;
-    expect(stamped.glazingFaces["dining-front"]).toEqual({ seen: true, curtain: 1 } as never);
-    expect(stamped.glazingFaces["hall-front"].curtain).toBe(1);
-    expect(stamped.glazingFaces["living-front"].curtain).toBe(0);
+    expect(stamped.glazingFaces["dining-front"]).toEqual({ seen: true, curtain: true } as never);
+    expect(stamped.glazingFaces["hall-front"].curtain).toBe(true);
+    expect(stamped.glazingFaces["living-front"].curtain).toBe(false);
     // and leaves the rest of the extras as they were
     expect(stamped.bakeHash).toBe(HASH);
     expect(bakeIsCurrent(dir, "x", HASH, "draft")).toBe(true);
     expect(stampHouse(dir, record)).toBe(false);
   });
 
-  test("a new amount is stamped over the old one", () => {
+  test("a Curtain taken down is stamped over the old one", () => {
     const dir = bakeDir({ bakeHash: HASH, mode: "draft", lightmaps: LIGHTMAPS, glazingFaces: faces() });
     stampHouse(dir, record);
-    const drawn = structuredClone(record);
-    drawn.house.openings.find((o) => o.name === "dining-front")!.curtain = 0.6;
-    expect(stampHouse(dir, drawn)).toBe(true);
-    expect(readExtras(dir, "x")!.glazingFaces["dining-front"].curtain).toBe(0.6);
+    const bare = structuredClone(record);
+    delete bare.house.openings.find((o) => o.name === "dining-front")!.curtain;
+    expect(stampHouse(dir, bare)).toBe(true);
+    expect(readExtras(dir, "x")!.glazingFaces["dining-front"].curtain).toBe(false);
   });
 });
 

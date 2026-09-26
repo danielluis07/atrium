@@ -24,7 +24,7 @@ The room bakes on its own after the House's lightmaps, with the glass hidden so 
 
 Every bake writes its bake hash to the GLB extras: a sha256 of the House's exported JSON (the House, its placement, its camera block and the overview camera) and the builder version. A House whose committed GLB carries the current hash, in the mode asked for or a better one (a final bake satisfies a draft run), with its lightmaps and Interior texture beside it, is skipped without starting Blender. Anything else re-bakes. The GLB-contract test fails when a committed hash differs from the current one, so an edit to a House record, `content/scene.ts` or the builder can't ship without its bake.
 
-Curtains are the exception. The Scene draws them in the glazing shader, so the builder JSON leaves them out and they don't touch the bake hash. After any bakes, `houses:bake` stamps every chosen House's Curtains from its record into its GLB's extras, rewriting only the GLB's JSON chunk. A new amount needs `bun run houses:bake` and no Blender, and the GLB-contract test fails until it's stamped.
+Curtains are the exception. The Scene draws them in the glazing shader, so the builder JSON leaves them out and they don't touch the bake hash. After any bakes, `houses:bake` stamps every chosen House's Curtains from its record into its GLB's extras, rewriting only the GLB's JSON chunk. Hanging or taking down a Curtain needs `bun run houses:bake` and no Blender, and the GLB-contract test fails until it's stamped.
 
 ## Detail maps
 

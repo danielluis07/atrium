@@ -139,7 +139,7 @@ export function validateProject(project: Project): HouseIssue[] {
     }
     // a Curtain hangs where no furnished room is seen: into no Interior, or into the empty room behind the partition
     for (const o of project.house.openings) {
-      if (o.curtain === undefined || !room || o.volume !== room.name) continue;
+      if (!o.curtain || !room || o.volume !== room.name) continue;
       const glass = openingRecess(project.house, o).back;
       const behind = partition !== undefined && inward && Math.min(...glass.map(inward.at)) >= partition - 1e-6;
       if (!behind) {
