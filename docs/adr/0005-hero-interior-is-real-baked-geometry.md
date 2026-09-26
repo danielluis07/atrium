@@ -26,7 +26,7 @@ The room cards of ADR 0004 were cheap, but they read as flat drawings when a sel
 
 ## Consequences
 
-- The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan. The one wall inside it is a `partition`: a wall with a closed door across the room, which furnishes the room at the glass and leaves the room behind it empty. A bedroom takes one (Senja, #64), with a hinged door, and so does a lounge (Lyngen, #72), with a wide walnut pivot door off-centre, away from the fire. Either leaves 3.5 m in front of it and 1 m behind. It is part of the Interior, so the drawings don't show it.
+- The House schema's rule against interior walls and rooms is relaxed for the hero room only: a room shell, not a plan. The one wall inside it is a `partition`: a wall with a closed door across the room, which furnishes the room at the glass and leaves the room behind it empty. A bedroom takes one (Senja, #64), with a hinged door, and so does a lounge (Lyngen, #72), with a wide walnut pivot door off-centre, away from the fire. Either leaves 3.5 m in front of it and 1 m behind. A lounge may also have a closed `door` in a side wall, into the room beside it, where another volume on its floor stands against that wall. The partition and the door are part of the Interior, so the drawings don't show them.
 - The record-derived room sizing and the Interior validation from the #57 prototype carried over into #60.
 - The Interior lives on its volume in the House record, and every Glazing Face into that volume looks into it. A volume with an Interior spans one Level, and no void or terrace cuts through it.
 
@@ -102,19 +102,28 @@ A bedroom at the end of `bar` (L0, 5.4 × 19.4 m inside), seen through `bar-end`
 - **Download.** `interior.ktx2` is 0.71 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H), and Senja's GLB grew by 0.01 MB over the wire. The Scene (Target and Lean) went from 17.38 to 17.99 MB over the wire, of 24 MB, and the Houses from 11.74 to 12.35 MB, of 16 MB.
 - **Bake.** The room adds about 7 minutes to Senja's final bake (12 minutes in all).
 
-### Lyngen's partition (#72)
+### Lyngen's partition and loft (#72)
 
-After the grilling in #65, Lyngen's lounge loses its shelving and gains a partition 5.8 m in from `living-front`, the full 6.8 m high, with a closed walnut pivot door 1.6 × 3.4 m, 1 m from the right wall, away from the fire. That needed `partition` on the lounge: in the schema, in `validateProject` (the same 3.5 m in front and 1 m behind as a bedroom's) and in the builder, where the lounge template takes the partition for its back wall and clips the hearth at it. The sideboard and canvas are centred on the plaster left of the door. The seating is sized from the lounge in front of the partition, so the sofa (1.74 m) and the chimney breast (2.09 m) are a little smaller than before. No other House has a lounge, so the other bakes are unchanged and the builder version stays.
+After the grilling in #65, Lyngen's lounge loses its shelving and gains a partition 5.8 m in from `living-front`, with a closed walnut pivot door 1.6 m wide, 1 m from the right wall, away from the fire. That needed `partition` on the lounge. It is in the schema, in `validateProject` (with the same 3.5 m in front and 1 m behind as a bedroom's) and in the builder. There, the lounge template takes the partition for its back wall and clips the hearth at it.
 
-- **The room.** 1,802 triangles after culling (3,186 with the shelving), with 14 lamps (12 downlights, the floor lamp and the fire). `living-side` now looks into the empty room behind the partition. The builder marks it unseen from the overview and the arc, so it gets no Curtain.
-- **Reading.** Across the arc, the door and the canvas read on the back wall from the hero camera to the chimney end. The canopy hides the middle of the door from the arc's height, and near the hero camera the floor lamp and an armchair stand in front of it. At the arc's other end, the room is seen only at a grazing angle through the jamb.
-- **Frame cost.** The probe check (`scripts/perf/README.md`) against `main` at 94c667a: rung 4, 3 loads per build in A B B A A B order, no bake running. The first `main` load was cold (overview p50 13.9 ms). Medians of loads, ms per frame:
+In review, the owner of the site asked for three more changes:
+
+- **A ceiling.** The double-height `main` becomes the lounge on L0, 3.46 m high, with a new volume, `loft`, over it on L1. `living-front` now spans L0 only. The loft has its own Glazing Faces with Curtains: `loft-front` above it, and `loft-side`, which was `living-side`. The pivot door comes down to 2.7 m.
+- **A door into the room beside it.** A lounge option, `door`, puts a closed walnut door on a wall that another volume on its floor stands against. `validateProject` checks that there is one, and the builder finds it (`beside`). At Lyngen that is the right wall, into the dining room in `lower`.
+- **The record.** The gross floor area goes from 280 to 355 m². The authored `floorArea` goes from 290 to 320, the top of the range in `DESIGN.md`, which is within 15 %. The copy no longer calls the room double height.
+
+The sideboard and canvas are centred on the plaster left of the pivot door. The seating is sized from the lounge in front of the partition, so the sofa (1.74 m) and the chimney breast (2.09 m) are a little smaller than before. No other House has a lounge, so the other bakes are unchanged and the builder version stays.
+
+- **The room.** 1,822 triangles after culling (3,186 with the shelving), with 14 lamps (12 downlights, the floor lamp and the fire).
+- **Reading.** Across the arc, the curtained loft glows over the lounge. From the hero camera to the chimney end, the pivot door and the canvas read on the partition, and the side door reads on the right wall. The canopy hides the ceiling line, and near the hero camera the floor lamp and an armchair stand in front of the pivot door. At the arc's other end, the room is seen only at a grazing angle through the jamb.
+- **Frame cost.** The probe check (`scripts/perf/README.md`) against `main` at 94c667a: rung 4, 3 loads per build in A B B A A B order, no bake running. The first `main` load was cold (overview p50 14.7 ms), and one branch load had a slow spell at the selected camera (p50 23.6 ms). Medians of loads, ms per frame:
 
   | | Overview | Lyngen selected |
   |---|---|---|
-  | Interiors, `main` → branch | 0.12 → 0.13 | 0.34 → 0.31 |
-  | Whole-frame GPU p50, `main` → branch | 18.59 → 18.44 | 17.99 → 18.15 |
+  | Interiors, `main` → branch | 0.12 → 0.12 | 0.34 → 0.23 |
+  | Glazing, `main` → branch | 0.12 → 0.14 | 0.27 → 0.40 |
+  | Whole-frame GPU p50, `main` → branch | 18.21 → 18.23 | 18.09 → 17.85 |
 
-  The Interiors part moves by +0.01 and −0.03 ms, inside the 0.5 ms bar. The whole-frame p50 moves by −0.15 and +0.16 ms, which is less than the part's own change plus 0.5 ms. Every load stayed at rung 4.
-- **Download.** `interior.ktx2` is 0.96 MB (from 1.05), and the Houses went from 12.35 to 12.25 MB over the wire, of 16 MB, and the Scene from 17.99 to 17.89 MB, of 24 MB.
-- **Bake.** Lyngen alone, final mode: 13.9 minutes, of which the room takes 9.1.
+  The Interiors part doesn't rise, since the room is half as high. The loft's glass moves from clear glass over the room to the glazing shader's curtained room, and glazing rises by 0.13 ms at the selected camera. The whole-frame p50 moves by +0.02 and −0.24 ms, and every load stayed at rung 4.
+- **Download.** `interior.ktx2` is 0.88 MB (from 1.05). The Houses went from 12.35 to 12.16 MB over the wire, of 16 MB, and the Scene from 17.99 to 17.80 MB, of 24 MB.
+- **Bake.** Lyngen alone, final mode: 15.8 minutes, of which the room takes 10.5.

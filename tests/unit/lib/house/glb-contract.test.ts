@@ -101,12 +101,12 @@ describe("checkGlbContract", () => {
   test("fails when a Glazing Face's extras don't match the record", () => {
     const gltf = fresh();
     const faces = extrasOf(gltf, "lyngen").glazingFaces;
-    faces["living-front"].size = [6.6, 3.3];
+    faces["living-front"].size = [6.6, 6.8];
     faces["study-side"].normal = [-1, 0, 0];
     faces["hall-front"].bearing = 10;
     expect(check(gltf)).toEqual([
       "extras.glazingFaces.hall-front.bearing is 10, expected 350",
-      "extras.glazingFaces.living-front.size is [6.6,3.3], expected [6.6,6.8]",
+      "extras.glazingFaces.living-front.size is [6.6,6.8], expected [6.6,3.5]",
       "extras.glazingFaces.study-side.normal is [-1,0,0], expected [1,0,0]",
     ]);
   });
@@ -165,11 +165,11 @@ describe("checkGlbContract", () => {
   test("fails when a face into the Interior isn't marked, or one that isn't is", () => {
     const gltf = fresh();
     const faces = extrasOf(gltf, "lyngen").glazingFaces;
-    faces["living-side"].interior = false;
-    faces["dining-front"].interior = true;
+    faces["living-front"].interior = false;
+    faces["loft-front"].interior = true;
     expect(check(gltf)).toEqual([
-      "extras.glazingFaces.living-side.interior is false, expected true",
-      "extras.glazingFaces.dining-front.interior is true, expected false",
+      "extras.glazingFaces.living-front.interior is false, expected true",
+      "extras.glazingFaces.loft-front.interior is true, expected false",
     ]);
   });
 
@@ -226,7 +226,6 @@ describe("checkGlbContract", () => {
     expect(check(fresh(), project)).toEqual([
       "node interior is not in the House record",
       "extras.glazingFaces.living-front.interior is true, expected false",
-      "extras.glazingFaces.living-side.interior is true, expected false",
       'extras.interior is {"volume":"main","kind":"lounge","texture":"interior.ktx2"}, but the record has no Interior',
     ]);
   });

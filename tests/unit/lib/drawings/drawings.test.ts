@@ -223,15 +223,22 @@ test("Lyngen's section looks toward +x, with the front on the right", () => {
   const lyngen = getProjects().find((p) => p.slug === "lyngen")!.house;
   const nodes = parse(sectionSvg(lyngen));
   // main runs from y −4.4 (front) to 5.0 (back), so across the sheet from −5.0 to 4.4
-  expectBox(boxes(named(nodes, "volume", "main"))[0], { h0: -5, h1: 4.4, v0: 0, v1: 6.8 });
-  // the double-height glazing sits 0.3 m in from the front face
-  const [p, q] = segment(named(nodes, "glazing", "living-front"));
-  for (const [[h, v], [eh, ev]] of [
-    [p, [4.1, 0]],
-    [q, [4.1, 6.8]],
-  ]) {
-    expect(h).toBeCloseTo(eh);
-    expect(v).toBeCloseTo(ev);
+  expectBox(boxes(named(nodes, "volume", "main"))[0], { h0: -5, h1: 4.4, v0: 0, v1: 3.5 });
+  // the loft stands on it, to the roof slab
+  expectBox(boxes(named(nodes, "volume", "loft"))[0], { h0: -5, h1: 4.4, v0: 3.5, v1: 6.8 });
+  // the glazing of both sits 0.3 m in from the front face, one Level each
+  for (const [name, v0, v1] of [
+    ["living-front", 0, 3.5],
+    ["loft-front", 3.5, 6.8],
+  ] as const) {
+    const [p, q] = segment(named(nodes, "glazing", name));
+    for (const [[h, v], [eh, ev]] of [
+      [p, [4.1, v0]],
+      [q, [4.1, v1]],
+    ]) {
+      expect(h).toBeCloseTo(eh);
+      expect(v).toBeCloseTo(ev);
+    }
   }
   // the wing and the chimney lie behind the viewer
   expect(parts(nodes, "volume").map((v) => v.attrs["data-name"])).not.toContain("wing");

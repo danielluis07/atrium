@@ -390,7 +390,7 @@ def partition(w, h, v, door, pivot=False):
     door from u = door along it: a hinged door with a lever handle, or a wide, tall pivot door set nearly
     flush with the wall, with a long pull."""
     t = C.PARTITION_THICKNESS
-    dw, dh = (C.PIVOT_WIDTH, C.PIVOT_HEIGHT) if pivot else (C.DOOR_WIDTH, C.DOOR_HEIGHT)
+    dw, dh = (C.PIVOT_WIDTH, min(C.PIVOT_HEIGHT, h - 0.3)) if pivot else (C.DOOR_WIDTH, C.DOOR_HEIGHT)
     box(0.0, v, 0.0, door, v + t, h, "plaster")
     box(door + dw, v, 0.0, w, v + t, h, "plaster")
     box(door, v, dh, door + dw, v + t, h, "plaster")
@@ -401,6 +401,22 @@ def partition(w, h, v, door, pivot=False):
             box(door + dw - 0.2, y0, 0.5, door + dw - 0.16, y1, 2.0, "brass")
         else:
             box(door + dw - 0.14, y0, 1.0, door + dw - 0.08, y1, 1.03, "brass")
+
+
+def side_door(w, d, beside, hearth, limit):
+    """A closed walnut door into the room beside this one, on a wall another volume stands against: the one
+    away from the fire if there is a choice, towards the back of what the room sees of it, short of `limit`
+    (a partition, or the back wall)."""
+    dw, dh = C.DOOR_WIDTH, C.DOOR_HEIGHT
+    fits = [(name, u0, min(u1, limit)) for name, u0, u1 in beside if min(u1, limit) - u0 >= dw + 1.2]
+    if not fits:
+        raise SystemExit(f"interior: a door needs a wall another volume stands against, and none fits: {beside}")
+    name, u0, u1 = sorted(fits, key=lambda f: (hearth is not None and f[0] == hearth[0], f[0] == "back"))[0]
+    wall = Wall(name, w, d)
+    a = max(u0 + 0.6, u1 - 0.8 - dw)
+    wall.box(a, 0.0, 0.0, a + dw, 0.04, dh, "walnut")
+    lever = a + 0.08 if name == "right" else a + dw - 0.14  # on the leaf's far side from its hinges
+    wall.box(lever, 0.04, 1.0, lever + 0.06, 0.1, 1.03, "brass")
 
 
 def wardrobe(wall, u0, u1, top):
@@ -636,14 +652,18 @@ def bedroom(w, h, d, o, hearth, rng):
 TEMPLATES = {"lounge": lounge, "dining": dining, "kitchen": kitchen, "library": library, "bedroom": bedroom}
 
 
-def furnish(interior, w, h, d, hearth, seed):
-    """Build the kind's template in a room w wide, h high and d deep (room frame), with its downlights.
-    `hearth` is the wall the House's stone mass stands behind and the span of it the room sees, as
-    ("left" | "right" | "back", u0, u1), or None. Returns the parts and the lamps."""
+def furnish(interior, w, h, d, hearth, beside, seed):
+    """Build the kind's template in a room w wide, h high and d deep (room frame), with its downlights and,
+    when the Interior asks for one, a door into the room beside it. `hearth` is the wall the House's stone
+    mass stands behind and the span of it the room sees, as ("left" | "right" | "back", u0, u1), or None;
+    `beside` lists the walls the House's other volumes stand against, the same way. Returns the parts and the
+    lamps."""
     parts.clear()
     lamps.clear()
     palette()
     TEMPLATES[interior["kind"]](w, h, d, interior, hearth, random.Random(seed))
     v = interior.get("partition")
+    if interior.get("door"):
+        side_door(w, d, beside, hearth, v or d)
     downlights(w, h, d, skip=v and (v, v + C.PARTITION_THICKNESS))
     return list(parts), list(lamps)

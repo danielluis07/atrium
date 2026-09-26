@@ -161,9 +161,20 @@ describe("createContent", () => {
   test("a Curtain never hangs in front of the Interior", () => {
     const bad = structuredClone(lyngen) as Project;
     bad.house.volumes.find((v) => v.name === "main")!.interior = { kind: "lounge", fireplace: true };
-    bad.house.openings.find((o) => o.name === "living-side")!.curtain = true;
+    bad.house.openings.find((o) => o.name === "living-front")!.curtain = true;
     expect(() => createContent([bad], sceneLayout)).toThrow(
-      /opening living-side: hangs a Curtain, but looks into the Interior in main$/m,
+      /opening living-front: hangs a Curtain, but looks into the Interior in main$/m,
+    );
+  });
+
+  test("a lounge's door needs another volume on its floor against one of its walls", () => {
+    // the dining room in lower stands against the lounge's right wall
+    expect(lyngen.house.volumes.find((v) => v.name === "main")!.interior).toMatchObject({ door: true });
+    const bad = structuredClone(lyngen) as Project;
+    bad.house.volumes.find((v) => v.name === "lower")!.rect.x0 = 5.0;
+    bad.house.openings.find((o) => o.name === "dining-front")!.at = 0.4;
+    expect(() => createContent([bad], sceneLayout)).toThrow(
+      /volumes.main.interior: has a door, but no other volume on its floor stands against its walls for 2.1 m/,
     );
   });
 

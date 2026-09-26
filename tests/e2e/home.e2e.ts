@@ -4,7 +4,7 @@ import { expectReachableByTab } from "./keyboard";
 import { HOME, openHomeOnStill } from "./paths";
 
 const projects = [
-  { name: "Lyngen House", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "290 m²"] },
+  { name: "Lyngen House", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "320 m²"] },
   { name: "Senja House", slug: "senja", data: ["Senja, Troms", "+25 m", "2018", "220 m²"] },
   { name: "Kvaløya House", slug: "kvaloya", data: ["Kvaløya, Troms", "+15 m", "2023", "160 m²"] },
   { name: "Reine House", slug: "reine", data: ["Reine, Nordland", "+12 m", "2025", "235 m²"] },
@@ -136,7 +136,7 @@ test.describe("mobile", () => {
     await expect(row.locator('[data-slot="index-thumbnail"]')).toBeHidden();
     const name = await row.getByText("Lyngen House").boundingBox();
     const location = await row.getByText("Lyngen, Troms").boundingBox();
-    const area = await row.getByText("290 m²").boundingBox();
+    const area = await row.getByText("320 m²").boundingBox();
     expect(location!.y).toBeGreaterThan(name!.y + name!.height - 1);
     expect(Math.abs(area!.y - location!.y)).toBeLessThan(2);
   });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { interiorShell, interiorVolume, openingRecess } from "@/lib/house/derive";
+import { interiorShell, interiorVolume, openingRecess, verticalExtent } from "@/lib/house/derive";
 import { House, type Face, type Rect } from "@/lib/house/schema";
 import { validateHouse, type HouseIssue } from "@/lib/house/validate";
 
@@ -150,8 +150,34 @@ export function validateProject(project: Project): HouseIssue[] {
         });
       }
     }
+    // a lounge's door opens into the room beside it: another volume on its floor, against one of its walls
+    if (room && interior && "door" in interior && interior.door && !besideRoom(project.house, room)) {
+      issues.push({
+        part: `volumes.${room.name}.interior`,
+        message: `has a door, but no other volume on its floor stands against its walls for ${DOOR_SPAN} m`,
+      });
+    }
   }
   return issues;
+}
+
+/** How much wall a door into the room beside the Interior needs in common with that room, metres. */
+const DOOR_SPAN = 2.1;
+
+/** Whether another volume standing on the room's floor meets one of its walls for a door's span. */
+function besideRoom(house: House, room: House["volumes"][number]): boolean {
+  const { bottom } = verticalExtent(house, room);
+  const r = room.rect;
+  const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.min(a1, b1) - Math.max(a0, b0);
+  return house.volumes.some((v) => {
+    if (v === room || verticalExtent(house, v).bottom !== bottom) return false;
+    const o = v.rect;
+    const eq = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+    return (
+      ((eq(o.x1, r.x0) || eq(o.x0, r.x1)) && overlap(o.y0, o.y1, r.y0, r.y1) >= DOOR_SPAN) ||
+      ((eq(o.y1, r.y0) || eq(o.y0, r.y1)) && overlap(o.x0, o.x1, r.x0, r.x1) >= DOOR_SPAN)
+    );
+  });
 }
 
 /**

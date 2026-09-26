@@ -42,7 +42,7 @@ describe("Interiors", () => {
     expect(withInterior({ kind: "library", fireplace: true, lamp: "pendant" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom", lamp: "floor", partition: 5 }).ok).toBe(true);
-    expect(withInterior({ kind: "lounge", fireplace: true, partition: 5.8 }).ok).toBe(true);
+    expect(withInterior({ kind: "lounge", fireplace: true, partition: 5.8, door: true }).ok).toBe(true);
   });
 
   test("refuses an unknown kind, an option the kind doesn't take, and a bad option value", () => {
@@ -51,6 +51,7 @@ describe("Interiors", () => {
       { kind: "bedroom", fireplace: true },
       { kind: "lounge", lamp: "candle" },
       { kind: "dining", partition: 5 },
+      { kind: "bedroom", door: true },
       { kind: "lounge", partition: -1 },
       { kind: "bedroom", partition: 0 },
     ]) {
@@ -202,17 +203,17 @@ describe("validateHouse", () => {
 
   test("rejects duplicate opening names", () => {
     const issues = validateHouse(
-      broken((h) => (opening(h, "study-side").name = "living-side")),
+      broken((h) => (opening(h, "study-side").name = "loft-side")),
       { floorArea },
     );
     expect(issues).toEqual([
-      { part: "opening living-side", message: "the name living-side is used by more than one opening" },
+      { part: "opening loft-side", message: "the name loft-side is used by more than one opening" },
     ]);
   });
 
   test("rejects a gross floor area more than 15% off the authored m²", () => {
-    expect(validateHouse(lyngen.house, { floorArea: 240 })).toEqual([
-      { part: "volumes", message: "gross floor area is 280 m², more than ±15% from the authored 240 m²" },
+    expect(validateHouse(lyngen.house, { floorArea: 300 })).toEqual([
+      { part: "volumes", message: "gross floor area is 355 m², more than ±15% from the authored 300 m²" },
     ]);
     expect(validateHouse(lyngen.house, { floorArea: 320 })).toEqual([]);
   });
@@ -222,7 +223,7 @@ describe("validateHouse", () => {
       broken((h) => {
         opening(h, "terrace").level = "L2";
         h.slabs[0].level = "L3";
-        h.volumes[3].to = "L4";
+        h.volumes.find((v) => v.name === "frame")!.to = "L4";
       }),
       { floorArea },
     );
