@@ -52,6 +52,9 @@ DOWNLIGHT_INSET = 0.45  # in from the fascia
 DOWNLIGHT_RADIUS = 0.05
 DOWNLIGHT_WATTS = 60.0
 DOWNLIGHT_CONE = math.radians(130)
+# the site works' set-in lights (sitework.py, a prototype): small and few, so the windows stay the brightest
+SITE_LIGHT_WATTS = 6.0
+SITE_LIGHT_CONE = math.radians(120)
 
 # ---------------------------------------------------------------- bevels (width, segments)
 
@@ -76,6 +79,7 @@ GRADE_FAN = math.radians(60)
 ISLAND_MARGIN = 0.004  # smart-project island margin, in UV units
 BAKE_MARGIN = 8  # pixels of edge extension around each island
 SMART_PROJECT_ANGLE = math.radians(66)
+SITE_PROJECT_ANGLE = math.radians(89)  # the site works' seen faces (a prototype): bevels join the faces beside them
 # shell faces no overview or arc camera sees bake at this fraction of the seen texels per metre
 UNSEEN_TEXEL_RATIO = 0.25
 # ---------------------------------------------------------------- light (blue hour)

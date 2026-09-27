@@ -114,7 +114,18 @@ export function patchLightmap(
   material: MeshStandardMaterial,
   spill: Texture,
   uniforms: LightUniforms,
-  { edgeFade = false, shadow, relief }: { edgeFade?: boolean; shadow?: ShadowUniforms; relief?: ReliefUniforms } = {},
+  {
+    edgeFade = false,
+    shadow,
+    relief,
+    program,
+  }: {
+    edgeFade?: boolean;
+    shadow?: ShadowUniforms;
+    relief?: ReliefUniforms;
+    /** Compiles the same shader as a program of its own, which the probe then tells apart. */
+    program?: string;
+  } = {},
 ) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.spillMap = { value: spill };
@@ -144,7 +155,7 @@ export function patchLightmap(
         ),
       );
   };
-  const key = `lightmap${edgeFade ? "-edge" : ""}${shadow ? "-shadow" : ""}${relief ? "-relief" : ""}`;
+  const key = `lightmap${edgeFade ? "-edge" : ""}${shadow ? "-shadow" : ""}${relief ? "-relief" : ""}${program ? `-${program}` : ""}`;
   material.customProgramCacheKey = () => key;
 }
 

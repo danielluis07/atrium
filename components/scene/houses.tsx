@@ -34,7 +34,7 @@ import {
   type ReliefUniforms,
 } from "@/components/scene/materials";
 import { keyDirection, WINDOW } from "@/components/scene/palette";
-import { Pines } from "@/components/scene/pines";
+import { framingPines, Pines } from "@/components/scene/pines";
 import { CASTER_LAYER, shadowUniforms, type ShadowUniforms } from "@/components/scene/shadow";
 import { planUv, Terrain } from "@/components/scene/terrain";
 import type { SceneLayout } from "@/content/schema";
@@ -256,7 +256,7 @@ export function Houses({
         <primitive key={h.slug} object={h.root} dispose={null} {...pickHandlers(h.slug)} />
       ))}
       <Terrain plinths={rects} north={layout.north} shadow={shadows ? shadow : undefined} snow={snow} />
-      <Pines plinths={rects} overview={layout.overview} />
+      <Pines plinths={rects} overview={layout.overview} framing={framingPines(layout)} />
     </>
   );
 }
@@ -372,7 +372,11 @@ function prepareHouse(
     const source = o.material as Material;
     const part = partOf(o);
     o.material =
-      source.name === "glazing" ? pane(o, part) : source.name === "interior" ? room(part) : material(source.name, source);
+      source.name === "glazing"
+        ? pane(o, part)
+        : source.name === "interior"
+          ? room(part)
+          : material(part === "site" ? `${SITE}${source.name}` : source.name, source);
     if (!UNSHADOWED.has(source.name)) o.layers.enable(CASTER_LAYER);
     if (source.name === "plinth") plinth = o;
     // a room draws after the House's other opaque parts, so the depth test drops what its walls hide
@@ -399,6 +403,7 @@ function prepareHouse(
       min: [box.min.x, box.min.z],
       max: [box.max.x, box.max.z],
       low: position[1] + extras.datum.plinth,
+      bottom: position[1] + box.min.y,
     },
     materials: [...byName.values(), ...rooms.values(), ...panes],
     light: shellSpill,
@@ -431,6 +436,12 @@ function partOf(o: Object3D): string | undefined {
     if (typeof n.userData.name === "string") return n.userData.name;
   }
 }
+
+/**
+ * The site works prototype (#86): its pieces take the shell's materials and lightmap under their own
+ * names and programs, so the probe counts their draws apart (`scenePart`).
+ */
+const SITE = "site-";
 
 /** Only a House's shell and glazing select it; the balustrade glass, the lights and the plinth let the pointer through. */
 const pickable = (part: string | undefined) => part === "shell" || !!part?.startsWith("glazing:");
@@ -484,9 +495,12 @@ function makeMaterial(
     default: {
       // concrete, stone, timber, metal, snow: the builder's own colours, lit by the bake, and
       // all but metal with the shared detail maps over them
-      const m = baked(source, lightmaps.shell.base, name === "metal" ? 1 : DIELECTRIC_ENVIRONMENT);
-      if (isDetailMaterial(name)) withDetail(m, name, details[name]);
-      patchLightmap(m, lightmaps.shell.spill, shellSpill, { relief });
+      const site = name.startsWith(SITE);
+      const base = site ? name.slice(SITE.length) : name;
+      const m = baked(source, lightmaps.shell.base, base === "metal" ? 1 : DIELECTRIC_ENVIRONMENT);
+      if (isDetailMaterial(base)) withDetail(m, base, details[base]);
+      patchLightmap(m, lightmaps.shell.spill, shellSpill, { relief, program: site ? "site" : undefined });
+      m.name = name;
       return m;
     }
   }

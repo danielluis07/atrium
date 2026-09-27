@@ -35,6 +35,8 @@ export const MATERIALS = [
 /** Which materials each node may carry. */
 const NODE_MATERIALS: Record<string, readonly string[]> = {
   shell: ["concrete", "stone", "timber", "metal", "snow"],
+  // the site works prototype around Lyngen (#86): built pieces in the shell's materials, on its lightmap
+  site: ["concrete", "stone", "timber", "metal", "snow"],
   glazing: ["glazing"],
   // a terrace's glazed back wall isn't a Glazing Face, so it rides with the balustrade glass
   balustrade: ["balustrade", "glazing"],
@@ -204,8 +206,8 @@ export function expectedNodes(project: Project): { required: string[]; optional:
       ...(hasBalustrade ? ["balustrade"] : []),
       ...interiors(house, project.images.interior.glazingFace).map((i) => i.node),
     ],
-    // a soffit that the volumes below cover entirely gets no downlights
-    optional: ["downlights"],
+    // a soffit that the volumes below cover entirely gets no downlights; only Lyngen has site works, for now (#86)
+    optional: ["downlights", ...(project.slug === "lyngen" ? ["site"] : [])],
   };
 }
 

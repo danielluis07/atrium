@@ -18,6 +18,8 @@ export type PlinthRect = {
   max: [number, number];
   /** World height of the plinth's lowest floor. */
   low: number;
+  /** World height of its lowest point, when site works cut the snow below the floor (#86). */
+  bottom?: number;
 };
 
 /** How far in from its edge the plinth bends onto the slope. */
@@ -80,7 +82,7 @@ export function terrainHeight(rects: PlinthRect[], x: number, z: number): number
   let under = Infinity;
   for (const rect of rects) {
     const d = edgeDistance(rect, x, z);
-    if (d > 0) under = Math.min(under, slope, mix(rect.low, slope, ownBlend(d)));
+    if (d > 0) under = Math.min(under, slope, mix(Math.min(rect.low, rect.bottom ?? rect.low), slope, ownBlend(d)));
   }
   return under === Infinity ? slope : under - TERRAIN_SINK;
 }

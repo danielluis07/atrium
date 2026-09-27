@@ -33,6 +33,7 @@ from mathutils.bvhtree import BVHTree
 
 import config as C
 import interior as I
+import sitework as S
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 EPS = 1e-4
@@ -52,6 +53,8 @@ with open(args.json, encoding="utf-8") as f:
     DATA = json.load(f)
 H = DATA["house"]
 SLUG = DATA["slug"]
+# the site works prototype (issue #86): Lyngen only, hard-coded in sitework.py
+SITE = SLUG == "lyngen"
 
 t0 = time.time()
 timings = {}
@@ -133,6 +136,11 @@ def plinth_z(x, y, sx=None, sy=None):
         return 0.0 if sy >= cy - EPS else PLINTH_Z
     t = min(max((y - cy + w) / w, 0.0), 1.0)
     return PLINTH_Z * (1 - t * t * (3 - 2 * t))
+
+
+def ground_z(x, y):
+    """The snow's height at (x, y): the plinth's, or with the site works, the snow they shape."""
+    return S.ground(x, y) if SITE else plinth_z(x, y)
 
 
 def opening_extent(o):
@@ -537,6 +545,40 @@ for x, y, z in lamps:
     lo.location = (x, y, z - 0.03)
     col.objects.link(lo)
 
+
+def solid(name, corners, material):
+    """A closed six-sided solid from its eight corners: the bottom four counter-clockwise, then the top four."""
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(corners, [], [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)])
+    ob = bpy.data.objects.new(name, me)
+    col.objects.link(ob)
+    me.materials.append(mats[material])
+    return ob
+
+
+if SITE:
+    # the site works bake with the shell, on its lightmap, and leave it as their own node after the bake. A
+    # face attribute marks their faces through the join, the culling and the unwrap.
+    for name, material, shape, spec in S.pieces():
+        ob = box(name, *shape[1:], material) if shape[0] == "box" else solid(name, list(shape[1:]), material)
+        if spec:
+            bevel(ob, spec)
+        ob.data.attributes.new("site", "INT", "FACE").data.foreach_set("value", [1] * len(ob.data.polygons))
+        parts["shell"].append(ob)
+    for slot, (x, y, z), direction in S.lights():
+        parts["downlights"].append(box("site-light", *slot, "downlight"))
+        ld = bpy.data.lights.new("site-lamp", "SPOT")
+        ld.energy = C.SITE_LIGHT_WATTS
+        ld.color = DOWNLIGHT
+        ld.shadow_soft_size = 0.02
+        ld.spot_size = C.SITE_LIGHT_CONE
+        ld.spot_blend = 0.8
+        lo = bpy.data.objects.new("site-lamp", ld)
+        lo.location = (x, y, z)
+        lo.rotation_euler = Vector(direction).to_track_quat("-Z", "Y").to_euler()
+        col.objects.link(lo)
+
+
 # the snow plinth: the footprint plus a margin, at the lowest exposed floor, stepping up to ±0.00 behind
 # any solids that start below it
 footprint = [(b[0], b[1], b[3], b[4]) for b in SOLIDS] + [s["r"] for s in SLABS]
@@ -567,15 +609,67 @@ holes = [((r["x0"], r["y0"], r["x1"], r["y1"]), room["floor"]) for room in ROOMS
 xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])] + [v for h, _ in holes for v in (h[0], h[2])])
 ys = grid_lines(py0, py1, [b[4] for b in SUNK] + [v for h, _ in holes for v in (h[1], h[3])])
 bm = bmesh.new()
-for i in range(len(xs) - 1):
+
+
+def in_hole(pts, mx, my):
+    return any(h[0] < mx < h[2] and h[1] < my < h[3] and all(abs(p[2] - floor) < 0.01 for p in pts)
+               for h, floor in holes)
+
+
+if SITE:
+    # the grid, refined over the site works: coarse cells outside S.RECT, fine ones inside, and each coarse
+    # cell along the rectangle's edge takes the fine vertices on it, so the two meet without a crack
+    rx0, ry0, rx1, ry1 = S.RECT
+    fxs, fys = S.lines([v for h, _ in holes for v in (h[0], h[2])], [v for h, _ in holes for v in (h[1], h[3])])
+    # the coarse lines across the rectangle move onto the nearest fine ones, so both sides of its edge have the
+    # same vertices
+    snap = lambda vs, fine, a, b: sorted({min(fine, key=lambda f: abs(f - v)) if a <= v <= b else v for v in vs})
+    xs = snap(grid_lines(px0, px1, [rx0, rx1] + [v for h, _ in holes for v in (h[0], h[2])]), fxs, rx0, rx1)
+    ys = snap(grid_lines(py0, py1, [ry0, ry1] + [v for h, _ in holes for v in (h[1], h[3])]), fys, ry0, ry1)
+    verts = {}
+
+    def vert(x, y):
+        k = (round(x, 5), round(y, 5))
+        if k not in verts:
+            verts[k] = bm.verts.new((x, y, ground_z(x, y)))
+        return verts[k]
+
+    def along(a, b, fixed, on_edge, fine, horizontal):
+        """The fine lines strictly between a and b, on a coarse edge that runs along the rectangle's edge."""
+        if not on_edge:
+            return []
+        between = [v for v in fine if min(a, b) + 1e-6 < v < max(a, b) - 1e-6]
+        between = between if a < b else between[::-1]
+        return [(v, fixed) if horizontal else (fixed, v) for v in between]
+
+    def face(pts):
+        mx, my = sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
+        vs = [vert(*p) for p in pts]
+        if not in_hole([v.co for v in vs], mx, my):
+            bm.faces.new(vs)
+
+    on = lambda v, edges: any(abs(v - e) < 1e-6 for e in edges)
+    for i in range(len(xs) - 1):
+        for j in range(len(ys) - 1):
+            x0, x1, y0, y1 = xs[i], xs[i + 1], ys[j], ys[j + 1]
+            if rx0 < (x0 + x1) / 2 < rx1 and ry0 < (y0 + y1) / 2 < ry1:
+                continue
+            spans_x, spans_y = rx0 - 1e-6 <= x0 and x1 <= rx1 + 1e-6, ry0 - 1e-6 <= y0 and y1 <= ry1 + 1e-6
+            face([(x0, y0), *along(x0, x1, y0, spans_x and on(y0, (ry0, ry1)), fxs, True),
+                  (x1, y0), *along(y0, y1, x1, spans_y and on(x1, (rx0, rx1)), fys, False),
+                  (x1, y1), *along(x1, x0, y1, spans_x and on(y1, (ry0, ry1)), fxs, True),
+                  (x0, y1), *along(y1, y0, x0, spans_y and on(x0, (rx0, rx1)), fys, False)])
+    for i in range(len(fxs) - 1):
+        for j in range(len(fys) - 1):
+            face([(fxs[i], fys[j]), (fxs[i + 1], fys[j]), (fxs[i + 1], fys[j + 1]), (fxs[i], fys[j + 1])])
+for i in range(len(xs) - 1) if not SITE else ():
     for j in range(len(ys) - 1):
         corners = [(xs[i], ys[j]), (xs[i + 1], ys[j]), (xs[i + 1], ys[j + 1]), (xs[i], ys[j + 1])]
         mx, my = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
         # each quad takes its side of a step from a point just inside it, so a step falls between quads,
         # on the face of the solid that holds it, and the weld leaves it open
         pts = [(x, y, plinth_z(x, y, x + (mx - x) * 0.01, y + (my - y) * 0.01)) for x, y in corners]
-        if any(h[0] < mx < h[2] and h[1] < my < h[3] and all(abs(p[2] - floor) < 0.01 for p in pts)
-               for h, floor in holes):
+        if in_hole(pts, mx, my):
             continue
         bm.faces.new([bm.verts.new(p) for p in pts])
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
@@ -587,7 +681,7 @@ plinth = bpy.data.objects.new("plinth", me)
 col.objects.link(plinth)
 plinth.data.materials.append(mats["plinth"])
 
-bpy.ops.mesh.primitive_plane_add(size=600, location=(0, 0, PLINTH_Z - 0.03))
+bpy.ops.mesh.primitive_plane_add(size=600, location=(0, 0, (min(PLINTH_Z, S.LOWEST) if SITE else PLINTH_Z) - 0.03))
 ground = bpy.context.active_object
 ground.name = "bounce-ground"
 ground.data.materials.append(mats["ground"])
@@ -641,7 +735,7 @@ def box_uv(ob):
     bm.free()
 
 
-def cull_hidden(ob, ground=plinth_z, beyond=lambda p: False):
+def cull_hidden(ob, ground=ground_z, beyond=lambda p: False):
     """Delete faces that sit on the ground or are buried, each sample under the ground, inside another
     part or just in front of it `beyond` (behind the room's walls, or inside them). They would otherwise
     waste lightmap texels."""
@@ -838,9 +932,11 @@ def texel_density(ob, res, polys):
     return math.sqrt(sum(uv_area(uv, p) for p in polys) * res * res / area) if area else 0.0
 
 
-def lightmap_uv(ob, margin, seen):
+def lightmap_uv(ob, margin, seen, site=None):
     """Unwrap the seen and unseen faces apart, bring the unseen ones to UNSEEN_TEXEL_RATIO of the seen
-    texel density, then pack both into one lightmap."""
+    texel density, then pack both into one lightmap. The site works' seen faces, when `site` marks them,
+    unwrap on their own with a wider angle, so their many bevels join the faces beside them and pack tight."""
+    group_of = [("site" if site and site[i] and s else s) for i, s in enumerate(seen)]
     me = ob.data
     me.uv_layers.new(name="lightmap")
     me.uv_layers.active = me.uv_layers["lightmap"]
@@ -851,27 +947,28 @@ def lightmap_uv(ob, margin, seen):
     bpy.context.tool_settings.use_uv_select_sync = True
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-    groups = [(True, 1.0), (False, C.UNSEEN_TEXEL_RATIO)]
-    for group, _ in groups:
+    groups = [(True, 1.0, C.SMART_PROJECT_ANGLE, 0.0), (False, C.UNSEEN_TEXEL_RATIO, C.SMART_PROJECT_ANGLE, 2.0),
+              ("site", 1.0, C.SITE_PROJECT_ANGLE, 4.0)]
+    for group, _, angle, _ in groups:
         bpy.ops.mesh.select_all(action="DESELECT")
         ebm = bmesh.from_edit_mesh(me)
-        chosen = [f for f in ebm.faces if seen[f.index] == group]
+        chosen = [f for f in ebm.faces if group_of[f.index] == group]
         for f in chosen:
             f.select_set(True)
         bmesh.update_edit_mesh(me)
         if chosen:
-            bpy.ops.uv.smart_project(angle_limit=C.SMART_PROJECT_ANGLE, island_margin=margin, area_weight=0.0,
+            bpy.ops.uv.smart_project(angle_limit=angle, island_margin=margin, area_weight=0.0,
                                      correct_aspect=True, scale_to_bounds=False)
     bpy.ops.object.mode_set(mode="OBJECT")
     # each smart project fills the unit square on its own: rescale each group to its texel density, and park
     # the unseen group off the square so no island can join across the two
     uv = me.uv_layers["lightmap"].data
-    for group, ratio in groups:
-        polys = [p for p in me.polygons if seen[p.index] == group]
+    for group, ratio, _, park in groups:
+        polys = [p for p in me.polygons if group_of[p.index] == group]
         if not polys:
             continue
         k = ratio / texel_density(ob, 1, polys)
-        offset = Vector((0.0 if group else 2.0, 0.0))
+        offset = Vector((park, 0.0))
         for p in polys:
             for li in p.loop_indices:
                 uv[li].uv = uv[li].uv * k + offset
@@ -884,7 +981,8 @@ def lightmap_uv(ob, margin, seen):
         me.uv_layers.active = me.uv_layers["UVMap"]
 
 
-lightmap_uv(shell, C.ISLAND_MARGIN, seen)
+lightmap_uv(shell, C.ISLAND_MARGIN, seen,
+            [a.value == 1 for a in shell.data.attributes["site"].data] if SITE else None)
 for room in ROOMS:
     # a room's only UV set: its texture's
     lightmap_uv(room["ob"], C.ISLAND_MARGIN, room["seen"])
@@ -902,6 +1000,11 @@ lap("join + uv")
 seen_polys = [p for p in shell.data.polygons if seen[p.index]]
 unseen_polys = [p for p in shell.data.polygons if not seen[p.index]]
 texels_per_m = texel_density(shell, MODE["res"], seen_polys)
+if SITE:
+    site_attr = shell.data.attributes["site"].data
+    print(f"site works: {sum(p.area for p in seen_polys if site_attr[p.index].value):.0f} m2 seen, "
+          f"{sum(p.area for p in unseen_polys if site_attr[p.index].value):.0f} unseen, of the shell's "
+          f"{sum(p.area for p in seen_polys):.0f} seen", flush=True)
 texels_per_m_unseen = texel_density(shell, MODE["res"], unseen_polys)
 area = sum(p.area for p in shell.data.polygons)
 unseen_area = sum(p.area for p in unseen_polys)
@@ -909,7 +1012,7 @@ coverage = sum(uv_area(shell.data.uv_layers["lightmap"].data, p) for p in shell.
 exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values(), *terrace_glass] if o]
 tris = sum(len(p.vertices) - 2 for o in exported for p in o.data.polygons)
 print(f"shell surface {area:.0f} m2 ({unseen_area:.0f} unseen), uv coverage {coverage:.2f}, "
-      f"{texels_per_m:.0f} texels/m seen and {texels_per_m_unseen:.0f} unseen at {MODE['res']}, {tris} tris")
+      f"{texels_per_m:.1f} texels/m seen and {texels_per_m_unseen:.1f} unseen at {MODE['res']}, {tris} tris")
 for room in ROOMS:
     polys = list(room["ob"].data.polygons)
     room["texels_per_m"] = texel_density(room["ob"], MODE["interior_res"], [p for p in polys if room["seen"][p.index]])
@@ -1107,8 +1210,29 @@ for room in ROOMS:
         ob.data.uv_layers.remove(layer)
 if terrace_glass:
     balustrade = join("balustrade", ([balustrade] if balustrade else []) + terrace_glass)
+
+
+def split_site():
+    """The site works' faces, baked on the shell's lightmap, as their own node: the Scene draws and measures
+    them apart."""
+    ob = bpy.data.objects.new("site", shell.data.copy())
+    col.objects.link(ob)
+    for target, keep in ((shell, 0), (ob, 1)):
+        bm = bmesh.new()
+        bm.from_mesh(target.data)
+        layer = bm.faces.layers.int["site"]
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f[layer] != keep], context="FACES")
+        bm.to_mesh(target.data)
+        bm.free()
+        target.data.attributes.remove(target.data.attributes["site"])
+    ob.data.name = "site"
+    print(f"site: {len(ob.data.polygons)} faces, {sum(len(p.vertices) - 2 for p in ob.data.polygons)} tris", flush=True)
+    return ob
+
+
+site = split_site() if SITE else None
 room_obs = [room["ob"] for room in ROOMS]
-exported = [o for o in [shell, balustrade, downlights, plinth, *room_obs, *glazing.values()] if o]
+exported = [o for o in [shell, site, balustrade, downlights, plinth, *room_obs, *glazing.values()] if o]
 
 # ---------------------------------------------------------------- export
 

@@ -8,8 +8,9 @@ import { skyLitMaterial } from "@/components/scene/materials";
 import { CASTER_LAYER } from "@/components/scene/shadow";
 import type { SceneLayout } from "@/content/schema";
 import { oklchToLinear } from "@/lib/color";
+import { fromHouseFrame } from "@/lib/house/cameras";
 import { toThree } from "@/lib/scene/frame";
-import { placePines } from "@/lib/scene/pines";
+import { placePines, type FramingPine } from "@/lib/scene/pines";
 import type { PlinthRect } from "@/lib/scene/platform";
 
 /** Spruce in the dusk: a deep blue-green, nearly black against the snow. */
@@ -34,14 +35,44 @@ function pineGeometry(): BufferGeometry {
   return merged;
 }
 
+/**
+ * The site works prototype (#86): a few pines brought in close to frame Lyngen on its arc, in its House
+ * frame (x, y metres, the front toward -y) with their heights. Clear of the House from every arc camera and
+ * the overview.
+ */
+const LYNGEN_FRAMING: [x: number, y: number, height: number][] = [
+  [-19, -3, 11],
+  [-21.5, 2.5, 8.5],
+  [-14.5, -11, 9],
+];
+
+/** Lyngen's framing pines in three.js plan axes. */
+export function framingPines(layout: SceneLayout): FramingPine[] {
+  return LYNGEN_FRAMING.map(([x, y, height]) => {
+    const [px, , pz] = toThree(fromHouseFrame([x, y, 0], layout.houses.lyngen) as [number, number, number]);
+    return { x: px, z: pz, height };
+  });
+}
+
 /** The sparse pines on the slope and the ridge, one draw call. */
-export function Pines({ plinths, overview }: { plinths: PlinthRect[]; overview: SceneLayout["overview"] }) {
+export function Pines({
+  plinths,
+  overview,
+  framing = [],
+}: {
+  plinths: PlinthRect[];
+  overview: SceneLayout["overview"];
+  /** Pines placed by hand, closer to a House than the others may stand. */
+  framing?: FramingPine[];
+}) {
   const ref = useRef<InstancedMesh>(null);
   const geometry = useMemo(() => pineGeometry(), []);
   const material = useMemo(() => skyLitMaterial(NEEDLES), []);
   const pines = useMemo(() => {
     const [x, , z] = toThree(overview.position);
-    return placePines(plinths, [x, z]);
+    return placePines(plinths, [x, z], framing);
+    // the framing pines follow the layout, as the overview does
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plinths, overview]);
 
   useLayoutEffect(() => {
