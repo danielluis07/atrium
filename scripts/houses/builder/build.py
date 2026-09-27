@@ -140,7 +140,8 @@ def plinth_z(x, y, sx=None, sy=None):
 
 
 # the House's Site Works (ADR 0006), when it has them: their pieces, and the snow they shape, which the plinth takes
-SITE = S.Site(DATA["derived"]["site"], plinth_z, SLUG) if DATA["derived"].get("site") else None
+SITE = (S.Site(DATA["derived"]["site"], plinth_z, SLUG, [(b[0], b[1], b[3], b[4]) for b in SOLIDS])
+        if DATA["derived"].get("site") else None)
 ground_z = SITE.ground if SITE else plinth_z
 
 

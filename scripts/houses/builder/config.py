@@ -78,6 +78,11 @@ SITE_LIP = 0.01  # the snow's edge along a path or an apron, above its top
 SITE_EDGE_BANK = 0.3  # from that edge up to the snow beside it
 SITE_BERM = (0.2, 0.45, 0.32)  # the shovelled snow along a path: height, how far out it peaks, width
 SITE_HOLE_INSET = 0.05  # the snow runs this far over a path's or an apron's edge
+# beside a flight the snow lies no higher than its cheeks' snow caps and leaves no more than CHEEK_SHOW of them
+# bare, so a flight down a slope stays set in it; the snow gives way to the slope's over FLIGHT_REACH. Snow
+# already between the two is left as it is.
+SITE_CHEEK_SHOW = 0.5
+SITE_FLIGHT_REACH = 1.5
 # the plinth is refined only along the pieces and their snow: feature points this far apart along each line,
 # and no grid point or lesser feature point closer than SITE_CLEAR to one before it. Seen from the arc's low
 # pitch, depth is foreshortened about four times, and thin cells cost the GPU.

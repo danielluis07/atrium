@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { projectOrder } from "@/content/projects";
+import { kvaloya } from "@/content/projects/kvaloya";
 import { lyngen } from "@/content/projects/lyngen";
 import { senja } from "@/content/projects/senja";
 import { sceneLayout } from "@/content/scene";
@@ -74,7 +75,7 @@ describe("exportHouse", () => {
     const { derived } = JSON.parse(exportHouse(lyngen, sceneLayout));
     expect(derived.site.walls.map((w: { name: string }) => w.name)).toEqual(["front", "west", "divider", "east"]);
     expect(derived.site.paths[0].runs).toHaveLength(5);
-    expect(exportHouse(senja, sceneLayout)).not.toContain('"site"');
+    expect(exportHouse(kvaloya, sceneLayout)).not.toContain('"site"');
   });
 
   test("leaves out the framing pines, which the Scene draws live", () => {

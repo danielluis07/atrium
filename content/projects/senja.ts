@@ -76,5 +76,30 @@ export const senja = {
     balustrades: [],
     // along the bar: the cantilever over the lower room
     section: { axis: "x", at: -3 },
+    siteWorks: {
+      // stone paving level with the lower room's floor, under the cantilever and kept clear in front of the glass
+      terrace: { rect: { x0: -6.4, y0: -10.4, x1: 4.0, y1: -6.0 }, level: "L-1" },
+      walls: [
+        // the lower room's end wall, carried forward to hold the terrace's east side
+        { name: "terrace-east", rect: { x0: 4.0, y0: -10.4, x1: 4.3, y1: -6.0 }, top: -2.75 },
+      ],
+      steps: [
+        // down the fan past the stone wall's end, from the grade behind it to the lower snow
+        { name: "grade-steps", rect: { x0: 11.6, y0: -3.8, x1: 13.0, y1: 2.2 }, down: "front", top: 0, foot: -3.2, risers: 16, lights: true },
+      ],
+      paths: [],
+      aprons: [],
+      lights: [
+        { wall: "terrace-east", face: "left", at: -9.2 },
+        { wall: "terrace-east", face: "left", at: -7.2 },
+      ],
+      shrubs: [
+        // at the stone wall's end, at the foot of the steps, and past the terrace wall's end
+        { at: [10.75, 0.2], size: 0.8 },
+        { at: [11.0, -4.3], size: 0.7 },
+        { at: [13.7, -4.1], size: 0.9 },
+        { at: [5.1, -10.9], size: 0.8 },
+      ],
+    },
   },
 } satisfies Project;

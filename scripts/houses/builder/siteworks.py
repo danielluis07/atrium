@@ -3,7 +3,8 @@
 `derived.site` in the builder JSON gives the pieces in plan (`sitePlan` in lib/house/site.ts): the terrace, each
 wall's boxes between its gaps, each flight's treads and cheeks, each path's runs with its level at their corners,
 and the aprons. This module gives them height and thickness, adds the set-in lights and the Snow Shrubs, and
-shapes the snow they meet: the plinth takes it (`Site.ground`), refined only along the pieces and their snow
+shapes the snow they meet, holding it beside each flight down a slope and cutting it back along a terrace's bare
+edges: the plinth takes it (`Site.ground`), refined only along the pieces and their snow
 (`Site.features`), with holes where the terrace, the steps, the paths and the aprons stand. So the drifts, banks
 and berms share the plinth's bake, edge fade and live shadow mask, with no seam.
 
@@ -81,11 +82,32 @@ def shrink(r, sides_kept, d):
             x1 if "x1" in sides_kept else x1 - d, y1 if "y1" in sides_kept else y1 - d)
 
 
+def open_edges(r, covers):
+    """The parts of a rectangle's edges that nothing in `covers` meets or runs across, each as a rectangle of
+    no width along the edge."""
+    x0, y0, x1, y1 = r
+    out = []
+    for along_x, line, lo, hi in ((True, y0, x0, x1), (True, y1, x0, x1), (False, x0, y0, y1), (False, x1, y0, y1)):
+        spans = [(max(o[0], lo), min(o[2], hi)) if along_x else (max(o[1], lo), min(o[3], hi))
+                 for o in covers if (o[1] if along_x else o[0]) - 1e-4 <= line <= (o[3] if along_x else o[2]) + 1e-4]
+        spans = sorted((a, b) for a, b in spans if b > a)
+        at, free = lo, []
+        for a, b in spans:
+            if a > at + 1e-3:
+                free.append((at, a))
+            at = max(at, b)
+        if hi > at + 1e-3:
+            free.append((at, hi))
+        out += [(a, line, b, line) if along_x else (line, a, line, b) for a, b in free]
+    return out
+
+
 class Site:
     """The Site Works of one House, from `derived.site`. `base(x, y, sx, sy)` is the plinth's height without
     them, on the side of any step that (sx, sy) is on."""
 
-    def __init__(self, plan, base, slug):
+    def __init__(self, plan, base, slug, solids=()):
+        """`solids` are the House's volumes and stone mass in plan, (x0, y0, x1, y1)."""
         self.base = base
         self.slug = slug
         t = plan.get("terrace")
@@ -107,12 +129,23 @@ class Site:
         steps = [(min(c[0][0] for c in s["cheeks"] + [(s["rect"],)]), min(c[0][1] for c in s["cheeks"] + [(s["rect"],)]),
                   max(c[0][2] for c in s["cheeks"] + [(s["rect"],)]), max(c[0][3] for c in s["cheeks"] + [(s["rect"],)]))
                  for s in self.steps]
+        # each flight's footprint with its cheeks, and its cheeks, which the snow beside it follows
+        self.flights = [(r, s["cheeks"]) for r, s in zip(steps, self.steps)]
         whole = [r for r, _ in self.slabs] + steps + ([self.terrace["rect"]] if self.terrace else [])
         self.holes = [(r, min(t for _, t in s["treads"]) - 0.2) for r, s in zip(steps, self.steps)]
         if self.terrace:
             self.holes.append((self.terrace["rect"], self.terrace["level"] - 0.02))
         for r, tops in self.slabs:
             self.holes.append((shrink(r, touching_sides(r, whole), C.SITE_HOLE_INSET), min(tops) - 0.02))
+        # the terrace's bare edges open to the snow, cut to like a path's: where no wall, flight, path, apron or
+        # House solid stands along it, and its snow doesn't reach it
+        self.edges = []
+        if self.terrace:
+            covers = [s for w in self.walls for s in w["segments"]] + steps + [r for r, _ in self.slabs] + list(solids)
+            covers += [self.terrace["snow"]] if self.terrace["snow"] else []
+            self.edges = [(r, [self.terrace["level"]] * 4) for r in open_edges(self.terrace["rect"], covers)]
+        # everything the snow is cut back to
+        self.cut = self.slabs + self.edges
         lows = [w["lower"] for w in self.walls if w.get("lower") is not None]
         lows += [min(tops) for _, tops in self.slabs] + [t for s in self.steps for _, t in s["treads"]]
         self.lowest = min(lows + [base(0.0, 0.0)])
@@ -124,9 +157,9 @@ class Site:
         return any(inside(r, x, y) for r, _ in self.holes)
 
     def slab_level(self, x, y):
-        """The distance to the nearest path or apron, and its level there."""
+        """The distance to the nearest path, apron or open terrace edge, and its level there."""
         best = None
-        for r, tops in self.slabs:
+        for r, tops in self.cut:
             d, (cx, cy) = rect_distance(r, x, y)
             if best is None or d < best[0] - 1e-9:
                 best = (d, bilinear(r, tops, cx, cy))
@@ -175,11 +208,18 @@ class Site:
                     yield "X", (y0, y1), x - x1
 
     def ground(self, x, y, sx=None, sy=None):
-        """The snow's height, which the plinth takes: `field`, cut back along each path and apron to just above
-        it, with a shovelled berm beside it."""
+        """The snow's height, which the plinth takes: `open_ground`, held beside each flight."""
+        z = self.open_ground(x, y, sx, sy)
+        for flight in self.flights:
+            z = self.set_in(flight, x, y, z)
+        return z
+
+    def open_ground(self, x, y, sx=None, sy=None):
+        """The snow before the flights hold it: `field`, cut back along each path, apron and open terrace edge to
+        just above it, with a shovelled berm beside it."""
         sx, sy = (x, y) if sx is None else (sx, sy)
         z = self.field(x, y, self.base(x, y, sx, sy))
-        if self.slabs:
+        if self.cut:
             s, level = self.slab_level(x, y)
             reach = C.SITE_BERM[1] + 4 * C.SITE_BERM[2]
             if s < reach:
@@ -188,6 +228,25 @@ class Site:
                 snow = z + height * math.exp(-(((s - at) / width) ** 2))
                 z = edge + (snow - edge) * smoothstep(0.0, C.SITE_EDGE_BANK, s)
         return z
+
+    def set_in(self, flight, x, y, z):
+        """The snow `z` beside a flight: no higher than its cheeks' snow caps and leaving no more than CHEEK_SHOW
+        of them bare, giving way to `z` over FLIGHT_REACH. Snow already between the two is returned as it is."""
+        rect, cheeks = flight
+        s, _ = rect_distance(rect, x, y)
+        if s >= C.SITE_FLIGHT_REACH:
+            return z
+        # the top of the nearest cheek, at its nearest point
+        _, top = min((d, bilinear(r, tops, *p)) for r, tops in cheeks for d, p in [rect_distance(r, x, y)])
+        held = min(max(z, top - C.SITE_CHEEK_SHOW), top + C.SITE_CAP)
+        if held == z:
+            return z
+        return held + (z - held) * smoothstep(0.0, C.SITE_FLIGHT_REACH, s)
+
+    def sloped(self, flight, points):
+        """Whether the snow at any of these points has to be held beside the flight."""
+        return any(self.set_in(flight, x, y, z) != z for x, y in points
+                   for z in [self.open_ground(x, y)] if not self.in_hole(x, y))
 
     def cull_ground(self, x, y):
         """What buries a piece's faces: the snow, or in a hole, just under the piece that fills it."""
@@ -238,10 +297,16 @@ class Site:
             x0, y0, x1, y1 = w["rect"]
             faces += line(x0, y0, x1, y0) + line(x0, y1, x1, y1) + line(x0, y0, x0, y1) + line(x1, y0, x1, y1)
         tiers.append(faces)
-        # the berms along the paths and aprons: crest, then foot
+        # beside a flight set into a slope, the held snow and where it gives way to the slope's; a flight whose
+        # snow isn't held adds nothing
+        for flight in self.flights:
+            rings = [around(flight[0], s) for s in (0.4, 0.9, C.SITE_FLIGHT_REACH)]
+            if self.sloped(flight, [p for ring in rings for p in ring]):
+                tiers.append([p for ring in rings for p in ring])
+        # the berms along the paths, aprons and open terrace edges: crest, then foot
         height, at, width = C.SITE_BERM
         for s in (at, at + 1.7 * width):
-            pts = [p for r, _ in self.slabs for p in around(r, s)]
+            pts = [p for r, _ in self.cut for p in around(r, s)]
             tiers.append([p for p in pts if self.slab_level(*p)[0] > s - 0.02])
         # in front of each wall that holds the snow: halfway down the drift and at its foot, and past its ends the
         # bank's top and foot
