@@ -77,5 +77,41 @@ export const lyngen = {
     ],
     balustrades: [],
     section: { axis: "x", at: 0.6 },
+    siteWorks: {
+      // stone paving level with the lounge floor, bare under the canopy and snowed beyond its drip line
+      terrace: {
+        rect: { x0: -3.4, y0: -8.6, x1: 4.6, y1: -4.3 },
+        level: "L0",
+        snow: { x0: -3.4, y0: -8.6, x1: 4.6, y1: -6.5 },
+      },
+      walls: [
+        // along the front, open for the steps, holding the snow a step above the lower snow in front
+        { name: "front", rect: { x0: -3.7, y0: -8.9, x1: 11.4, y1: -8.6 }, top: 0.45, gaps: [{ from: 1.6, to: 3.0 }], lower: -0.3 },
+        // back to the chimney's front, and round the snow garden in front of `lower`
+        { name: "west", rect: { x0: -3.7, y0: -8.6, x1: -3.4, y1: -5.4 }, top: 0.45 },
+        { name: "divider", rect: { x0: 4.6, y0: -8.6, x1: 4.9, y1: -3.4 }, top: 0.45 },
+        { name: "east", rect: { x0: 11.1, y0: -8.6, x1: 11.4, y1: -3.4 }, top: 0.45 },
+      ],
+      steps: [
+        { name: "terrace-steps", rect: { x0: 1.6, y0: -9.6, x1: 3.0, y1: -8.6 }, down: "front", top: 0, foot: -0.45, risers: 3, lights: true },
+      ],
+      paths: [
+        // out from the steps, west along the wall's foot, then north to the garage, rising gently
+        { name: "garage-path", width: 1.2, line: [[2.3, -9.6], [2.3, -10.6], [-9.4, -10.6], [-9.4, -6.3]], from: -0.45, to: 0 },
+      ],
+      aprons: [{ opening: "garage", depth: 1.3 }],
+      lights: [
+        { wall: "front", face: "front", at: -1.4 },
+        { wall: "front", face: "front", at: 8.0 },
+      ],
+      shrubs: [
+        // at the wall's ends, beside the steps, and where the path turns
+        { at: [-4.5, -9.3], size: 0.9 },
+        { at: [12.2, -9.3], size: 0.8 },
+        { at: [3.65, -9.4], size: 0.7 },
+        { at: [-10.7, -11.8], size: 1.0 },
+        { at: [-8.2, -9.6], size: 0.6 },
+      ],
+    },
   },
 } satisfies Project;

@@ -34,6 +34,7 @@ export function scenePart(key: string): string {
   if (key.includes("blit")) return "MSAA resolve";
   if (key.includes("| clear")) return "clears";
   if (key.includes("| plinth ")) return "plinths";
+  if (key.includes("| site-")) return "site works";
   if (key.includes("shadowMask")) return "terrain snow";
   if (key.includes("openSnow") && key.includes("inst ")) return "pines";
   if (key.includes("openSnow")) return "mountains";

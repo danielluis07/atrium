@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 
 /** Bumped whenever the builder JSON changes shape. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const name = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "use lowercase-kebab-case");
 const levelName = z.string().regex(/^L-?\d+$/, "Levels are named L-1, L0, L1…");
@@ -154,6 +154,82 @@ export const Section = z.object({
   at: metres,
 });
 
+/** A point in plan, in the House frame. */
+const PlanPoint = z.tuple([metres, metres]);
+
+/**
+ * Stone paving around a House, level with the floor of `level`, bounded by
+ * walls or the House. `snow` is the part of it the snow lies on, thinning
+ * toward its edges inside the terrace (a canopy's drip line).
+ */
+export const Terrace = z.object({ rect: Rect, level: levelName, snow: Rect.optional() });
+
+/**
+ * A low board-formed concrete wall in the snow, from under the snow up to
+ * `top` (relative to the datum). It runs along its plan's longer side, and
+ * each gap is a span along it (from, to) left open for steps. With `lower`,
+ * it runs along x and holds the snow behind it: in front of it (toward −y)
+ * the snow lies at `lower`, and past its ends it falls away in a bank.
+ */
+export const SiteWall = z.object({
+  name,
+  rect: Rect,
+  top: metres,
+  gaps: z.array(z.object({ from: metres, to: metres })).optional(),
+  lower: metres.optional(),
+});
+
+/**
+ * A stone flight descending toward the face `down`, from `top` at its upper
+ * edge to `foot` at its lower one, in `risers` equal treads, between two
+ * sloping concrete cheeks. With `lights`, each cheek holds a set-in light.
+ */
+export const SiteSteps = z.object({
+  name,
+  rect: Rect,
+  down: Face,
+  top: metres,
+  foot: metres,
+  risers: z.number().int().min(1),
+  lights: z.boolean().optional(),
+});
+
+/**
+ * A stone path of `width` along a centre line of straight, axis-aligned
+ * runs, cut into the snow. Its level rises or falls evenly along the line,
+ * from `from` at its first point to `to` at its last.
+ */
+export const SitePath = z.object({
+  name,
+  width: positive,
+  line: z.array(PlanPoint).min(2),
+  from: metres,
+  to: metres,
+});
+
+/** Concrete in front of a door `opening`, level with its floor, reaching `depth` out from the face. */
+export const Apron = z.object({ opening: name, depth: positive });
+
+/** A small warm light set into one of a wall's long faces, `at` along its length. */
+export const SetInLight = z.object({ wall: name, face: Face, at: metres });
+
+/** A Snow Shrub standing `at` a plan point, `size` metres across. */
+export const SnowShrub = z.object({ at: PlanPoint, size: z.number().min(0.5).max(1.1) });
+
+/**
+ * The House's Site Works (ADR 0006): the built pieces around it, and the
+ * Snow Shrubs among them. The snow they shape is derived by the builder.
+ */
+export const SiteWorks = z.object({
+  terrace: Terrace.optional(),
+  walls: z.array(SiteWall),
+  steps: z.array(SiteSteps),
+  paths: z.array(SitePath),
+  aprons: z.array(Apron),
+  lights: z.array(SetInLight),
+  shrubs: z.array(SnowShrub),
+});
+
 export const House = z.object({
   levels: z.array(Level).min(1),
   volumes: z.array(Volume).min(1),
@@ -162,6 +238,7 @@ export const House = z.object({
   openings: z.array(Opening),
   balustrades: z.array(Balustrade),
   section: Section,
+  siteWorks: SiteWorks.optional(),
 });
 
 export type Rect = z.infer<typeof Rect>;
@@ -176,4 +253,8 @@ export type Fill = z.infer<typeof Fill>;
 export type Opening = z.infer<typeof Opening>;
 export type Balustrade = z.infer<typeof Balustrade>;
 export type Section = z.infer<typeof Section>;
+export type SiteWall = z.infer<typeof SiteWall>;
+export type SiteSteps = z.infer<typeof SiteSteps>;
+export type SitePath = z.infer<typeof SitePath>;
+export type SiteWorks = z.infer<typeof SiteWorks>;
 export type House = z.infer<typeof House>;

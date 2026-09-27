@@ -53,6 +53,44 @@ DOWNLIGHT_RADIUS = 0.05
 DOWNLIGHT_WATTS = 60.0
 DOWNLIGHT_CONE = math.radians(130)
 
+# ---------------------------------------------------------------- site works (ADR 0006, site.py)
+
+SITE_SINK = 0.15  # every piece reaches this far below the lowest snow of the site works
+SITE_CAP = 0.08  # the snow on a wall's or a cheek's top, a little proud of both faces
+SITE_CAP_PROUD = 0.015
+SITE_TERRACE_SNOW = (0.05, 0.012)  # a terrace's snow: at its outer edges, and at its edges inside the terrace
+SITE_PAVING = 0.2  # a terrace's paving, its thickness
+SITE_FLAG = 0.08  # a path's stone
+SITE_APRON = 0.25  # an apron's concrete
+SITE_LIGHT_WATTS = 6.0  # the set-in lights: small and few, so the windows stay the brightest
+SITE_LIGHT_CONE = math.radians(120)
+SITE_LIGHT_BELOW = 0.18  # a light in a wall's face, below its top
+SITE_LIGHT_ABOVE = 0.17  # a light in a cheek, above its tread
+# the snow the pieces shape, which the plinth takes: a drift up against the low face of a wall that holds the
+# snow, falling to the lower snow over DRIFT_W; past its ends a bank BANK wide, whose line draws back from the
+# House FAN metres for each metre past the end, and the drift gives way to it over SPAN_BLEND
+SITE_DRIFT_W = 1.1
+SITE_BANK = 1.6
+SITE_FAN = 1.2
+SITE_SPAN_BLEND = 0.8
+SITE_SIDE_DRIFT = (0.1, 0.6)  # a little snow banked against every other long face of a wall: height, width
+SITE_LIP = 0.01  # the snow's edge along a path or an apron, above its top
+SITE_EDGE_BANK = 0.3  # from that edge up to the snow beside it
+SITE_BERM = (0.2, 0.45, 0.32)  # the shovelled snow along a path: height, how far out it peaks, width
+SITE_HOLE_INSET = 0.05  # the snow runs this far over a path's or an apron's edge
+# the plinth is refined only along the pieces and their snow: feature points this far apart along each line,
+# and no grid point or lesser feature point closer than SITE_CLEAR to one before it. Seen from the arc's low
+# pitch, depth is foreshortened about four times, and thin cells cost the GPU.
+SITE_SPACING = 0.6
+SITE_CLEAR = 0.3
+SITE_PROJECT_ANGLE = math.radians(89)  # the site works' seen faces unwrap on their own: bevels join the faces beside them
+# Snow Shrubs: a low snow mound with dark timber twig tips through it, seeded per shrub
+SHRUB_HEIGHT = (0.3, 0.6)
+SHRUB_TWIGS = (8, 13)
+SHRUB_TWIG = (0.2, 0.42)  # how far a twig stands out of the mound
+SHRUB_TWIG_RADIUS = (0.014, 0.024)
+TWIG_TEXEL_RATIO = 0.25  # thin twigs bake at this fraction of the seen texels per metre
+
 # ---------------------------------------------------------------- bevels (width, segments)
 
 BEVEL_VOLUME = (0.015, 2)
@@ -62,6 +100,11 @@ BEVEL_METAL = (0.004, 1)
 BEVEL_SNOW = (0.1, 4)
 BEVEL_STONE_SNOW = (0.08, 3)
 BEVEL_ANGLE = math.radians(30)
+# the site works': none narrower than a pixel at the arc distance
+BEVEL_SITE_WALL = (0.012, 1)
+BEVEL_SITE_CAP = (0.035, 2)
+BEVEL_SITE_CHEEK_CAP = (0.03, 2)
+BEVEL_SITE_TREAD = (0.015, 1)
 
 # ---------------------------------------------------------------- snow plinth
 

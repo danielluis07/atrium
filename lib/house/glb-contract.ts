@@ -35,6 +35,8 @@ export const MATERIALS = [
 /** Which materials each node may carry. */
 const NODE_MATERIALS: Record<string, readonly string[]> = {
   shell: ["concrete", "stone", "timber", "metal", "snow"],
+  // the Site Works: built pieces in the shell's materials, on its lightmap
+  site: ["concrete", "stone", "timber", "metal", "snow"],
   glazing: ["glazing"],
   // a terrace's glazed back wall isn't a Glazing Face, so it rides with the balustrade glass
   balustrade: ["balustrade", "glazing"],
@@ -205,7 +207,7 @@ export function expectedNodes(project: Project): { required: string[]; optional:
       ...interiors(house, project.images.interior.glazingFace).map((i) => i.node),
     ],
     // a soffit that the volumes below cover entirely gets no downlights
-    optional: ["downlights"],
+    optional: ["downlights", ...(house.siteWorks ? ["site"] : [])],
   };
 }
 
@@ -263,8 +265,8 @@ export function checkGlbContract(
         issues.push(`node ${node.name} uses material ${material ?? "(none)"}, expected one of ${allowed.join(", ")}`);
       }
       // the detail maps tile in metres on the shell's first UV set, and the Interior's texture is on its own
-      if (kind === "shell" && p.attributes?.TEXCOORD_0 === undefined) {
-        issues.push(`node shell's ${material ?? "(none)"} has no TEXCOORD_0 for the detail maps`);
+      if ((kind === "shell" || kind === "site") && p.attributes?.TEXCOORD_0 === undefined) {
+        issues.push(`node ${kind}'s ${material ?? "(none)"} has no TEXCOORD_0 for the detail maps`);
       }
       if (kind === "interior" && p.attributes?.TEXCOORD_0 === undefined) {
         issues.push(`node ${node.name} has no TEXCOORD_0 for its baked texture`);

@@ -8,6 +8,7 @@ Tools for measuring the live Scene's GPU cost on the dev machine: a Ryzen 7 3700
 |---|---|---|
 | Any change to a House or its bake | The download budget in `bun test` | none |
 | New or reworked furniture, rooms or other geometry | **Probe**, 2–3 loads: the change's own draws | ~10 min |
+| How a House reads from every angle | **Arc shots**, `main` and the branch side by side | ~3 min |
 | Full-screen passes, the ladder, the rung monitor, shaders on large surfaces | **Frames**, paired builds; add **settle** when the question is which rung the Scene ends on | 30–60 min |
 
 The probe is the default. On the Vega, whole-frame time between builds swings by several ms from run to run, with the GPU's temperature and its whole-frame slow spells (#62), so a 1 ms whole-frame difference needs 7–12 alternating pairs to see. A change's own draws barely move with that, and 2–3 loads give a stable number. The four hero Interiors, for example, cost 0.12 ms together at the overview (#65).
@@ -60,6 +61,28 @@ bun scripts/perf/report.ts settle
 ```
 
 A fresh load with no `?scene=` override and no remembered rung, like a visitor's. It logs the rung and the rAF p50/p90 every second for 45 s. Use 3 cold and 3 warm runs.
+
+## Arc shots: how a House reads across its arc
+
+```sh
+sh scripts/perf/serve.sh start /c/tmp/atrium-main
+bun scripts/perf/arc.ts Lyngen main
+sh scripts/perf/serve.sh stop
+sh scripts/perf/serve.sh start .
+bun scripts/perf/arc.ts Lyngen branch
+bun scripts/perf/sheet.ts Lyngen main branch       # scripts/perf/out/arc/lyngen/main-vs-branch.jpg
+```
+
+- **`arc.ts <House> <label>`** opens the Scene (`?scene=target`) with the pointer off the Houses and writes nine shots to `scripts/perf/out/arc/<house>/<label>-*.png`:
+  - the overview;
+  - the House selected (hero);
+  - `arc0`, after a −1400 px drag, which overshoots to the arc's east end;
+  - `arc1`–`arc6`, six 60 px drags back across it.
+
+  `--step` changes the drag and `--query` the Scene path.
+- **`sheet.ts <House> <a> <b>`** lays the two labels' shots side by side, one row per shot, `a` on the left. Each tile is the Scene's left 1140 px, clear of the Project Panel, at half size.
+- A draft bake (~2 min) is enough to judge a layout, and the final bake's sheet is the one to post.
+- As for measurements, no bake running (it starves Chrome), and keep the Chromium window visible.
 
 ## When a driver is stopped
 

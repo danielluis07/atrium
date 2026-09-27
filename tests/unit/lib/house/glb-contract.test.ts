@@ -9,6 +9,7 @@ import type { Project } from "@/content/schema";
 import { bakeHash, exportHouse } from "@/lib/house/export";
 import {
   checkGlbContract,
+  expectedNodes,
   fullMipChain,
   KHR_DF_MODEL_UASTC_HDR_4X4,
   readGlb,
@@ -82,6 +83,14 @@ describe("checkGlbContract", () => {
         "node glazing:living-room is not in the House record",
       ]),
     );
+  });
+
+  test("allows a site node only to a House whose record has Site Works", () => {
+    expect(expectedNodes(lyngen).optional).toContain("site");
+    const bare = structuredClone(lyngen) as Project;
+    delete bare.house.siteWorks;
+    expect(expectedNodes(bare).optional).not.toContain("site");
+    expect(check(fresh(), bare)).toContain("node site is not in the House record");
   });
 
   test("fails when a node is missing or unknown", () => {
@@ -271,7 +280,7 @@ describe("checkGlbContract", () => {
     extras.schemaVersion = 0;
     extras.lightmaps.shell.spill = "lm-shell-spill.hdr";
     expect(check(gltf)).toEqual([
-      "extras.schemaVersion is 0, expected 3",
+      "extras.schemaVersion is 0, expected 4",
       'extras.lightmaps.shell.spill "lm-shell-spill.hdr" is not a .ktx2 file name',
     ]);
     rootOf(gltf, "lyngen").name = "house:senja";

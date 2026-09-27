@@ -70,6 +70,21 @@ describe("exportHouse", () => {
     expect(exportHouse(lyngen, sceneLayout)).not.toContain("otherInteriors");
   });
 
+  test("carries the Site Works as plan pieces, and a House without them keeps its JSON", () => {
+    const { derived } = JSON.parse(exportHouse(lyngen, sceneLayout));
+    expect(derived.site.walls.map((w: { name: string }) => w.name)).toEqual(["front", "west", "divider", "east"]);
+    expect(derived.site.paths[0].runs).toHaveLength(5);
+    expect(exportHouse(senja, sceneLayout)).not.toContain('"site"');
+  });
+
+  test("leaves out the framing pines, which the Scene draws live", () => {
+    const json = exportHouse(lyngen, sceneLayout);
+    expect(sceneLayout.houses.lyngen.framing?.length).toBeGreaterThan(0);
+    expect(json).not.toContain("framing");
+    const bare = { ...sceneLayout, houses: { ...sceneLayout.houses, lyngen: { ...sceneLayout.houses.lyngen, framing: undefined } } };
+    expect(exportHouse(lyngen, bare)).toBe(json);
+  });
+
   test("leaves out the Curtains, which the builder never draws", () => {
     const json = exportHouse(lyngen, sceneLayout);
     expect(json).not.toContain("curtain");

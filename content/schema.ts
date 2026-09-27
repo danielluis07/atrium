@@ -63,6 +63,14 @@ export const Placement = z.object({
   rotation: z.number(),
   /** Ground height at the datum, metres. */
   ground: z.number(),
+  /**
+   * Framing pines placed by hand for the House's arc (ADR 0006), in its
+   * House frame: plan x, y and height, metres. Each stands on the plinth
+   * where it bends onto the slope, and none covers any House from an arc
+   * camera or the overview. The Scene draws them live, so they are no part
+   * of the bake.
+   */
+  framing: z.array(z.tuple([z.number(), z.number(), z.number().positive()])).optional(),
 });
 
 const Point = z.tuple([z.number(), z.number(), z.number()]);
