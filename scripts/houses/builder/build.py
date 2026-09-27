@@ -560,21 +560,24 @@ def grid_lines(a, b, steps):
     return sorted(steps + [u for u in uniform if all(abs(u - s) > 0.05 for s in steps)])
 
 
-# the plinth leaves a hole under each Interior: the live plinth's polygon offset would win over its floor
-holes = [(r["x0"], r["y0"], r["x1"], r["y1"]) for r in (room["rect"] for room in ROOMS)]
-xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])] + [v for h in holes for v in (h[0], h[2])])
-ys = grid_lines(py0, py1, [b[4] for b in SUNK] + [v for h in holes for v in (h[1], h[3])])
+# the plinth leaves a hole under each Interior where it meets the room's floor: the live plinth's polygon
+# offset would win over the floor. Where the room stands above the snow (Senja's cantilever, Reine's upper
+# rooms), the snow runs on under it.
+holes = [((r["x0"], r["y0"], r["x1"], r["y1"]), room["floor"]) for room in ROOMS for r in [room["rect"]]]
+xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])] + [v for h, _ in holes for v in (h[0], h[2])])
+ys = grid_lines(py0, py1, [b[4] for b in SUNK] + [v for h, _ in holes for v in (h[1], h[3])])
 bm = bmesh.new()
 for i in range(len(xs) - 1):
     for j in range(len(ys) - 1):
         corners = [(xs[i], ys[j]), (xs[i + 1], ys[j]), (xs[i + 1], ys[j + 1]), (xs[i], ys[j + 1])]
         mx, my = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
-        if any(h[0] < mx < h[2] and h[1] < my < h[3] for h in holes):
-            continue
         # each quad takes its side of a step from a point just inside it, so a step falls between quads,
         # on the face of the solid that holds it, and the weld leaves it open
-        bm.faces.new([bm.verts.new((x, y, plinth_z(x, y, x + (mx - x) * 0.01, y + (my - y) * 0.01)))
-                      for x, y in corners])
+        pts = [(x, y, plinth_z(x, y, x + (mx - x) * 0.01, y + (my - y) * 0.01)) for x, y in corners]
+        if any(h[0] < mx < h[2] and h[1] < my < h[3] and all(abs(p[2] - floor) < 0.01 for p in pts)
+               for h, floor in holes):
+            continue
+        bm.faces.new([bm.verts.new(p) for p in pts])
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
 me = bpy.data.meshes.new("plinth")
 bm.to_mesh(me)
