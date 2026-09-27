@@ -33,6 +33,10 @@ def inside(r, x, y, e=1e-4):
     return r[0] + e < x < r[2] - e and r[1] + e < y < r[3] - e
 
 
+def within(inner, outer, e=1e-4):
+    return inner[0] >= outer[0] - e and inner[1] >= outer[1] - e and inner[2] <= outer[2] + e and inner[3] <= outer[3] + e
+
+
 def rect_distance(r, x, y):
     """Distance from a plan point to a rectangle, 0 inside it, and the nearest point in it."""
     cx, cy = min(max(x, r[0]), r[2]), min(max(y, r[1]), r[3])
@@ -82,6 +86,22 @@ def shrink(r, sides_kept, d):
             x1 if "x1" in sides_kept else x1 - d, y1 if "y1" in sides_kept else y1 - d)
 
 
+def subtract(rects, holes):
+    """Plan rectangles minus holes, as a list of non-overlapping rectangles."""
+    for hx0, hy0, hx1, hy1 in holes:
+        nxt = []
+        for rx0, ry0, rx1, ry1 in rects:
+            ix0, iy0, ix1, iy1 = max(rx0, hx0), max(ry0, hy0), min(rx1, hx1), min(ry1, hy1)
+            if ix0 >= ix1 - 1e-4 or iy0 >= iy1 - 1e-4:
+                nxt.append((rx0, ry0, rx1, ry1))
+                continue
+            for r in [(rx0, ry0, rx1, iy0), (rx0, iy1, rx1, ry1), (rx0, iy0, ix0, iy1), (ix1, iy0, rx1, iy1)]:
+                if r[2] - r[0] > 0.02 and r[3] - r[1] > 0.02:
+                    nxt.append(r)
+        rects = nxt
+    return rects
+
+
 def open_edges(r, covers):
     """The parts of a rectangle's edges that nothing in `covers` meets or runs across, each as a rectangle of
     no width along the edge."""
@@ -106,13 +126,19 @@ class Site:
     """The Site Works of one House, from `derived.site`. `base(x, y, sx, sy)` is the plinth's height without
     them, on the side of any step that (sx, sy) is on."""
 
-    def __init__(self, plan, base, slug, solids=()):
-        """`solids` are the House's volumes and stone mass in plan, (x0, y0, x1, y1)."""
+    def __init__(self, plan, base, slug, solids=(), floors=()):
+        """`solids` are the House's volumes and stone mass in plan, (x0, y0, x1, y1). `floors` are where it stands
+        on its floors: each solid in plan with its floor's level, and the plan of each opening cut into it at its
+        floor (a passage, or a recess in front of glass or a door), (plan rectangle, level, cuts)."""
         self.base = base
         self.slug = slug
         t = plan.get("terrace")
         self.terrace = t and {"rect": box4(t["rect"]), "level": t["level"],
                               "snow": box4(t["snow"]) if t.get("snow") else None}
+        # the solids standing wholly on the terrace, with their cuts: its paving leaves them out, but runs on into
+        # their recesses and passages
+        self.on_terrace = [(r, c) for r, z, c in floors if abs(z - t["level"]) < 1e-4
+                           and within(r, self.terrace["rect"])] if t else []
         self.walls = [{**w, "rect": box4(w["rect"]), "segments": [box4(s) for s in w["segments"]]}
                       for w in plan["walls"]]
         self.steps = [{**s, "rect": box4(s["rect"]),
@@ -249,7 +275,11 @@ class Site:
                    for z in [self.open_ground(x, y)] if not self.in_hole(x, y))
 
     def cull_ground(self, x, y):
-        """What buries a piece's faces: the snow, or in a hole, just under the piece that fills it."""
+        """What buries a piece's faces: the snow, or in a hole, just under the piece that fills it, or under a floor
+        that stands on the terrace, the floor."""
+        for r, cuts in self.on_terrace:
+            if inside(r, x, y) and not any(inside(c, x, y) for c in cuts):
+                return self.terrace["level"]
         for r, below in self.holes:
             if inside(r, x, y):
                 return below
@@ -347,7 +377,11 @@ class Site:
         if self.terrace:
             x0, y0, x1, y1 = r = self.terrace["rect"]
             level = self.terrace["level"]
-            out.append(("site-paving", "stone", ("box", x0, y0, level - C.SITE_PAVING, x1, y1, level), None))
+            # none under the solids that stand on it, but into their recesses and passages
+            paving = subtract([r], [s for s, _ in self.on_terrace]) + [c for _, cuts in self.on_terrace for c in cuts]
+            for i, (px0, py0, px1, py1) in enumerate(paving):
+                out.append((f"site-paving-{i}" if len(paving) > 1 else "site-paving", "stone",
+                            ("box", px0, py0, level - C.SITE_PAVING, px1, py1, level), None))
             if self.terrace["snow"]:
                 # thick at the terrace's edges, thinning toward the edges it has inside the terrace
                 sr = self.terrace["snow"]
