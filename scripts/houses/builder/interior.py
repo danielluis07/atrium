@@ -8,8 +8,9 @@ them in the House, joins them into the room's `interior` node with its walls, fl
 and then gives them the GLB's one `interior` material: after the bake, the room's colours are in its texture.
 
 A lounge or a library with a fireplace puts it on the hearth wall, where the House's stone mass stands
-outside the room, if it has one; a lounge with a TV puts it on the side wall it names; every other feature
-wall is the back wall, facing the window.
+outside the room, if it has one; a lounge with a TV puts it on the side wall it names; a bedroom with a
+`bedside` puts the bed's head on that side wall, and its TV on the other; every other feature wall is the back
+wall, facing the window.
 """
 
 import math
@@ -642,16 +643,27 @@ def library(w, h, d, o, hearth, rng):
 def bedroom(w, h, d, o, hearth, rng):
     """A bed facing the window, its head to the back wall, or to the partition, which closes the bedroom off
     from the room behind it and leaves that empty. Nightstands, a bench at the foot of the bed, a wardrobe
-    on the right wall and a reading chair in the window's left corner, where they fit."""
+    on the right wall and a reading chair in the window's left corner, where they fit.
+
+    With `bedside`, the bed's head is against that side wall instead, as far back as the partition or the back
+    wall allow, so the glass sees it side-on; the wardrobe moves to the back wall, on the far side from the bed,
+    the reading chair to the window's corner on that side, and the partition's door to that side too. With
+    `tv`, a wall TV over a low walnut unit faces the bed from the other side wall."""
+    side = o.get("bedside")
     door = None
     if o.get("partition"):
-        d, door = o["partition"], 0.3
+        d, door = o["partition"], 0.3 if side != "left" else w - 0.3 - C.DOOR_WIDTH
         partition(w, h, d, door)
-    back = Wall("back", w, d)
-    width = min(1.8, w - 1.4) if w > 2.6 else w - 0.6
-    # centred, or clear of the door by a quarter metre, nightstand and all
-    cx = w / 2 if door is None else max(w / 2, door + C.DOOR_WIDTH + 0.25 + width / 2 + 0.575)
-    f = Frame(cx, d - 1.1, "window")
+    head = Wall(side or "back", w, d)  # the wall the bed's head is against
+    across = d if side is None else w  # from that wall to the one facing it
+    width = min(1.8, head.length - 1.4) if head.length > 2.6 else head.length - 0.6
+    if side is None:
+        # centred, or clear of the door by a quarter metre, nightstand and all
+        cb = w / 2 if door is None else max(w / 2, door + C.DOOR_WIDTH + 0.25 + width / 2 + 0.575)
+    else:
+        # as far back as it goes, the far nightstand 0.3 m short of the back wall or the partition
+        cb = head.length - 0.3 - (width / 2 + 0.575)
+    f = head.frame(cb, 1.1, head.away)
     f.box(-width / 2 - 0.05, 0.95, 0.0, width / 2 + 0.05, 1.05, 1.1, "wool", soft=0.03)  # headboard
     f.box(-width / 2, -1.05, 0.08, width / 2, 1.0, 0.36, "walnut")
     f.box(-width / 2 + 0.02, -1.0, 0.36, width / 2 - 0.02, 0.95, 0.56, "bedding", soft=0.05)
@@ -660,32 +672,49 @@ def bedroom(w, h, d, o, hearth, rng):
         f.box(s * width / 4 - 0.33, 0.55, 0.56, s * width / 4 + 0.33, 0.9, 0.72, "bedding", soft=0.05)
     lamp = o.get("lamp", "floor")
     for s in (-1, 1):
-        x, _ = f.at(s * (width / 2 + 0.35), 0)
-        if 0.25 < x < w - 0.25:
-            n = Frame(x, d - 0.25)
+        u = cb + s * (width / 2 + 0.35)
+        if 0.25 < u < head.length - 0.25:
+            n = head.frame(u, 0.25, head.away)
             table(n, 0.45, 0.4, 0.5)
             if lamp == "floor":
                 table_lamp(n, 0.5)
     if lamp == "pendant":
         for s in (-1, 1):
-            pendant(cx + s * (width / 2 + 0.35), d - 0.3, 1.1, h)
-    artwork(back, cx, 1.45, min(1.4, width * 0.8), 0.7)
-    rug(max(0.2, cx - width / 2 - 0.6), d - 2.6, min(w - 0.2, cx + width / 2 + 0.6), d - 0.3)
-    foot = d - 2.15  # the foot of the bed
+            pendant(*head.point(cb + s * (width / 2 + 0.35), 0.3), 1.1, h)
+    artwork(head, cb, 1.45, min(1.4, width * 0.8), 0.7)
+    head.box(max(0.2, cb - width / 2 - 0.6), 0.3, 0.0, min(head.length - 0.2, cb + width / 2 + 0.6), 2.6, 0.012, "rug")
+    foot = across - 2.15  # the foot of the bed
     if foot > 1.4:
         f.box(-width / 2 + 0.15, -1.5, 0.36, width / 2 - 0.15, -1.12, 0.46, "linen", soft=0.03)
         for u in (-width / 2 + 0.2, width / 2 - 0.2):
             f.box(u - 0.02, -1.45, 0.0, u + 0.02, -1.17, 0.36, "walnut")
-    # the wardrobe runs alongside the bed where the room is wide enough, or else stops short of the bench
-    right = Wall("right", w, d)
-    beside = w - 0.6 - (cx + width / 2 + 0.575) > 0.3
-    end = min(3.0, d - 0.3 if beside else foot - 0.6)
-    if end - 0.6 > 1.0:
-        wardrobe(right, 0.6, end, min(2.4, h - 0.1))
-    if foot - 0.5 > 1.8 and cx - width / 2 > 1.6:
-        armchair(Frame(0.8, 1.1, "right"))
+    if o.get("tv"):
+        television(Wall("right" if side == "left" else "left", w, d), cb)
+    top = min(2.4, h - 0.1)
+    if side is None:
+        # the wardrobe runs alongside the bed where the room is wide enough, or else stops short of the bench
+        right = Wall("right", w, d)
+        beside = w - 0.6 - (cb + width / 2 + 0.575) > 0.3
+        end = min(3.0, d - 0.3 if beside else foot - 0.6)
+        if end - 0.6 > 1.0:
+            wardrobe(right, 0.6, end, top)
+        if foot - 0.5 > 1.8 and cb - width / 2 > 1.6:
+            armchair(Frame(0.8, 1.1, "right"))
+            if lamp == "floor":
+                floor_lamp(Frame(0.4, 0.45))
+        return
+    # the far side from the bed, along the back wall (or the partition) and the window, measured from its wall
+    far = (lambda u: u) if side == "right" else (lambda u: w - u)
+    start = 0.6 if door is None else max(far(door), far(door + C.DOOR_WIDTH)) + 0.3  # past the partition's door
+    end = min(start + 3.0, w - 2.8)  # short of the bench at the foot of the bed
+    if end - start > 1.0:
+        a, b = sorted((far(start), far(end)))
+        wardrobe(Wall("back", w, d), a, b, top)
+    # the reading chair in the window's corner, clear of the TV unit
+    if foot - 0.5 > 1.6 and (not o.get("tv") or cb - 1.3 > 1.8):
+        armchair(Frame(far(0.8), 1.1, "right" if side == "right" else "left"))
         if lamp == "floor":
-            floor_lamp(Frame(0.4, 0.45))
+            floor_lamp(Frame(far(0.4), 0.45))
 
 
 TEMPLATES = {"lounge": lounge, "dining": dining, "kitchen": kitchen, "library": library, "bedroom": bedroom}

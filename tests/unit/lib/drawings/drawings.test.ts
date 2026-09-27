@@ -92,7 +92,7 @@ const expected: Record<string, { cut: string[]; glazing: string[]; seenBelow: st
     glazing: ["living-front", "living-court", "studio-front", "sleeping-side"],
     seenBelow: [],
   },
-  reine: { cut: ["base"], glazing: ["kitchen-front", "stair"], seenBelow: [] },
+  reine: { cut: ["base"], glazing: ["base-front", "stair"], seenBelow: [] },
 };
 
 for (const { slug, name, house } of getProjects()) {

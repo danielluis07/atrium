@@ -11,6 +11,7 @@ import {
   getSiteCopy,
 } from "@/content";
 import { lyngen } from "@/content/projects/lyngen";
+import { reine } from "@/content/projects/reine";
 import { senja } from "@/content/projects/senja";
 import { sceneLayout } from "@/content/scene";
 import { sceneProject, type Project } from "@/content/schema";
@@ -182,6 +183,73 @@ describe("createContent", () => {
     expect(at(5.2)).not.toThrow();
     expect(at(3)).toThrow(/volumes.bar.interior: its partition is 3 m in from bar-end, in a room 19.40 m deep/);
     expect(at(18.8)).toThrow(/its partition is 18.8 m in from bar-end/);
+  });
+
+  describe("a bedroom's bed against a side wall, and its TV", () => {
+    const load = (edit: (p: Project) => void) => {
+      const record = structuredClone(reine) as Project;
+      edit(record);
+      return () => createContent([record], { ...sceneLayout, houses: { reine: sceneLayout.houses.reine } });
+    };
+    const top = (p: Project) => p.house.volumes.find((v) => v.name === "top")!;
+    const opening = (p: Project, name: string) => p.house.openings.find((o) => o.name === name)!;
+
+    test("Reine's bed has its head to the right wall, and its TV faces it from the left", () => {
+      expect(top(reine).interior).toMatchObject({ kind: "bedroom", bedside: "right", tv: true });
+      expect(sceneProject(reine).interiors).toEqual(["interior", "interior:top"]);
+      // bedroom-side runs from 0.7 m to 3.9 m in from bedroom-front, short of the 3.3 m the bed takes at the back
+      expect(load(() => {})).not.toThrow();
+      expect(load((p) => (top(p).interior = { kind: "bedroom", bedside: "left", tv: true }))).not.toThrow();
+    });
+
+    test("the TV faces the bed across the room, so it needs a bedside", () => {
+      expect(load((p) => (top(p).interior = { kind: "bedroom", tv: true }))).toThrow(
+        /volumes.top.interior: has a TV, but no bedside: the TV faces the bed from a side wall/,
+      );
+    });
+
+    test("neither stands against glass", () => {
+      // bedroom-side moved back: 2.7 m to 5.9 m in from bedroom-front
+      const back = (p: Project) => (opening(p, "bedroom-side").at = 3.0);
+      expect(load(back)).toThrow(
+        /volumes.top.interior: its bed stands against the right wall, but bedroom-side is there, 2.70 to 5.90 m in from bedroom-front: the bed takes the 3.3 m in front of the back wall/,
+      );
+      expect(
+        load((p) => {
+          back(p);
+          top(p).interior = { kind: "bedroom", bedside: "left", tv: true };
+        }),
+      ).toThrow(/its TV stands against the right wall, but bedroom-side is there, 2.70 to 5.90 m in/);
+      // without the TV, the right wall is free
+      expect(
+        load((p) => {
+          back(p);
+          top(p).interior = { kind: "bedroom", bedside: "left" };
+        }),
+      ).not.toThrow();
+    });
+
+    test("with a partition, the bed stands in front of it", () => {
+      const at = (bedside: "left" | "right", partition: number) =>
+        load((p) => (top(p).interior = { kind: "bedroom", bedside, partition }));
+      // the left wall has no glass; on the right, the bed comes forward onto bedroom-side's
+      expect(at("left", 4)).not.toThrow();
+      expect(at("right", 6.4)).toThrow(
+        /its bed stands against the right wall, but bedroom-side is there, 0.70 to 3.90 m in from bedroom-front: the bed takes the 3.3 m in front of the partition/,
+      );
+    });
+
+    test("the room must be deep and wide enough for it", () => {
+      // top cut down to 3.4 m by 3.4 m, 2.8 m by 2.8 m inside
+      const small = (p: Project) => {
+        top(p).rect = { x0: -1.6, y0: -3.0, x1: 1.8, y1: 0.4 };
+        opening(p, "bedroom-front").at = 0.4;
+        opening(p, "bedroom-front").width = 2.6;
+        opening(p, "bedroom-side").width = 2.2;
+      };
+      expect(load(small)).toThrow(/volumes.top.interior: is 2.80 m across: a bed against a side wall needs 3.5 m/);
+      expect(load(small)).toThrow(/volumes.top.interior: is 2.80 m deep in front of the back wall: a bed against a side wall takes 3.3 m of it/);
+    });
   });
 
   test("so does a lounge's, by the same margins", () => {
