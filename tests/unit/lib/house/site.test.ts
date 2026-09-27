@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { kvaloya } from "@/content/projects/kvaloya";
+import { reine } from "@/content/projects/reine";
 import { lyngen } from "@/content/projects/lyngen";
 import { senja } from "@/content/projects/senja";
 import type { House } from "@/lib/house/schema";
@@ -18,11 +19,12 @@ function edited(edit: (house: House & { siteWorks: NonNullable<House["siteWorks"
 const messages = (issues: HouseIssue[]) => issues.map((i) => `${i.part}: ${i.message}`);
 
 describe("the Site Works field", () => {
-  test("is optional, and Lyngen's and Senja's are valid", () => {
-    expect(parseHouse(kvaloya.house).ok).toBe(true);
-    expect((kvaloya.house as House).siteWorks).toBeUndefined();
+  test("is optional, and Lyngen's, Senja's and Kvaløya's are valid", () => {
+    expect(parseHouse(reine.house).ok).toBe(true);
+    expect((reine.house as House).siteWorks).toBeUndefined();
     expect(validateHouse(lyngen.house, { floorArea })).toEqual([]);
     expect(validateHouse(senja.house, { floorArea: senja.floorArea })).toEqual([]);
+    expect(validateHouse(kvaloya.house, { floorArea: kvaloya.floorArea })).toEqual([]);
   });
 
   test("keeps a Snow Shrub between 0.5 and 1.1 m across", () => {
@@ -36,7 +38,7 @@ describe("sitePlan", () => {
   const plan = sitePlan(lyngen.house)!;
 
   test("is left out for a House without Site Works", () => {
-    expect(sitePlan(kvaloya.house)).toBeUndefined();
+    expect(sitePlan(reine.house)).toBeUndefined();
   });
 
   test("stands a wall as boxes between its gaps", () => {
