@@ -1,14 +1,15 @@
 """The Interior's furniture kit and templates (docs/adr/0005-hero-interior-is-real-baked-geometry.md).
 
-build.py furnishes the room shell of a House's Interior with `furnish`: the kind's template, built from one
-shared low-poly kit and sized from the room. Everything is laid out in the room frame: x along the window
-wall from its left end seen from outside, y inward from that wall, z up from the finished floor. It returns
-the parts, each of one material from this module's palette, and the room's lamps. build.py places them in
-the House, joins them into the `interior` node with the room's walls, floor and ceiling, bakes them, and
-then gives them the GLB's one `interior` material: after the bake, the room's colours are in its texture.
+build.py furnishes the room shell of each of a House's Interiors with `furnish`: the kind's template, built
+from one shared low-poly kit and sized from the room. Everything is laid out in the room frame: x along the
+window wall from its left end seen from outside, y inward from that wall, z up from the finished floor. It
+returns the parts, each of one material from this module's palette, and the room's lamps. build.py places
+them in the House, joins them into the room's `interior` node with its walls, floor and ceiling, bakes them,
+and then gives them the GLB's one `interior` material: after the bake, the room's colours are in its texture.
 
 A lounge or a library with a fireplace puts it on the hearth wall, where the House's stone mass stands
-outside the room, if it has one; every other feature wall is the back wall, facing the window.
+outside the room, if it has one; a lounge with a TV puts it on the side wall it names; every other feature
+wall is the back wall, facing the window.
 """
 
 import math
@@ -135,6 +136,7 @@ def palette():
     material("canvas-warm", (0.62, 0.48, 0.32), 0.9)
     material("bedding", (0.72, 0.7, 0.66), 0.9, node=varied(25, 0.1))
     material("books", (0.3, 0.2, 0.15), 0.8, node=spines)
+    material("screen", (0.006, 0.006, 0.007), 0.2)
     material("shade", (0.8, 0.7, 0.55), 0.8, emission=lamp, strength=C.INTERIOR_SHADE_GLOW)
     material("disc", lamp, 0.5, emission=lamp, strength=C.INTERIOR_DISC_GLOW)
     material("fire", fire, 1.0, emission=fire, strength=C.INTERIOR_FIRE_GLOW)
@@ -378,6 +380,15 @@ def fireplace(wall, c, width, ceiling):
     light("POINT", x, y, sill + 0.3, C.INTERIOR_FIRE_WATTS, C.oklch_to_linear(*C.INTERIOR_FIRE), radius=0.25)
 
 
+def television(wall, c):
+    """A dark wall TV in a thin black frame, centred at c along a wall, over a long, low walnut media unit."""
+    tw, th, z = C.TV_WIDTH, C.TV_HEIGHT, 0.7
+    wall.box(c - 1.3, 0.0, 0.0, c + 1.3, 0.42, 0.45, "walnut")
+    wall.box(c - 1.28, 0.42, 0.06, c + 1.28, 0.425, 0.43, "black")  # the unit's doors, a shadow gap round them
+    wall.box(c - tw / 2, 0.02, z, c + tw / 2, 0.06, z + th, "black")
+    wall.box(c - tw / 2 + 0.015, 0.06, z + 0.015, c + tw / 2 - 0.015, 0.065, z + th - 0.015, "screen")
+
+
 def artwork(wall, c, z, w, h):
     """A quiet abstract canvas in a black frame: two fields of colour."""
     wall.box(c - w / 2 - 0.02, 0.0, z - 0.02, c + w / 2 + 0.02, 0.04, z + h + 0.02, "black")
@@ -471,16 +482,20 @@ def downlights(w, h, d, skip=None):
 
 
 def feature_wall(w, d, o, hearth):
-    """The wall a template turns to: the hearth wall for a fireplace, when the House has one, or else the
-    back wall. Returns it, the middle of what the room sees of it, and that span's length."""
-    name, u0, u1 = hearth if hearth and o.get("fireplace") else ("back", 0.0, w)
+    """The wall a template turns to: the hearth wall for a fireplace, when the House has one, the side wall it
+    names for a TV, or else the back wall. Returns it, the middle of what the room sees of it, and that span's
+    length."""
+    if o.get("tv"):
+        name, u0, u1 = o["tv"], 0.0, d
+    else:
+        name, u0, u1 = hearth if hearth and o.get("fireplace") else ("back", 0.0, w)
     return Wall(name, w, d), (u0 + u1) / 2, u1 - u0
 
 
 def lounge(w, h, d, o, hearth, rng):
-    """Seating round the fire, or round a table facing the back wall, with shelving and a lamp. A partition
-    stands in for the back wall, with a wide pivot door in it off-centre, on the side away from the fire,
-    and leaves the room behind it empty."""
+    """Seating round the fire, round a TV on a side wall, or round a table facing the back wall, with shelving
+    and a lamp. A partition stands in for the back wall, with a wide pivot door in it off-centre, on the side
+    away from the fire, and leaves the room behind it empty."""
     # the plaster of the back wall, from u0 to u1: all of it, or the partition's either side of its door
     u0, u1 = 0.0, w
     if o.get("partition"):
@@ -501,10 +516,17 @@ def lounge(w, h, d, o, hearth, rng):
     breast = min(2.4, span, wall.length * 0.36)
     if o.get("fireplace"):
         fireplace(wall, c, breast, h)
+    if o.get("tv"):
+        television(wall, c)
     top = min(3.2, h - 0.3)
+    # the seating's distance from the feature wall
+    v = min(2.4, (w if wall.name != "back" else d) / 3)
     if wall.name != "back":
-        # the fire is on a side wall: shelving, or a canvas over a sideboard, across from the window
+        # the fire or the TV is on a side wall: shelving, or a canvas over a sideboard, across from the window;
+        # beside a TV, behind the seating that faces it, which is where the glass looks
         m = (u0 + u1) / 2
+        if o.get("tv"):
+            m = wall.point(0.0, (v + 1.3) / 2)[0]
         if o.get("shelving"):
             shelving(back, u0 + 0.4, u1 - 0.4, 0.36, top, rng)
         else:
@@ -520,7 +542,6 @@ def lounge(w, h, d, o, hearth, rng):
     elif not o.get("fireplace"):
         artwork(back, c, 1.3, min(1.6, w * 0.3), 1.0)
     # a sofa across from the feature wall, armchairs either side, a table between
-    v = min(2.4, (w if wall.name != "back" else d) / 3)
     length = min(2.4, max(1.6, wall.length * 0.3))
     sofa(wall.frame(c, v + 1.3, wall.toward), length)
     armchair(wall.frame(c - length / 2 - 0.35, v, wall.plus))

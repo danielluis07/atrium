@@ -74,10 +74,18 @@ describe("Interiors", () => {
     if (parsed.ok) expect(parsed.house.stone).not.toHaveProperty("interior");
   });
 
-  test("a House has one Interior", () => {
+  test("a House may have several", () => {
     const house = broken((h) => (volume(h, "lower").interior = { kind: "dining" }));
+    expect(validateHouse(house, { floorArea })).toEqual([]);
+  });
+
+  test("each is checked on its own", () => {
+    const house = broken((h) => {
+      volume(h, "lower").interior = { kind: "dining" };
+      h.openings = h.openings.filter((o) => o.volume !== "lower");
+    });
     expect(validateHouse(house, { floorArea })).toEqual([
-      { part: "volume lower", message: "has an Interior, but main already has the House's one Interior" },
+      { part: "volume lower", message: "has an Interior, but no Glazing Face looks into it" },
     ]);
   });
 

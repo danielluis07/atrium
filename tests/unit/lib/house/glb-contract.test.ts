@@ -40,13 +40,15 @@ describe("committed House GLBs", () => {
         expect(checkGlbContract(load(project.slug), project, sceneLayout, { bakeHash: currentHash(project) })).toEqual([]);
       });
 
-      test("has its Interior's texture beside it as UASTC HDR KTX2, when it has an Interior", () => {
-        const { interior } = extrasOf(load(project.slug), project.slug);
-        expect(!!interior).toBe(project.house.volumes.some((v) => v.interior));
-        if (!interior) return;
-        const header = readKtx2Header(new Uint8Array(readFileSync(join(HOUSES_DIR, project.slug, interior.texture))));
-        expect(header?.colorModel).toBe(KHR_DF_MODEL_UASTC_HDR_4X4);
-        expect(header!.levels).toBe(fullMipChain(header!));
+      test("has each Interior's texture beside it as UASTC HDR KTX2", () => {
+        const { interior, otherInteriors = [] } = extrasOf(load(project.slug), project.slug);
+        const rooms = [...(interior ? [interior] : []), ...otherInteriors];
+        expect(rooms).toHaveLength(project.house.volumes.filter((v) => v.interior).length);
+        for (const { texture } of rooms) {
+          const header = readKtx2Header(new Uint8Array(readFileSync(join(HOUSES_DIR, project.slug, texture))));
+          expect(header?.colorModel).toBe(KHR_DF_MODEL_UASTC_HDR_4X4);
+          expect(header!.levels).toBe(fullMipChain(header!));
+        }
       });
 
       test("has its lightmaps beside it as UASTC HDR KTX2", () => {
@@ -207,7 +209,7 @@ describe("checkGlbContract", () => {
     expect(check(gltf)).toEqual([
       'extras.interior.volume is "lower", expected main',
       'extras.interior.kind is "bedroom", expected lounge',
-      'extras.interior.texture "interior.exr" is not a .ktx2 file name',
+      'extras.interior.texture is "interior.exr", expected "interior.ktx2"',
     ]);
     gltf.nodes.find((n) => n.name === "interior")!.name = "room";
     expect(check(gltf)).toEqual(expect.arrayContaining(["node interior is missing", "node room is not in the House record"]));
@@ -228,6 +230,39 @@ describe("checkGlbContract", () => {
       "extras.glazingFaces.living-front.interior is true, expected false",
       'extras.interior is {"volume":"main","kind":"lounge","texture":"interior.ktx2"}, but the record has no Interior',
     ]);
+  });
+
+  test("wants every other Interior in its own node, with its own texture", () => {
+    const project = structuredClone(lyngen) as Project;
+    project.house.volumes.find((v) => v.name === "lower")!.interior = { kind: "dining" };
+    expect(check(fresh(), project)).toEqual([
+      "node interior:lower is missing",
+      "extras.glazingFaces.dining-front.interior is false, expected true",
+      "extras.otherInteriors has 0 Interiors, expected 1 (lower)",
+      "extras.otherInteriors[0].volume is undefined, expected lower",
+      "extras.otherInteriors[0].kind is undefined, expected dining",
+      'extras.otherInteriors[0].texture is undefined, expected "interior-lower.ktx2"',
+    ]);
+    // a copy of the hero's node and extras, renamed, stands in for the bake
+    const gltf = fresh();
+    const hero = gltf.nodes.find((n) => n.name === "interior")!;
+    gltf.nodes.push({ ...hero, name: "interior:lower" });
+    rootOf(gltf, "lyngen").children!.push(gltf.nodes.length - 1);
+    const extras = extrasOf(gltf, "lyngen");
+    extras.glazingFaces["dining-front"].interior = true;
+    extras.otherInteriors = [{ volume: "lower", kind: "dining", texture: "interior-lower.ktx2" }];
+    expect(check(gltf, project)).toEqual([]);
+    delete gltf.meshes[hero.mesh!].primitives[0].attributes!.TEXCOORD_0;
+    expect(check(gltf, project)).toEqual([
+      "node interior has no TEXCOORD_0 for its baked texture",
+      "node interior:lower has no TEXCOORD_0 for its baked texture",
+    ]);
+    expect(check(gltf)).toEqual(
+      expect.arrayContaining([
+        "node interior:lower is not in the House record",
+        'extras.otherInteriors is [{"volume":"lower","kind":"dining","texture":"interior-lower.ktx2"}], but the record has one Interior at most',
+      ]),
+    );
   });
 
   test("fails on the wrong schema version, root or lightmaps", () => {

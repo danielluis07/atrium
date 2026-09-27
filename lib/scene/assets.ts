@@ -3,6 +3,7 @@
  * fetched from a third party at runtime.
  */
 
+import { interiorTexture } from "@/lib/house/derive";
 import { detailMaps, detailSet } from "@/lib/scene/detail";
 import type { ScenePath } from "@/lib/scene/policy";
 
@@ -16,18 +17,18 @@ const LIGHTMAP_LAYERS = ["base", "spill"] as const;
 export type LightmapNode = (typeof LIGHTMAP_NODES)[number];
 export type LightmapLayer = (typeof LIGHTMAP_LAYERS)[number];
 
-/** Which House, and whether it has an Interior (a `SceneProject` is one). */
-export type SceneHouse = { slug: string; interior: boolean };
+/** Which House, and its Interiors' GLB nodes, the hero Interior first (a `SceneProject` is one). */
+export type SceneHouse = { slug: string; interiors: string[] };
 
 export type HouseAssets = {
   glb: string;
   lightmaps: Record<LightmapNode, Record<LightmapLayer, string>>;
-  /** The Interior's baked KTX2 texture, for a House with an Interior. */
-  interior?: string;
+  /** Each Interior's baked KTX2 texture, by its GLB node. */
+  interiors: Record<string, string>;
 };
 
-/** A baked House: its GLB and the KTX2 lightmaps, and Interior texture, the builder writes beside it. */
-export function houseAssets({ slug, interior }: SceneHouse): HouseAssets {
+/** A baked House: its GLB and the KTX2 lightmaps, and Interior textures, the builder writes beside it. */
+export function houseAssets({ slug, interiors }: SceneHouse): HouseAssets {
   const dir = `/houses/${slug}`;
   const layers = (node: LightmapNode) =>
     Object.fromEntries(LIGHTMAP_LAYERS.map((layer) => [layer, `${dir}/lm-${node}-${layer}.ktx2`])) as Record<
@@ -37,7 +38,7 @@ export function houseAssets({ slug, interior }: SceneHouse): HouseAssets {
   return {
     glb: `${dir}/${slug}.glb`,
     lightmaps: Object.fromEntries(LIGHTMAP_NODES.map((node) => [node, layers(node)])) as HouseAssets["lightmaps"],
-    ...(interior ? { interior: `${dir}/interior.ktx2` } : {}),
+    interiors: Object.fromEntries(interiors.map((node) => [node, `${dir}/${interiorTexture(node)}`])),
   };
 }
 
@@ -64,10 +65,10 @@ export function sceneDownloads(houses: SceneHouse[], path: LivePath): string[] {
   ];
 }
 
-/** The Houses' files alone: each GLB, its lightmaps and its Interior's texture. */
+/** The Houses' files alone: each GLB, its lightmaps and its Interiors' textures. */
 export function houseDownloads(houses: SceneHouse[]): string[] {
   return houses.flatMap((house) => {
-    const { glb, lightmaps, interior } = houseAssets(house);
-    return [glb, ...Object.values(lightmaps).flatMap((l) => Object.values(l)), ...(interior ? [interior] : [])];
+    const { glb, lightmaps, interiors } = houseAssets(house);
+    return [glb, ...Object.values(lightmaps).flatMap((l) => Object.values(l)), ...Object.values(interiors)];
   });
 }

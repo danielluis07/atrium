@@ -3,8 +3,7 @@
  * builder JSON, skips every House whose committed bake is current, checks
  * the tools, then compiles and bakes the rest in headless Blender and
  * compresses the outputs into public/houses/<slug>/: a meshopt GLB and one
- * KTX2 (UASTC HDR) per lightmap and, for a House with an Interior, its
- * baked texture. One House at a time: a bake takes the whole CPU and most
+ * KTX2 (UASTC HDR) per lightmap and per Interior, its baked texture. One House at a time: a bake takes the whole CPU and most
  * of the RAM. Last, it stamps every House's Curtains into its GLB, which
  * needs no bake.
  *
@@ -69,10 +68,10 @@ export function stampHouse(dir: string, project: Project): boolean {
   return true;
 }
 
-/** The KTX2 files a House's extras name: its lightmaps, then its Interior's texture. */
+/** The KTX2 files a House's extras name: its lightmaps, then its Interiors' textures, the hero Interior's first. */
 const bakedFiles = (extras: HouseExtras) => [
   ...Object.values(extras.lightmaps ?? {}).flatMap((layers) => Object.values(layers)),
-  ...(extras.interior ? [extras.interior.texture] : []),
+  ...[...(extras.interior ? [extras.interior] : []), ...(extras.otherInteriors ?? [])].map((i) => i.texture),
 ];
 
 /** The bake hash of a House's exported JSON, as the builder will write it. */
@@ -122,7 +121,7 @@ export function bakeHouse(slug: string, mode: Mode, hash: string): void {
   ], { quiet: true });
   console.log(`  ${glb} ${kb(glb)}`);
 
-  // the Interior's texture is baked light too, colours and all
+  // an Interior's texture is baked light too, colours and all
   for (const file of bakedFiles(extras)) {
     const ktx2 = join(out, file);
     step(`${slug}: ktx create ${file}`, [
