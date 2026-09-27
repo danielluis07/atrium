@@ -9,7 +9,7 @@ import { CASTER_LAYER } from "@/components/scene/shadow";
 import type { SceneLayout } from "@/content/schema";
 import { oklchToLinear } from "@/lib/color";
 import { toThree } from "@/lib/scene/frame";
-import { placePines } from "@/lib/scene/pines";
+import { framingPines, placePines } from "@/lib/scene/pines";
 import type { PlinthRect } from "@/lib/scene/platform";
 
 /** Spruce in the dusk: a deep blue-green, nearly black against the snow. */
@@ -34,15 +34,15 @@ function pineGeometry(): BufferGeometry {
   return merged;
 }
 
-/** The sparse pines on the slope and the ridge, one draw call. */
-export function Pines({ plinths, overview }: { plinths: PlinthRect[]; overview: SceneLayout["overview"] }) {
+/** The sparse pines on the slope and the ridge, and each House's framing pines, one draw call. */
+export function Pines({ plinths, layout }: { plinths: PlinthRect[]; layout: SceneLayout }) {
   const ref = useRef<InstancedMesh>(null);
   const geometry = useMemo(() => pineGeometry(), []);
   const material = useMemo(() => skyLitMaterial(NEEDLES), []);
   const pines = useMemo(() => {
-    const [x, , z] = toThree(overview.position);
-    return placePines(plinths, [x, z]);
-  }, [plinths, overview]);
+    const [x, , z] = toThree(layout.overview.position);
+    return placePines(plinths, [x, z], framingPines(layout));
+  }, [plinths, layout]);
 
   useLayoutEffect(() => {
     const mesh = ref.current;

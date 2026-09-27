@@ -7,6 +7,7 @@ import {
   verticalExtent,
 } from "@/lib/house/derive";
 import { House, type Rect, type Slab, type Volume } from "@/lib/house/schema";
+import { checkSiteWorks } from "@/lib/house/site";
 
 /** One problem with a House, naming the part it is about (`opening living-front`). */
 export type HouseIssue = { part: string; message: string };
@@ -48,8 +49,9 @@ function describePath(input: unknown, path: PropertyKey[]): string {
  * don't overlap, only Glazing Faces hang Curtains, each Interior sits in
  * a volume of one Level that glass looks into and no void or terrace cuts
  * through, every slab touches a volume or the stone mass, names are
- * unique, and the gross floor area is within ±15% of the authored m².
- * Returns no issues when the House is valid.
+ * unique, the gross floor area is within ±15% of the authored m², and the
+ * Site Works fit the House (`checkSiteWorks`). Returns no issues when the
+ * House is valid.
  */
 export function validateHouse(house: House, { floorArea }: { floorArea: number }): HouseIssue[] {
   const issues: HouseIssue[] = [];
@@ -177,6 +179,9 @@ export function validateHouse(house: House, { floorArea }: { floorArea: number }
   if (house.section.at <= lo || house.section.at >= hi) {
     issue("section", `the cut at ${house.section.axis} = ${m(house.section.at)} misses the House`);
   }
+
+  // Site Works, once the rest of the House holds together
+  if (!issues.length) checkSiteWorks(house, issue);
 
   // Gross floor area
   if (volumesOk) {

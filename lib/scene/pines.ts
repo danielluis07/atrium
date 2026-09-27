@@ -1,4 +1,7 @@
-import { edgeDistance, slopeHeight, type PlinthRect } from "@/lib/scene/platform";
+import type { SceneLayout } from "@/content/schema";
+import { fromHouseFrame } from "@/lib/house/cameras";
+import { toThree } from "@/lib/scene/frame";
+import { edgeDistance, plinthHeight, slopeHeight, type PlinthRect } from "@/lib/scene/platform";
 import { WATER_LEVEL } from "@/lib/scene/terrain";
 
 /**
@@ -40,12 +43,39 @@ function generator(seed: number) {
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
 }
 
-/** The pines around the Houses' plinths, kept out of the overview `camera`'s view of them (plan x, z). */
-export function placePines(plinths: PlinthRect[], camera: readonly [number, number]): Pine[] {
+/** A pine placed by hand, closer to a House than the plinth clearance allows: plan x, z and its height. */
+export type FramingPine = { x: number; z: number; height: number };
+
+/** Every House's framing pines (`Placement.framing`, in its House frame), in three.js plan axes. */
+export function framingPines(layout: SceneLayout): FramingPine[] {
+  return Object.values(layout.houses).flatMap((placement) =>
+    (placement.framing ?? []).map(([x, y, height]) => {
+      const [px, , pz] = toThree(fromHouseFrame([x, y, 0], placement) as [number, number, number]);
+      return { x: px, z: pz, height };
+    }),
+  );
+}
+
+/**
+ * The pines around the Houses' plinths, kept out of the overview `camera`'s view of them (plan x, z), and
+ * the `framing` pines placed by hand, which stand on whatever plinth they are on and keep the others clear.
+ */
+export function placePines(
+  plinths: PlinthRect[],
+  camera: readonly [number, number],
+  framing: readonly FramingPine[] = [],
+): Pine[] {
   const random = generator(SEED);
   const between = (a: number, b: number) => a + (b - a) * random();
   const sights = plinths.map((rect) => houseSight(rect, camera));
-  const pines: Pine[] = [];
+  const pines: Pine[] = framing.map(({ x, z, height }, i) => ({
+    x,
+    z,
+    y: groundUnder(plinths, x, z),
+    height,
+    radius: height * 0.3,
+    turn: i * 2.1,
+  }));
 
   for (let c = 0; c < CLUMPS; c++) {
     const cx = between(...AREA.x);
@@ -67,6 +97,14 @@ export function placePines(plinths: PlinthRect[], camera: readonly [number, numb
     }
   }
   return pines;
+}
+
+/** The ground under a point: the plinth it stands on, bent onto the slope toward its edge, or the slope. */
+function groundUnder(plinths: PlinthRect[], x: number, z: number): number {
+  const on = plinths.map((rect, i) => ({ i, d: edgeDistance(rect, x, z) })).filter(({ d }) => d > 0);
+  if (!on.length) return slopeHeight(x, z);
+  const { i } = on.reduce((a, b) => (b.d > a.d ? b : a));
+  return plinthHeight(plinths, i, x, z, plinths[i].low);
 }
 
 type Sight = { bearing: number; halfWidth: number; distance: number };

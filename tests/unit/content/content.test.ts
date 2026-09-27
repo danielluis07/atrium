@@ -57,7 +57,7 @@ describe("the site's Content", () => {
     const layout = getSceneLayout();
     expect(layout.north).toBe(180);
     expect(Object.keys(layout.houses)).toEqual(getProjects().map((p) => p.slug));
-    expect(getPlacement("lyngen")).toEqual({ position: [0, 0], rotation: 10, ground: 0 });
+    expect(getPlacement("lyngen")).toMatchObject({ position: [0, 0], rotation: 10, ground: 0 });
   });
 
   test("serves the site copy", () => {

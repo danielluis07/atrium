@@ -160,31 +160,42 @@ export function interiorShell(house: House, volume: Volume): { rect: Rect; floor
 type Point = readonly [number, number];
 
 /**
+ * A point on a face of a volume `rect`: `a` along the face from its left
+ * edge seen from outside, `d` inward from the face plane (negative is
+ * outside). Mirrors `FaceFrame` in the builder.
+ */
+export function facePoint({ x0, y0, x1, y1 }: Rect, face: Face, a: number, d: number): Point {
+  switch (face) {
+    case "front":
+      return [x0 + a, y0 + d];
+    case "back":
+      return [x1 - a, y1 - d];
+    case "left":
+      return [x0 + d, y1 - a];
+    case "right":
+      return [x1 - d, y0 + a];
+  }
+}
+
+/** The plan rectangle between two corners. */
+export const rectBetween = ([ax, ay]: Point, [bx, by]: Point): Rect => ({
+  x0: Math.min(ax, bx),
+  y0: Math.min(ay, by),
+  x1: Math.max(ax, bx),
+  y1: Math.max(ay, by),
+});
+
+/**
  * Where an opening cuts into its volume, in plan: the recess from the face
  * plane `depth` inward, and the segment at its back where the fill sits.
- * Mirrors `FaceFrame` in the builder.
  */
 export function openingRecess(house: House, opening: Opening): { rect: Rect; back: [Point, Point] } {
   const volume = house.volumes.find((v) => v.name === opening.volume);
   if (!volume) throw new Error(`Unknown volume ${opening.volume}`);
-  const { x0, y0, x1, y1 } = volume.rect;
-  // `a` runs along the face from its left edge seen from outside, `d` inward
-  const point = (a: number, d: number): Point => {
-    switch (opening.face) {
-      case "front":
-        return [x0 + a, y0 + d];
-      case "back":
-        return [x1 - a, y1 - d];
-      case "left":
-        return [x0 + d, y1 - a];
-      case "right":
-        return [x1 - d, y0 + a];
-    }
-  };
+  const point = (a: number, d: number) => facePoint(volume.rect, opening.face, a, d);
   const [a0, a1] = [opening.at, opening.at + opening.width];
-  const [p, q] = [point(a0, 0), point(a1, opening.depth)];
   return {
-    rect: { x0: Math.min(p[0], q[0]), y0: Math.min(p[1], q[1]), x1: Math.max(p[0], q[0]), y1: Math.max(p[1], q[1]) },
+    rect: rectBetween(point(a0, 0), point(a1, opening.depth)),
     back: [point(a0, opening.depth), point(a1, opening.depth)],
   };
 }

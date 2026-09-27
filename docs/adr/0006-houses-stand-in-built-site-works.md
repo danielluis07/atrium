@@ -16,7 +16,7 @@ Status: accepted (2026-09-27). The Lyngen pilot ([#86](https://github.com/daniel
   - Download grows by **≤ 0.5 MB**, inside the 16 MB Houses budget.
   - The overview doesn't read busier.
 
-  #91 may tighten these once the kit is measured, and amends this ADR if it does.
+  #91 measured the kit against them and left them as they are (see Evidence).
 
 ## Why
 
@@ -36,12 +36,30 @@ Status: accepted (2026-09-27). The Lyngen pilot ([#86](https://github.com/daniel
 
 - **The House record grows site works** (#91): an optional field for the terrace, walls and their gaps, steps, path runs, apron, set-in lights and snow shrubs, validated against the House and part of the bake hash. `docs/design/house-schema.md` leaves steps and landscape walls out of the vocabulary on purpose, so #91 relaxes that rule for site works.
 - **The GLB grows an optional `site` node** with the shell's materials, which `scenePart` counts as its own "site works" line.
-- **The snow the pieces meet is the open cost.** In the pilot it was the plinth, refined over the site so it joins the pieces with no seam against the plinth's bake, edge fade or live shadow mask. That refinement costs 0.4–0.8 ms under "plinths" on top of the pieces' own draws. #91 finds a cheaper way that keeps those seams closed.
-- **The lightmap is #91's choice:** share the shell's atlas, as the pilot did, which dropped Lyngen's seen shell from about 25 to 21 texels/m, or give the `site` node its own at about 0.45 MB per House.
+- **The snow the pieces meet stays the plinth's** (#91). In the pilot the plinth was refined over the whole site rectangle, and every piece's edge ran a grid line right across it, which cost 0.4–0.8 ms under "plinths". The kit refines it only along the pieces and the snow's bends: the coarse grid's points, thinned where the features need points of their own, in a constrained Delaunay triangulation, with holes under the terrace, the steps, the paths and the aprons. Lyngen's plinth went from 5,000 triangles to 5,365. The drifts, banks and berms stay one surface with the plinth, so its bake, edge fade and live shadow mask run across them with no seam.
+- **The site works share the shell's lightmap** (#91). At Lyngen's final resolution the shared 1024² atlas gives the House and the site works 20.7 texels/m, where the shell alone had 23.9. A 512² lightmap of the `site` node's own would keep the shell at 23.9 and give the site works 33.6, but it costs about 0.45 MB per House in KTX2, nearly the whole 0.5 MB download gate. A 256² one would cost about 0.13 MB, but gives the site works only 16.8, less than they get sharing.
 - **Every House is baked again** when the builder version moves for the kit.
 - **The Project images change** (#76): Lyngen's hero, site and light images show its site works, and the other Houses' do once they have theirs.
 
 ## Evidence
+
+### The kit (#91)
+
+Lyngen rebuilt on the kit, with five Snow Shrubs added and its framing pines moved front-left, final bakes compared with `main`. Measured with the probe check in `scripts/perf`, alternating the builds, one server, no bake running. Medians of the loads (3 of each at rung 4; 6 of each at rung 6, from two runs in opposite orders):
+
+| Camera | Rung | Site works | Plinths (`main` → branch) | Together | Whole-frame p50 (`main` → branch) |
+|---|---|---|---|---|---|
+| Overview | 4 | 0.12 ms | 3.09 → 3.24 ms | 0.27 ms | 19.78 → 20.23 ms (+0.45) |
+| Lyngen | 4 | 0.48 ms | 5.29 → 4.83 ms | 0.02 ms | 18.62 → 19.00 ms (+0.38) |
+| Overview | 6 | 0.10 ms | 1.76 → 2.12 ms | 0.46 ms | 8.95 → 9.04 ms (+0.09) |
+| Lyngen | 6 | 0.24 ms | 2.27 → 2.06 ms | 0.03 ms | 7.99 → 8.07 ms (+0.08) |
+
+- **Selected camera.** At Lyngen the pieces hide the plinth under them, so its draw drops by about what the pieces cost.
+- **Rung-6 overview.** Every part rose about 12% in the branch's loads, including the terrain snow and the shells, which barely changed. So most of the plinths' +0.36 ms there is GPU state. Measured against the terrain snow in the same loads, the plinths rose about 0.08 ms.
+- **Download.** Lyngen's files grew by 0.10 MB (3,320,537 → 3,417,477 bytes: the GLB from 212 to 265 KB, the lightmaps within a few KB). The other Houses only carry a new bake hash.
+- **The gates hold unchanged.**
+
+### The pilot (#86)
 
 The pilot, #86 on Lyngen, with its code on the branch `prototype-lyngen-site-works` (#89, closed unmerged). The pieces were hard-coded for Lyngen in the builder:
 

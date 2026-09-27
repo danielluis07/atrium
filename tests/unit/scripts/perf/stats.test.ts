@@ -34,6 +34,9 @@ describe("scenePart", () => {
     expect(scenePart("fb3 | ? [envMapRotation,openSnow,openSnowIntensity,envMap,dfgLUT] | mid")).toBe("mountains");
     expect(scenePart("fb3 | snow [envMapRotation,spillK,lightDim,reliefKey,envMap,dfgLUT,spillMap] | small")).toBe("House shells");
     expect(scenePart("fb3 | ? [] | small")).toBe("Interiors");
+    expect(scenePart("fb3 | site-snow [envMapRotation,spillK,lightDim,reliefKey,envMap,dfgLUT,spillMap] | small")).toBe(
+      "site works",
+    );
     expect(scenePart("fb6 | DownsamplingMaterial [texelSize,inputBuffer] | small")).toBe("bloom");
     expect(scenePart("fb3 | ? [uHouse,uWarm,uGlow,uRoom,uGlass,uZenith,uHorizon,uSnow] | small")).toBe("glazing");
     expect(scenePart("fb3 | Something [x] | small")).toBe("other");

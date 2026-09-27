@@ -76,6 +76,8 @@ type PreparedHouse = {
   slug: string;
   root: Object3D;
   plinth: Mesh;
+  /** Its Site Works' meshes, which stand on the plinth and bend with it. */
+  site: Mesh[];
   rect: PlinthRect;
   materials: Material[];
   /** The shell's baked light, which hover and dim adjust. */
@@ -189,7 +191,10 @@ export function Houses({
       );
     });
     const rects = prepared.map((h) => h.rect);
-    prepared.forEach((h, i) => fitPlinth(h.plinth, rects, i));
+    prepared.forEach((h, i) => {
+      fitPlinth(h.plinth, rects, i);
+      for (const mesh of h.site) fitSite(mesh, rects, i);
+    });
     return prepared;
     // slugs and assets follow the houses
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,6 +204,7 @@ export function Houses({
     () => () => {
       for (const h of houses) {
         h.plinth.geometry.dispose();
+        for (const mesh of h.site) mesh.geometry.dispose();
         for (const m of h.materials) m.dispose();
       }
     },
@@ -256,7 +262,7 @@ export function Houses({
         <primitive key={h.slug} object={h.root} dispose={null} {...pickHandlers(h.slug)} />
       ))}
       <Terrain plinths={rects} north={layout.north} shadow={shadows ? shadow : undefined} snow={snow} />
-      <Pines plinths={rects} overview={layout.overview} />
+      <Pines plinths={rects} layout={layout} />
     </>
   );
 }
@@ -367,12 +373,18 @@ function prepareHouse(
   };
 
   let plinth: Mesh | undefined;
+  const site: Mesh[] = [];
   root.traverse((o) => {
     if (!(o instanceof Mesh)) return;
     const source = o.material as Material;
     const part = partOf(o);
     o.material =
-      source.name === "glazing" ? pane(o, part) : source.name === "interior" ? room(part) : material(source.name, source);
+      source.name === "glazing"
+        ? pane(o, part)
+        : source.name === "interior"
+          ? room(part)
+          : material(part === "site" ? `${SITE}${source.name}` : source.name, source);
+    if (part === "site") site.push(o);
     if (!UNSHADOWED.has(source.name)) o.layers.enable(CASTER_LAYER);
     if (source.name === "plinth") plinth = o;
     // a room draws after the House's other opaque parts, so the depth test drops what its walls hide
@@ -381,8 +393,9 @@ function prepareHouse(
   });
   if (!plinth) throw new Error(`${slug}.glb has no plinth`);
 
-  // the plinth is reshaped to meet the terrain, so it gets its own geometry
+  // the plinth is reshaped to meet the terrain, and the site works with it, so they get their own geometry
   plinth.geometry = plinth.geometry.clone();
+  for (const mesh of site) mesh.geometry = mesh.geometry.clone();
   const box = new Box3().setFromBufferAttribute(plinth.geometry.getAttribute("position") as Float32BufferAttribute);
   box.applyMatrix4(toHouse.clone().multiply(plinth.matrixWorld));
 
@@ -393,12 +406,14 @@ function prepareHouse(
     slug,
     root,
     plinth,
+    site,
     rect: {
       origin: [position[0], position[2]],
       rotationY,
       min: [box.min.x, box.min.z],
       max: [box.max.x, box.max.z],
       low: position[1] + extras.datum.plinth,
+      bottom: position[1] + box.min.y,
     },
     materials: [...byName.values(), ...rooms.values(), ...panes],
     light: shellSpill,
@@ -432,7 +447,13 @@ function partOf(o: Object3D): string | undefined {
   }
 }
 
-/** Only a House's shell and glazing select it; the balustrade glass, the lights and the plinth let the pointer through. */
+/**
+ * Site Works take the shell's materials and lightmap under their own names and programs, so the probe
+ * counts their draws apart (`scenePart`).
+ */
+const SITE = "site-";
+
+/** Only a House's shell and glazing select it; the balustrade glass, the lights, the plinth and the site works let the pointer through. */
 const pickable = (part: string | undefined) => part === "shell" || !!part?.startsWith("glazing:");
 
 /** Eases a House a frame toward its hover and dim, and lights it accordingly. */
@@ -483,10 +504,13 @@ function makeMaterial(
     }
     default: {
       // concrete, stone, timber, metal, snow: the builder's own colours, lit by the bake, and
-      // all but metal with the shared detail maps over them
-      const m = baked(source, lightmaps.shell.base, name === "metal" ? 1 : DIELECTRIC_ENVIRONMENT);
-      if (isDetailMaterial(name)) withDetail(m, name, details[name]);
-      patchLightmap(m, lightmaps.shell.spill, shellSpill, { relief });
+      // all but metal with the shared detail maps over them; the site works' the same, apart
+      const site = name.startsWith(SITE);
+      const base = site ? name.slice(SITE.length) : name;
+      const m = baked(source, lightmaps.shell.base, base === "metal" ? 1 : DIELECTRIC_ENVIRONMENT);
+      if (isDetailMaterial(base)) withDetail(m, base, details[base]);
+      patchLightmap(m, lightmaps.shell.spill, shellSpill, { relief, program: site ? "site" : undefined });
+      m.name = name;
       return m;
     }
   }
@@ -527,4 +551,25 @@ function fitPlinth(plinth: Mesh, rects: PlinthRect[], index: number) {
   plinth.geometry.computeVertexNormals();
   plinth.geometry.computeBoundingBox();
   plinth.geometry.computeBoundingSphere();
+}
+
+/**
+ * Moves a House's site works with its plinth where the plinth bends onto the
+ * slope: each point by as much as the plinth's lowest floor moves under it,
+ * so the pieces stay set in the snow around them.
+ */
+function fitSite(mesh: Mesh, rects: PlinthRect[], index: number) {
+  const { low } = rects[index];
+  const source = mesh.geometry.getAttribute("position");
+  const positions = new Float32Array(source.count * 3);
+  const toLocal = mesh.matrixWorld.clone().invert();
+  const p = new Vector3();
+  for (let i = 0; i < source.count; i++) {
+    p.fromBufferAttribute(source, i).applyMatrix4(mesh.matrixWorld);
+    p.y += plinthHeight(rects, index, p.x, p.z, low) - low;
+    p.applyMatrix4(toLocal).toArray(positions, i * 3);
+  }
+  mesh.geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  mesh.geometry.computeBoundingBox();
+  mesh.geometry.computeBoundingSphere();
 }
