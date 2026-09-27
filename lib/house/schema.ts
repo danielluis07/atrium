@@ -44,6 +44,9 @@ export const InteriorKind = z.enum(["lounge", "dining", "kitchen", "library", "b
 
 const Lamp = z.enum(["floor", "pendant"]);
 
+/** A side wall of an Interior's room, as seen from outside its window. */
+const Side = z.enum(["left", "right"]);
+
 /**
  * The furnished room inside a volume (ADR 0005): a kind and the few named
  * options its template in the builder honours. Each kind accepts only its
@@ -57,7 +60,11 @@ const Lamp = z.enum(["floor", "pendant"]);
  * left or right as seen from outside, with the sofa facing it side-on to
  * the glass; it takes the fire's place, so a lounge has one or the other.
  * A dining room's `kitchen` is a kitchen run along its back wall, behind
- * the table.
+ * the table. A bedroom's bed faces the window with its head to the back
+ * wall, or with `bedside` its head to the side wall it names, left or right
+ * as seen from outside, so the glass sees it side-on; its `tv` is a dark
+ * wall TV over a low walnut unit on the side wall across from the bed,
+ * facing it, so it needs a `bedside`.
  */
 export const Interior = z.discriminatedUnion("kind", [
   z.strictObject({
@@ -67,12 +74,18 @@ export const Interior = z.discriminatedUnion("kind", [
     shelving: z.boolean().optional(),
     partition: positive.optional(),
     door: z.boolean().optional(),
-    tv: z.enum(["left", "right"]).optional(),
+    tv: Side.optional(),
   }),
   z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional(), kitchen: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("kitchen"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("library"), fireplace: z.boolean().optional(), lamp: Lamp.optional() }),
-  z.strictObject({ kind: z.literal("bedroom"), lamp: Lamp.optional(), partition: positive.optional() }),
+  z.strictObject({
+    kind: z.literal("bedroom"),
+    lamp: Lamp.optional(),
+    partition: positive.optional(),
+    bedside: Side.optional(),
+    tv: z.boolean().optional(),
+  }),
 ]);
 
 /**

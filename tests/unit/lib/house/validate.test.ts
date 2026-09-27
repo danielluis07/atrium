@@ -42,6 +42,8 @@ describe("Interiors", () => {
     expect(withInterior({ kind: "library", fireplace: true, lamp: "pendant" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom", lamp: "floor", partition: 5 }).ok).toBe(true);
+    expect(withInterior({ kind: "bedroom", bedside: "right", tv: true }).ok).toBe(true);
+    expect(withInterior({ kind: "bedroom", bedside: "left", tv: false }).ok).toBe(true);
     expect(withInterior({ kind: "lounge", fireplace: true, partition: 5.8, door: true }).ok).toBe(true);
     expect(withInterior({ kind: "dining", lamp: "pendant", kitchen: true }).ok).toBe(true);
     expect(withInterior({ kind: "dining", shelving: true, kitchen: false }).ok).toBe(true);
@@ -59,6 +61,9 @@ describe("Interiors", () => {
       { kind: "dining", kitchen: "yes" },
       { kind: "lounge", partition: -1 },
       { kind: "bedroom", partition: 0 },
+      { kind: "bedroom", bedside: "back" },
+      { kind: "bedroom", tv: "left" },
+      { kind: "lounge", bedside: "left" },
     ]) {
       const result = withInterior(bad);
       expect(result.ok).toBe(false);

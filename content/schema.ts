@@ -160,6 +160,10 @@ export function validateProject(project: Project): HouseIssue[] {
         });
       }
     }
+    if (interior.kind === "bedroom") {
+      issues.push(...bedsideIssues(house, room, window, partition));
+      continue;
+    }
     if (interior.kind !== "lounge") continue;
     const { floor } = interiorShell(house, room);
     const limit = partition ?? inward.depth;
@@ -193,6 +197,67 @@ export function validateProject(project: Project): HouseIssue[] {
         part: `volumes.${room.name}.interior`,
         message: "has a fireplace and a TV, but a lounge turns to one or the other",
       });
+    }
+  }
+  return issues;
+}
+
+/**
+ * A bed against a side wall: how much of that wall the bed and its
+ * nightstands take, in front of the back wall or the partition, and how
+ * wide the room must be across, for the bed and a TV unit facing it, metres.
+ */
+const BEDSIDE_RUN = 3.3;
+const BEDSIDE_ACROSS = 3.5;
+
+/** The House face each side wall of a room is on, by the face its window is on: the left and right seen from outside. */
+const SIDE_FACES: Record<Face, Record<"left" | "right", Face>> = {
+  front: { left: "left", right: "right" },
+  back: { left: "right", right: "left" },
+  left: { left: "back", right: "front" },
+  right: { left: "front", right: "back" },
+};
+
+/**
+ * A bedroom's `bedside` and `tv`, as the builder's `bedroom` places them: the
+ * bed's head against the side wall `bedside` names, at the back of the room
+ * in front of any partition, and the TV across from it on the other side
+ * wall. Both walls need the room for them, and no glass or door there.
+ */
+function bedsideIssues(house: House, room: House["volumes"][number], window: House["openings"][number], partition?: number): HouseIssue[] {
+  const interior = room.interior;
+  if (interior?.kind !== "bedroom") return [];
+  const part = `volumes.${room.name}.interior`;
+  const { bedside, tv } = interior;
+  if (!bedside) {
+    return tv ? [{ part, message: "has a TV, but no bedside: the TV faces the bed from a side wall, so the bed's head needs the other" }] : [];
+  }
+  const shell = interiorShell(house, room).rect;
+  const inward = inFrom(shell, window.face);
+  const limit = partition ?? inward.depth;
+  const behind = partition === undefined ? "the back wall" : "the partition";
+  const across = window.face === "front" || window.face === "back" ? shell.x1 - shell.x0 : shell.y1 - shell.y0;
+  const issues: HouseIssue[] = [];
+  if (across < BEDSIDE_ACROSS) {
+    issues.push({ part, message: `is ${across.toFixed(2)} m across: a bed against a side wall needs ${BEDSIDE_ACROSS} m` });
+  }
+  if (limit < BEDSIDE_RUN) {
+    issues.push({ part, message: `is ${limit.toFixed(2)} m deep in front of ${behind}: a bed against a side wall takes ${BEDSIDE_RUN} m of it` });
+  }
+  const walls: ["bed" | "TV", "left" | "right"][] = [["bed", bedside]];
+  if (tv) walls.push(["TV", bedside === "left" ? "right" : "left"]);
+  for (const [what, side] of walls) {
+    const face = SIDE_FACES[window.face][side];
+    for (const o of house.openings) {
+      if (o.volume !== room.name || o.face !== face) continue;
+      const [a, b] = openingRecess(house, o).back.map(inward.at);
+      const [lo, hi] = [Math.min(a, b), Math.max(a, b)];
+      if (hi > limit - BEDSIDE_RUN + 1e-6 && lo < limit - 1e-6) {
+        issues.push({
+          part,
+          message: `its ${what} stands against the ${side} wall, but ${o.name} is there, ${lo.toFixed(2)} to ${hi.toFixed(2)} m in from ${window.name}: the ${what} takes the ${BEDSIDE_RUN} m in front of ${behind}`,
+        });
+      }
     }
   }
   return issues;

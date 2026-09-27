@@ -37,7 +37,7 @@ Any furnished room of a House: the room inside one volume, seen through every Gl
 _Avoid_: room, set, furniture layout
 
 **Hero Interior**:
-A House's main Interior: the one behind the Glazing Face its Project's interior image names. Every House has one, and a House may have other Interiors besides it (Senja's living room, under the bar).
+A House's main Interior: the one behind the Glazing Face its Project's interior image names. Every House has one, and a House may have other Interiors besides it (Senja's living room, under the bar, and Reine's bedroom, on the top floor).
 _Avoid_: main room, showroom
 
 **Curtain**:

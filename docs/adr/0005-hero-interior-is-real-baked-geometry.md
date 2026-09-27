@@ -1,12 +1,12 @@
 # The hero Interior is real baked geometry
 
-Status: accepted (2026-09-25), amended (2026-09-26, #74: a House may have several Interiors, and glass may be walled up for composition). The Lyngen prototype (#59) passed its frame and download budget on the Vega 10 (see Evidence). It supersedes ADR 0004.
+Status: accepted (2026-09-25), amended (2026-09-26, #74: a House may have several Interiors, and glass may be walled up for composition; #75: Reine's second Interior, a bedroom). The Lyngen prototype (#59) passed its frame and download budget on the Vega 10 (see Evidence). It supersedes ADR 0004.
 
 The room cards of ADR 0004 were cheap, but they read as flat drawings when a selected House is orbited. Real furniture is part of the design. Its frame cost stays small if it is baked like the Houses: the lighting is in lightmaps, and the Vega is limited by pixel work and post-processing, not triangles. So we pay for real geometry, and we bound it by the number of rooms, not by removing glass.
 
 ## Decision
 
-- **A hero Interior per House, and more Interiors where they earn it.** The hero Interior is the room inside the volume behind the Glazing Face the Project's interior image names. Each Interior is a real room shell (floor, walls, ceiling) with furniture from one shared kit, and every Glazing Face into its volume looks into it. After the grilling in #65, a House may have several: Senja's lower room, whose glass was the largest in the Scene, is a living room besides its hero bedroom (#74). Other seen glazing keeps the procedural room, sized from the record, behind a warm Curtain.
+- **A hero Interior per House, and more Interiors where they earn it.** The hero Interior is the room inside the volume behind the Glazing Face the Project's interior image names. Each Interior is a real room shell (floor, walls, ceiling) with furniture from one shared kit, and every Glazing Face into its volume looks into it. After the grilling in #65, a House may have several: Senja's lower room, whose glass was the largest in the Scene, is a living room besides its hero bedroom (#74), and Reine's top floor is a bedroom above its hero kitchen (#75). Other seen glazing keeps the procedural room, sized from the record, behind a warm Curtain.
 - **Glass is not removed to save cost.** A room is paid for once, however many faces look into it. Glass may be walled up for composition, where a House reads better with less of it: Senja's `lower-side`, and the half of `lower-front` away from the stone wall (#74).
 - **Bake.** Headless Blender (ADR 0001) builds the shell and furniture from the record and a template per kind, with no per-House code. Cycles bakes them with the room's lamps and downlights into the House's lightmaps. Furniture is low-poly and sized to be read from the arc distance. It is merged by material.
 - **Live.** A hero Glazing Face is drawn as glass over the real room, with the existing sky reflection and hover glow. No real-time lights.
@@ -31,6 +31,7 @@ The room cards of ADR 0004 were cheap, but they read as flat drawings when a sel
 - An Interior lives on its volume in the House record, and every Glazing Face into that volume looks into it. A volume with an Interior spans one Level, and no void or terrace cuts through it.
 - **Several Interiors** (#74). Each has a window, the Glazing Face its template turns to and its options are measured from: the interior image's face for the hero, and its largest Glazing Face for another (`interiors` in `lib/house/derive.ts`, which lists the hero first). Each is its own GLB node and bakes into its own texture: the hero keeps `interior` and `interior.ktx2`, and another is `interior:<volume>` with `interior-<volume>.ktx2`. The builder JSON gives the others as `otherInteriors`, only when there are some, so the Houses with one Interior kept their bake hashes and weren't baked again. The Scene loads every texture and gives each room its own unlit material; they share one shader program, one draw call per room.
 - A lounge may take a `tv` (Senja, #74) in place of a fireplace: a dark wall TV over a walnut media unit on the side wall it names, with the sofa facing it side-on to the glass and a canvas over a sideboard on the back wall behind the seating.
+- A bedroom may take a `bedside` (Reine, #75): the side wall its bed's head is against, so the glass sees the bed side-on, and with it a `tv`: the lounge's wall TV and media unit on the other side wall, facing the bed.
 
 ## Evidence
 
@@ -169,3 +170,25 @@ After the grilling in #65, Senja's lower floor becomes a second Interior, and pa
 - **Download.** `interior-lower.ktx2` is 0.90 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H). Senja's shell lightmaps shrank by 0.16 MB with less glass. The Houses went from 12.21 to 12.94 MB over the wire, of 16 MB, and the Scene from 17.85 to 18.58 MB, of 24 MB.
 - **Bake.** Senja alone, final mode: 21.2 minutes, of which the living room takes 9.4 and the bedroom 6.9.
 - **Not changed.** The plinth leaves a hole under each Interior's whole room shell. Under Senja's bar that includes the snow below the cantilever, 3.2 m under the bedroom's floor, where the terrain shows through as a darker patch in front of `lower-front`. It was there before this change (#64), and fixing it changes Reine's plinth too, so it is left for its own issue (#84).
+
+### Reine's bedroom (#75)
+
+After the grilling in #65, Reine's top floor becomes a second Interior: a bedroom in `top` (L2, 8.4 × 7.4 m inside, 3.06 m high), seen through `bedroom-front`, its largest Glazing Face. The kitchen in `middle` stays the hero Interior, and its build is unchanged: the same 1,140 triangles after culling. `kitchen-front`, which opens into `base`, is renamed `base-front`. `bedroom-side` now looks into the bedroom, so it loses its Curtain.
+
+- **Two bedroom options.** `bedside` puts the bed's head against the side wall it names, as far back as the back wall or partition allow, so the glass sees it side-on; the wardrobe moves to the back wall, on the far side from the bed, and the reading chair to the window's corner on that side. `tv` hangs the lounge's wall TV over its walnut media unit on the other side wall, facing the bed, so it needs a `bedside`. `validateProject` checks that the bed and the TV each have the 3.3 m of their wall in front of the back wall or partition free of glass and doors, and that the room is at least 3.5 m across. Without `bedside` the template builds exactly what it did: for Senja's bedroom and four other rooms, main's and this branch's `interior.py` give the same pieces, vertices and lamps, so Senja keeps its bake and the builder version stays.
+- **The room.** The bed's head is on the right wall, 4.15 to 7.1 m in from the glass with its nightstands, clear of `bedroom-side` (0.7 to 3.9 m in). The TV and a 2.6 m walnut unit face it from the left wall, a wardrobe stands on the back wall, and a reading chair and floor lamp are in the window's left corner. 64 pieces and 1,276 triangles after culling, with 15 lamps (12 downlights, the two table lamps and the floor lamp).
+- **Reading.** From the hero camera toward the stone wall, the bed, its lamps and the bench read side-on through `bedroom-front`, until the wall hides the room near the arc's end. From the arc's other end, the TV over its unit reads on the left wall, with the wardrobe beside it on the back wall, and the bed shows through `bedroom-side`.
+- **Texture.** It stays at 1024², in its own `interior-top.ktx2`. The seen faces get 61 texels/m, as the kitchen's 62, and across the arc the bed, the TV and the wardrobe read sharp.
+- **Frame cost.** The probe check (`scripts/perf/README.md`) against `main` at a054f4b: rung 4, 3 loads per build in A B B A A B order, no bake running. The first `main` load was cold (overview p50 14.0 ms). Every load stayed at rung 4. Medians of loads, ms per frame:
+
+  | | Overview | Reine selected |
+  |---|---|---|
+  | Interiors, `main` → branch | 0.14 → 0.18 | 0.10 → 0.23 |
+  | House shells, `main` → branch | 0.84 → 0.84 | 1.88 → 1.82 |
+  | Glazing, `main` → branch | 0.13 → 0.13 | 0.15 → 0.08 |
+  | Whole-frame GPU p50, `main` → branch | 19.75 → 20.27 | 17.26 → 17.66 |
+
+  The Interiors part rises by 0.04 and 0.13 ms, inside the 0.5 ms bar, and glazing falls at the selected camera, where the bedroom's glass is clear glass over the room rather than the procedural room. The whole-frame p50 moves by +0.52 and +0.40 ms, within the part's rise plus 0.5 ms. At the overview that gap comes from the cold first `main` load: in the two warm pairs the branch differs by +0.24 and −0.08 ms.
+- **Download.** `interior-top.ktx2` is 0.84 MB (1024², UASTC HDR; 1.40 MB of GPU memory as BC6H). Reine's shell lightmaps shrank by 0.07 MB and its GLB grew by 0.02 MB. The Houses went from 12.94 to 13.71 MB over the wire, of 16 MB, and the Scene from 18.58 to 19.35 MB, of 24 MB.
+- **Bake.** Reine alone, final mode: 19.4 minutes, of which the bedroom takes 7.7 and the kitchen 6.3.
+- **Not changed.** The plinth hole (#84) now also runs under `top`'s room shell, including the strip where `top` overhangs `base` beside the stone wall. In screenshots from the hero camera and across the arc, the snow there looks the same as on `main`, where `middle`'s overhang already has one. #84 fixes both.

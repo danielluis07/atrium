@@ -120,7 +120,7 @@ INTERIOR_OPTIONS = {
     "dining": {"lamp": ("floor", "pendant"), "shelving": bool, "kitchen": bool},
     "kitchen": {"lamp": ("floor", "pendant"), "shelving": bool},
     "library": {"fireplace": bool, "lamp": ("floor", "pendant")},
-    "bedroom": {"lamp": ("floor", "pendant"), "partition": float},
+    "bedroom": {"lamp": ("floor", "pendant"), "partition": float, "bedside": ("left", "right"), "tv": bool},
 }
 INTERIOR_FINISH = 0.02  # the finished floor and ceiling stand this far inside the room shell, clear of the concrete
 INTERIOR_COLOR_SAMPLES = 16  # spp for the colour and emission bakes, which are noiseless
@@ -139,7 +139,7 @@ DOOR_HEIGHT = 2.1
 PIVOT_WIDTH = 1.6  # a lounge's pivot door
 PIVOT_HEIGHT = 2.7
 WORKTOP_DEPTH = 0.64  # a kitchen run, out from its wall
-TV_WIDTH = 1.65  # a lounge's wall TV, about 75 inches
+TV_WIDTH = 1.65  # a lounge's or a bedroom's wall TV, about 75 inches
 TV_HEIGHT = 0.95
 INTERIOR_EXPOSURE = 2.0  # scales the whole baked room, to sit with the procedural rooms beside it
 
