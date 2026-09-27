@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { interiorShell, interiorVolume, openingRecess, verticalExtent } from "@/lib/house/derive";
+import { interiors, interiorShell, interiorVolumes, openingRecess, verticalExtent } from "@/lib/house/derive";
 import { House, type Face, type Rect } from "@/lib/house/schema";
 import { validateHouse, type HouseIssue } from "@/lib/house/validate";
 
@@ -88,10 +88,10 @@ export type SceneLayout = z.infer<typeof SceneLayout>;
 
 /**
  * A Project as the client Scene gets it: none of its House, write-up or
- * images, only whether its House has an Interior, whose baked texture joins
- * the Scene's downloads.
+ * images, only its Interiors' GLB nodes, the hero Interior first, whose
+ * baked textures join the Scene's downloads.
  */
-export const sceneProject = ({ slug, name, location, elevation, year, floorArea, lede, camera, house }: Project) => ({
+export const sceneProject = ({ slug, name, location, elevation, year, floorArea, lede, camera, house, images }: Project) => ({
   slug,
   name,
   location,
@@ -100,49 +100,59 @@ export const sceneProject = ({ slug, name, location, elevation, year, floorArea,
   floorArea,
   lede,
   camera,
-  interior: !!interiorVolume(house),
+  interiors: interiors(house, images.interior.glazingFace).map((i) => i.node),
 });
 
 /** How much room a partition leaves in front of it, for the furniture, and behind it, metres. */
 const PARTITION_FRONT = 3.5;
 const PARTITION_BEHIND = 1.0;
 
-/** Everything `validateHouse` checks, plus the parts of the record that point into the House. */
+/**
+ * Everything `validateHouse` checks, plus the parts of the record that point
+ * into the House: the interior image looks out of the hero Interior, and
+ * each Interior's options fit its room, measured in from its window (the
+ * Glazing Face its template turns to).
+ */
 export function validateProject(project: Project): HouseIssue[] {
-  const issues = validateHouse(project.house, { floorArea: project.floorArea });
+  const { house } = project;
+  const issues = validateHouse(house, { floorArea: project.floorArea });
   const face = project.images.interior.glazingFace;
-  const opening = project.house.openings.find((o) => o.name === face);
+  const opening = house.openings.find((o) => o.name === face);
   if (!opening || opening.fill !== "glazing") {
     issues.push({
       part: "images.interior",
       message: `looks out through ${face}, which is not a Glazing Face of the House`,
     });
-  } else {
-    // the image shows the Hero Interior, so it looks out of the room that has one
-    const room = interiorVolume(project.house);
-    if (room && opening.volume !== room.name) {
+    return issues;
+  }
+  // the image shows the hero Interior, so it looks out of a room that has one
+  const rooms = interiorVolumes(house);
+  if (rooms.length && !rooms.some((v) => v.name === opening.volume)) {
+    const names = rooms.map((v) => v.name);
+    issues.push({
+      part: "images.interior",
+      message:
+        names.length === 1
+          ? `looks out through ${face}, which is in ${opening.volume}, not ${names[0]}, which has the Interior`
+          : `looks out through ${face}, which is in ${opening.volume}, not ${names.join(" or ")}, which have the Interiors`,
+    });
+  }
+  for (const { volume: room, window } of interiors(house, face)) {
+    const interior = room.interior!;
+    // a partition (bedroom, lounge) runs across the room, measured in from its window
+    const partition = "partition" in interior ? interior.partition : undefined;
+    const inward = inFrom(interiorShell(house, room).rect, window.face);
+    if (partition !== undefined && (partition < PARTITION_FRONT || partition > inward.depth - PARTITION_BEHIND)) {
       issues.push({
-        part: "images.interior",
-        message: `looks out through ${face}, which is in ${opening.volume}, not ${room.name}, which has the Interior`,
+        part: `volumes.${room.name}.interior`,
+        message: `its partition is ${partition} m in from ${window.name}, in a room ${inward.depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the ${interior.kind} and ${PARTITION_BEHIND} m behind`,
       });
     }
-    // a partition (bedroom, lounge) runs across the room, measured in from the glass the image looks out through
-    const interior = room?.interior;
-    const partition = interior && "partition" in interior ? interior.partition : undefined;
-    const inward = room && opening.volume === room.name ? inFrom(interiorShell(project.house, room).rect, opening.face) : undefined;
-    if (room && interior && partition !== undefined && inward) {
-      if (partition < PARTITION_FRONT || partition > inward.depth - PARTITION_BEHIND) {
-        issues.push({
-          part: `volumes.${room.name}.interior`,
-          message: `its partition is ${partition} m in from ${face}, in a room ${inward.depth.toFixed(2)} m deep: it must leave ${PARTITION_FRONT} m for the ${interior.kind} and ${PARTITION_BEHIND} m behind`,
-        });
-      }
-    }
     // a Curtain hangs where no furnished room is seen: into no Interior, or into the empty room behind the partition
-    for (const o of project.house.openings) {
-      if (!o.curtain || !room || o.volume !== room.name) continue;
-      const glass = openingRecess(project.house, o).back;
-      const behind = partition !== undefined && inward && Math.min(...glass.map(inward.at)) >= partition - 1e-6;
+    for (const o of house.openings) {
+      if (!o.curtain || o.volume !== room.name) continue;
+      const glass = openingRecess(house, o).back;
+      const behind = partition !== undefined && Math.min(...glass.map(inward.at)) >= partition - 1e-6;
       if (!behind) {
         issues.push({
           part: `opening ${o.name}`,
@@ -150,33 +160,39 @@ export function validateProject(project: Project): HouseIssue[] {
         });
       }
     }
-    if (room && interior?.kind === "lounge" && opening.volume === room.name) {
-      const { floor } = interiorShell(project.house, room);
-      const limit = partition ?? inward!.depth;
-      // a lounge's door opens into the room beside it: another volume on its floor, high enough for a door,
-      // against a wall of the room in front of any partition (the builder's `beside` and `side_door`)
-      const fits = (c: Contact) =>
-        c.wall === "side" ? Math.min(c.span[1], limit) - c.span[0] >= DOOR_SPAN : partition === undefined && c.span[1] - c.span[0] >= DOOR_SPAN;
-      const beside = project.house.volumes.filter((v) => {
-        const { bottom, top } = verticalExtent(project.house, v);
-        return v !== room && bottom <= floor + 1e-6 && top >= floor + DOOR_HEIGHT;
+    if (interior.kind !== "lounge") continue;
+    const { floor } = interiorShell(house, room);
+    const limit = partition ?? inward.depth;
+    // a lounge's door opens into the room beside it: another volume on its floor, high enough for a door,
+    // against a wall of the room in front of any partition (the builder's `beside` and `side_door`)
+    const fits = (c: Contact) =>
+      c.wall === "side" ? Math.min(c.span[1], limit) - c.span[0] >= DOOR_SPAN : partition === undefined && c.span[1] - c.span[0] >= DOOR_SPAN;
+    const beside = house.volumes.filter((v) => {
+      const { bottom, top } = verticalExtent(house, v);
+      return v !== room && bottom <= floor + 1e-6 && top >= floor + DOOR_HEIGHT;
+    });
+    if (interior.door && !beside.some((v) => contacts(house, room, window.face, v.rect).some(fits))) {
+      issues.push({
+        part: `volumes.${room.name}.interior`,
+        message: `has a door, but no other volume on its floor stands against its walls in front of the partition for ${DOOR_SPAN} m`,
       });
-      if (interior.door && !beside.some((v) => contacts(project.house, room, opening.face, v.rect).some(fits))) {
-        issues.push({
-          part: `volumes.${room.name}.interior`,
-          message: `has a door, but no other volume on its floor stands against its walls in front of the partition for ${DOOR_SPAN} m`,
-        });
-      }
-      // the fireplace goes on the wall the stone stands behind (the builder's `hearth`): never the back wall
-      // behind a partition, where it would land on the partition instead
-      const stone = project.house.stone;
-      const hearth = verticalExtent(project.house, stone).top >= floor + 2 ? contacts(project.house, room, opening.face, stone.rect)[0] : undefined;
-      if (interior.fireplace && partition !== undefined && hearth?.wall === "back") {
-        issues.push({
-          part: `volumes.${room.name}.interior`,
-          message: `has a fireplace and a partition, but the stone stands behind the back wall, behind the partition`,
-        });
-      }
+    }
+    // the fireplace goes on the wall the stone stands behind (the builder's `hearth`): never the back wall
+    // behind a partition, where it would land on the partition instead
+    const stone = house.stone;
+    const hearth = verticalExtent(house, stone).top >= floor + 2 ? contacts(house, room, window.face, stone.rect)[0] : undefined;
+    if (interior.fireplace && partition !== undefined && hearth?.wall === "back") {
+      issues.push({
+        part: `volumes.${room.name}.interior`,
+        message: `has a fireplace and a partition, but the stone stands behind the back wall, behind the partition`,
+      });
+    }
+    // the TV takes the fire's place: the seating turns to one or the other
+    if (interior.fireplace && interior.tv) {
+      issues.push({
+        part: `volumes.${room.name}.interior`,
+        message: "has a fireplace and a TV, but a lounge turns to one or the other",
+      });
     }
   }
   return issues;

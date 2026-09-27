@@ -38,7 +38,7 @@ for (const path of LIVE_PATHS) {
     });
 
     test("counts every House file and the path's detail maps within the Scene", () => {
-      const interiors = houses.filter((h) => h.interior).length;
+      const interiors = houses.reduce((n, h) => n + h.interiors.length, 0);
       expect(report.sets.houses.files).toHaveLength(houses.length * 5 + interiors);
       const scene = new Set(report.sets.scene.files.map((f) => f.url));
       expect(report.sets.houses.files.every((f) => scene.has(f.url))).toBe(true);

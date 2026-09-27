@@ -56,8 +56,18 @@ describe("exportHouse", () => {
     // the interior image looks out through living-front, on main's front
     expect(derived.interior).toMatchObject({ volume: "main", face: "front", floor: 0, ceiling: 3.5 });
     const bare = structuredClone(senja) as Project;
-    delete bare.house.volumes.find((v) => v.name === "bar")!.interior;
+    for (const v of bare.house.volumes) delete v.interior;
     expect(JSON.parse(exportHouse(bare, sceneLayout)).derived.interior).toBeUndefined();
+  });
+
+  test("gives the other Interiors theirs too, and leaves them out of a House with one", () => {
+    const { derived } = JSON.parse(exportHouse(senja, sceneLayout));
+    expect(derived.interior).toMatchObject({ volume: "bar", face: "front", floor: 0, ceiling: 3.3 });
+    expect(derived.otherInteriors).toEqual([
+      { volume: "lower", face: "front", rect: { x0: -9.7, y0: -5.7, x1: 3.7, y1: 0.7 }, floor: -3.2, ceiling: 0 },
+    ]);
+    // so a House with one Interior keeps the bake hash it had before there could be several
+    expect(exportHouse(lyngen, sceneLayout)).not.toContain("otherInteriors");
   });
 
   test("leaves out the Curtains, which the builder never draws", () => {

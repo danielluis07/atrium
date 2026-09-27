@@ -1,6 +1,7 @@
 import {
   faceWidth,
   grossFloorArea,
+  interiorVolumes,
   levelElevations,
   openingExtent,
   verticalExtent,
@@ -44,9 +45,9 @@ function describePath(input: unknown, path: PropertyKey[]): string {
 
 /**
  * Checks what zod cannot: references exist, openings fit their faces and
- * don't overlap, only Glazing Faces hang Curtains, the one Interior sits
- * in a volume of one Level that glass looks into and no void or terrace
- * cuts through, every slab touches a volume or the stone mass, names are
+ * don't overlap, only Glazing Faces hang Curtains, each Interior sits in
+ * a volume of one Level that glass looks into and no void or terrace cuts
+ * through, every slab touches a volume or the stone mass, names are
  * unique, and the gross floor area is within ±15% of the authored m².
  * Returns no issues when the House is valid.
  */
@@ -136,12 +137,8 @@ export function validateHouse(house: House, { floorArea }: { floorArea: number }
     }
   }
 
-  // Interiors: one room shell, in one Level, that some glass looks into and nothing cuts through
-  const rooms = house.volumes.filter((v) => v.interior);
-  for (const v of rooms.slice(1)) {
-    issue(`volume ${v.name}`, `has an Interior, but ${rooms[0].name} already has the House's one Interior`);
-  }
-  for (const v of rooms) {
+  // Interiors: each a room shell, in one Level, that some glass looks into and nothing cuts through
+  for (const v of interiorVolumes(house)) {
     const part = `volume ${v.name}`;
     const into = house.openings.filter((o) => o.volume === v.name);
     if (v.from !== v.to) issue(part, `has an Interior, so it must span one Level, not ${v.from} to ${v.to}`);

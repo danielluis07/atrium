@@ -7,9 +7,9 @@ cameras see, unwraps a lightmap UV (unseen faces at a quarter of the texel densi
 Cycles lightmap layers (base = sky + downlights, spill = window light) for the shell and
 the plinth with OIDN denoise, and exports a raw GLB whose root carries the contract extras.
 
-A House with an Interior (ADR 0005) also has that volume hollowed to its room shell, the Glazing Faces
-into it cut through, and the room furnished from interior.py's kit. The room bakes on its own, lit by its
-lamps and downlights and by the sky through its glass, into one texture that holds its colours too.
+A House with Interiors (ADR 0005) also has each of their volumes hollowed to its room shell, the Glazing
+Faces into it cut through, and the room furnished from interior.py's kit. Each room bakes on its own, lit by
+its lamps and downlights and by the sky through its glass, into one texture that holds its colours too.
 
 Run it through `bun run houses:bake`, which compresses the outputs into public/houses/.
 
@@ -88,9 +88,17 @@ def extent(part):
 
 
 VOLUMES = {v["name"]: extent(v) for v in H["volumes"]}
-# the Interior: its volume, the face its template turns to, and its room shell (lib/house/derive.ts)
-INTERIOR = DATA["derived"].get("interior")
-FURNISHING = next((v["interior"] for v in H["volumes"] if v.get("interior")), None)
+# the Interiors, the hero Interior first: each one's volume, the face its template turns to and its room shell
+# (lib/house/derive.ts), its furnishing from the record, and its GLB node and texture (`interiors` there). The
+# hero Interior keeps the names it had when a House had one at most.
+FURNISHINGS = {v["name"]: v["interior"] for v in H["volumes"] if v.get("interior")}
+HERO = DATA["derived"].get("interior")
+ROOMS = [
+    {**r, "furnishing": FURNISHINGS[r["volume"]], "node": node, "texture": node.replace(":", "-")}
+    for r, node in ([(HERO, "interior")] if HERO else [])
+    + [(r, f"interior:{r['volume']}") for r in DATA["derived"].get("otherInteriors", [])]
+]
+ROOM_IN = {r["volume"]: r for r in ROOMS}
 STONE = extent(H["stone"])
 SOLIDS = list(VOLUMES.values()) + [STONE]
 SLABS = [
@@ -294,12 +302,12 @@ bearings = {g["name"]: g["bearing"] for g in DATA["derived"]["glazingFaces"]}
 rooms = {g["name"]: g["room"] for g in DATA["derived"]["glazingFaces"]}  # the procedural room behind each
 
 vol_ob = {name: box(name, *b, "concrete") for name, b in VOLUMES.items()}
-if INTERIOR:
-    # hollow the Interior's volume to its room shell, open top and bottom: the room brings its own floor and
+for room in ROOMS:
+    # hollow each Interior's volume to its room shell, open top and bottom: the room brings its own floor and
     # ceiling, and whatever stands on the volume closes it from above
-    r = INTERIOR["rect"]
-    cut(vol_ob[INTERIOR["volume"]], box("cutter", r["x0"], r["y0"], INTERIOR["floor"] - 1, r["x1"], r["y1"],
-                                        INTERIOR["ceiling"] + 1, "concrete"))
+    r = room["rect"]
+    cut(vol_ob[room["volume"]], box("cutter", r["x0"], r["y0"], room["floor"] - 1, r["x1"], r["y1"],
+                                    room["ceiling"] + 1, "concrete"))
 
 
 def glazed(ff, name, a0, a1, z0, z1, d, mullions, level_lines):
@@ -330,8 +338,8 @@ for o in H["openings"]:
     ff = FaceFrame(box6, o["face"])
     (a0, a1), (z0, z1) = opening_extent(o)
     fill, d = o["fill"], o["depth"]
-    # a void cuts through its volume, and glass into the Interior through to its room
-    into_room = bool(INTERIOR) and o["volume"] == INTERIOR["volume"] and fill == "glazing"
+    # a void cuts through its volume, and glass into an Interior through to its room
+    into_room = o["volume"] in ROOM_IN and fill == "glazing"
     through = ff.depth + 1 if fill == "void" else (ff.depth / 2 if into_room else d)
     cut(vol_ob[o["volume"]], box("cutter", *ff.box(a0, a1, -1, through, z0, z1), "concrete"))
     level_lines = [l["elevation"] for l in H["levels"] if z0 + 0.3 < l["elevation"] < z1 - 0.3]
@@ -401,7 +409,7 @@ def room_walls(ob, r):
     return walls
 
 
-walls = room_walls(vol_ob[INTERIOR["volume"]], INTERIOR["rect"]) if INTERIOR else None
+walls = {room["volume"]: room_walls(vol_ob[room["volume"]], room["rect"]) for room in ROOMS}
 for name, ob in vol_ob.items():
     bevel(ob, C.BEVEL_VOLUME)
     parts["shell"].append(ob)
@@ -552,16 +560,16 @@ def grid_lines(a, b, steps):
     return sorted(steps + [u for u in uniform if all(abs(u - s) > 0.05 for s in steps)])
 
 
-# the plinth leaves a hole under the Interior: the live plinth's polygon offset would win over its floor
-hole = (INTERIOR["rect"]["x0"], INTERIOR["rect"]["y0"], INTERIOR["rect"]["x1"], INTERIOR["rect"]["y1"]) if INTERIOR else None
-xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])] + ([hole[0], hole[2]] if hole else []))
-ys = grid_lines(py0, py1, [b[4] for b in SUNK] + ([hole[1], hole[3]] if hole else []))
+# the plinth leaves a hole under each Interior: the live plinth's polygon offset would win over its floor
+holes = [(r["x0"], r["y0"], r["x1"], r["y1"]) for r in (room["rect"] for room in ROOMS)]
+xs = grid_lines(px0, px1, [v for b in SUNK for v in (b[0], b[3])] + [v for h in holes for v in (h[0], h[2])])
+ys = grid_lines(py0, py1, [b[4] for b in SUNK] + [v for h in holes for v in (h[1], h[3])])
 bm = bmesh.new()
 for i in range(len(xs) - 1):
     for j in range(len(ys) - 1):
         corners = [(xs[i], ys[j]), (xs[i + 1], ys[j]), (xs[i + 1], ys[j + 1]), (xs[i], ys[j + 1])]
         mx, my = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
-        if hole and hole[0] < mx < hole[2] and hole[1] < my < hole[3]:
+        if any(h[0] < mx < h[2] and h[1] < my < h[3] for h in holes):
             continue
         # each quad takes its side of a step from a point just inside it, so a step falls between quads,
         # on the face of the solid that holds it, and the weld leaves it open
@@ -664,25 +672,25 @@ def cull_hidden(ob, ground=plinth_z, beyond=lambda p: False):
     print(f"cull {ob.name}: removed {len(dead)} faces, {before:.0f} -> {after:.0f} m2", flush=True)
 
 
-def room_frame():
-    """The room frame (x along the window wall from its left end seen from outside, y inward, z up from the
+def room_frame(room):
+    """A room's frame (x along the window wall from its left end seen from outside, y inward, z up from the
     finished floor) as a matrix to the House frame, and the room's width, height and depth in it."""
-    r, face = INTERIOR["rect"], INTERIOR["face"]
+    r, face = room["rect"], room["face"]
     x0, y0, x1, y1 = r["x0"], r["y0"], r["x1"], r["y1"]
     (ax, ay), (dx, dy), (ox, oy) = {
         "front": ((1, 0), (0, 1), (x0, y0)), "back": ((-1, 0), (0, -1), (x1, y1)),
         "left": ((0, -1), (1, 0), (x0, y1)), "right": ((0, 1), (-1, 0), (x1, y0)),
     }[face]
-    floor = INTERIOR["floor"] + C.INTERIOR_FINISH
+    floor = room["floor"] + C.INTERIOR_FINISH
     m = Matrix(((ax, dx, 0, ox), (ay, dy, 0, oy), (0, 0, 1, floor), (0, 0, 0, 1)))
     w, d = (x1 - x0, y1 - y0) if face in ("front", "back") else (y1 - y0, x1 - x0)
-    return m, w, INTERIOR["ceiling"] - C.INTERIOR_FINISH - floor, d
+    return m, w, room["ceiling"] - C.INTERIOR_FINISH - floor, d
 
 
-def against(s, m, w, d):
-    """The walls of the room a solid `s` stands against outside, in the room frame, and the span of each the
+def against(room, s, m, w, d):
+    """The walls of a room a solid `s` stands against outside, in the room frame, and the span of each the
     room sees, as [("left" | "right" | "back", u0, u1)]: never the window's wall, nor a span under 1.2 m."""
-    v, r = VOLUMES[INTERIOR["volume"]], INTERIOR["rect"]
+    v, r = VOLUMES[room["volume"]], room["rect"]
     inv = m.inverted()
     walls = []
     for plane, touching in (("x0", abs(s[3] - v[0]) < EPS), ("x1", abs(s[0] - v[3]) < EPS),
@@ -699,29 +707,31 @@ def against(s, m, w, d):
     return walls
 
 
-def hearth(m, w, d):
-    """The wall the stone mass stands behind, in the room frame, and the span of it the room sees, as
+def hearth(room, m, w, d):
+    """The wall of a room the stone mass stands behind, in the room frame, and the span of it the room sees, as
     ("left" | "right" | "back", u0, u1); or None when the stone stands against no wall but the window's."""
-    if STONE[5] < INTERIOR["floor"] + 2.0:
+    if STONE[5] < room["floor"] + 2.0:
         return None
-    return next(iter(against(STONE, m, w, d)), None)
+    return next(iter(against(room, STONE, m, w, d)), None)
 
 
-def beside(m, w, d):
-    """The walls the House's other volumes on the room's floor stand against, as `against` gives them: where
+def beside(room, m, w, d):
+    """The walls the House's other volumes on a room's floor stand against, as `against` gives them: where
     a door into the room beside it can go."""
-    floor = INTERIOR["floor"]
+    floor = room["floor"]
     return [wall for name, s in VOLUMES.items()
-            if name != INTERIOR["volume"] and s[2] <= floor + EPS and s[5] >= floor + 2.4
-            for wall in against(s, m, w, d)]
+            if name != room["volume"] and s[2] <= floor + EPS and s[5] >= floor + 2.4
+            for wall in against(room, s, m, w, d)]
 
 
-def furnished_room(walls):
-    """The Interior: its walls, a floor and a ceiling, and the kind's template from the shared kit, joined
-    into one object in the House frame; and the lamps that light it."""
-    m, w, h, d = room_frame()
-    where, doors = hearth(m, w, d), beside(m, w, d)
-    furniture, room_lamps = I.furnish(FURNISHING, w, h, d, where, doors, SLUG)
+def furnished_room(room, walls):
+    """An Interior: its walls, a floor and a ceiling, and the kind's template from the shared kit, joined
+    into one object in the House frame; and the lamps that light it. The hero Interior is seeded with the
+    House's slug, as it was when a House had one; another adds its volume."""
+    m, w, h, d = room_frame(room)
+    where, doors = hearth(room, m, w, d), beside(room, m, w, d)
+    seed = SLUG if room is ROOMS[0] else f"{SLUG}:{room['volume']}"
+    furniture, room_lamps = I.furnish(room["furnishing"], w, h, d, where, doors, seed)
     floor = quad("room-floor", [(0, 0, 0), (w, 0, 0), (w, d, 0), (0, d, 0)], [(0, 0)] * 4, "concrete")
     ceiling = quad("room-ceiling", [(0, 0, h), (0, d, h), (w, d, h), (w, 0, h)], [(0, 0)] * 4, "concrete")
     for ob, name in ((floor, "oak"), (ceiling, "ceiling")):
@@ -731,27 +741,30 @@ def furnished_room(walls):
         ob.data.transform(m)
     for lamp in room_lamps:
         lamp.location = m @ lamp.location
-    room = join("interior", [walls, floor, ceiling, *furniture])
-    tris = sum(len(p.vertices) - 2 for p in room.data.polygons)
-    print(f"interior: {FURNISHING['kind']} in {INTERIOR['volume']}, {w:.2f} x {d:.2f} x {h:.2f} m facing "
-          f"{INTERIOR['face']}, hearth {where}, beside {doors}, {len(furniture)} pieces, {len(room_lamps)} lamps, {tris} tris",
+    ob = join(room["node"], [walls, floor, ceiling, *furniture])
+    tris = sum(len(p.vertices) - 2 for p in ob.data.polygons)
+    print(f"{room['node']}: {room['furnishing']['kind']} in {room['volume']}, {w:.2f} x {d:.2f} x {h:.2f} m facing "
+          f"{room['face']}, hearth {where}, beside {doors}, {len(furniture)} pieces, {len(room_lamps)} lamps, {tris} tris",
           flush=True)
-    return room, room_lamps
+    return ob, room_lamps
 
 
-def in_room(p, finish=0.0):
-    """Whether a point is inside the room shell, or with `finish`, inside its finished floor and ceiling."""
-    r = INTERIOR["rect"]
+def in_room(room, p, finish=0.0):
+    """Whether a point is inside a room shell, or with `finish`, inside its finished floor and ceiling."""
+    r = room["rect"]
     return (r["x0"] < p.x < r["x1"] and r["y0"] < p.y < r["y1"]
-            and INTERIOR["floor"] + finish < p.z < INTERIOR["ceiling"] - finish)
+            and room["floor"] + finish < p.z < room["ceiling"] - finish)
 
 
-room, room_lamps = furnished_room(walls) if INTERIOR else (None, [])
+# each room's object and the lamps that light it
+for room in ROOMS:
+    room["ob"], room["lamps"] = furnished_room(room, walls[room["volume"]])
+room_lamps = [lamp for room in ROOMS for lamp in room["lamps"]]
 bpy.data.orphans_purge(do_recursive=True)
-# the shell loses what the room encloses, and the room what stands flush against its shell
-cull_hidden(shell, beyond=in_room if INTERIOR else lambda p: False)
-if room:
-    cull_hidden(room, ground=None, beyond=lambda p: not in_room(p, C.INTERIOR_FINISH))
+# the shell loses what the rooms enclose, and each room what stands flush against its shell
+cull_hidden(shell, beyond=lambda p: any(in_room(room, p) for room in ROOMS))
+for room in ROOMS:
+    cull_hidden(room["ob"], ground=None, beyond=lambda p, room=room: not in_room(room, p, C.INTERIOR_FINISH))
 for ob in (shell, balustrade, plinth):
     if ob:
         box_uv(ob)
@@ -792,17 +805,17 @@ for name, ob in glazing.items():
         print(f"warning: Glazing Face {name} is entirely unseen from the overview and arc cameras", flush=True)
 print(f"seen: {sum(seen)} of {len(seen)} shell faces, "
       f"{sum(g['seen'] for g in glazing_faces.values())} of {len(glazing_faces)} Glazing Faces", flush=True)
-room_seen = []
-if room:
-    # the room is seen through its glass, which doesn't stop the rays, past the shell and its own furniture
+for room in ROOMS:
+    # a room is seen through its glass, which doesn't stop the rays, past the shell and its own furniture
+    ob = room["ob"]
     bm = bmesh.new()
     bm.from_mesh(shell.data)
-    bm.from_mesh(room.data)
+    bm.from_mesh(ob.data)
     tree = BVHTree.FromBMesh(bm)
     bm.free()
-    room_seen = [sees(tree, [p.center] + [p.center.lerp(room.data.vertices[v].co, 0.9) for v in p.vertices], p.normal)
-                 for p in room.data.polygons]
-    print(f"seen: {sum(room_seen)} of {len(room_seen)} interior faces", flush=True)
+    room["seen"] = [sees(tree, [p.center] + [p.center.lerp(ob.data.vertices[v].co, 0.9) for v in p.vertices], p.normal)
+                    for p in ob.data.polygons]
+    print(f"seen: {sum(room['seen'])} of {len(room['seen'])} {room['node']} faces", flush=True)
 lap("seen faces")
 
 
@@ -869,9 +882,9 @@ def lightmap_uv(ob, margin, seen):
 
 
 lightmap_uv(shell, C.ISLAND_MARGIN, seen)
-if room:
-    # the room's only UV set: its texture's
-    lightmap_uv(room, C.ISLAND_MARGIN, room_seen)
+for room in ROOMS:
+    # a room's only UV set: its texture's
+    lightmap_uv(room["ob"], C.ISLAND_MARGIN, room["seen"])
 # plinth: planar 0..1 projection is already ideal
 me = plinth.data
 me.uv_layers.new(name="lightmap")
@@ -894,13 +907,12 @@ exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values()
 tris = sum(len(p.vertices) - 2 for o in exported for p in o.data.polygons)
 print(f"shell surface {area:.0f} m2 ({unseen_area:.0f} unseen), uv coverage {coverage:.2f}, "
       f"{texels_per_m:.0f} texels/m seen and {texels_per_m_unseen:.0f} unseen at {MODE['res']}, {tris} tris")
-room_texels_per_m = room_tris = 0
-if room:
-    room_polys = list(room.data.polygons)
-    room_texels_per_m = texel_density(room, MODE["interior_res"], [p for p in room_polys if room_seen[p.index]])
-    room_tris = sum(len(p.vertices) - 2 for p in room_polys)
-    print(f"interior surface {sum(p.area for p in room_polys):.0f} m2, "
-          f"{room_texels_per_m:.0f} texels/m seen at {MODE['interior_res']}, {room_tris} tris")
+for room in ROOMS:
+    polys = list(room["ob"].data.polygons)
+    room["texels_per_m"] = texel_density(room["ob"], MODE["interior_res"], [p for p in polys if room["seen"][p.index]])
+    room["tris"] = sum(len(p.vertices) - 2 for p in polys)
+    print(f"{room['node']} surface {sum(p.area for p in polys):.0f} m2, "
+          f"{room['texels_per_m']:.0f} texels/m seen at {MODE['interior_res']}, {room['tris']} tris")
 
 # ---------------------------------------------------------------- world + bake setup
 
@@ -1020,7 +1032,7 @@ def set_layer(layer):
 # the balustrade is hidden; glazing stays as the emitter for the spill layer.
 if balustrade:
     balustrade.hide_render = True
-# the room is sealed behind opaque glass in the House's bakes: its lamps would only cost samples
+# the rooms are sealed behind opaque glass in the House's bakes: their lamps would only cost samples
 for lamp in room_lamps:
     lamp.hide_render = True
 if not args.no_bake:
@@ -1047,23 +1059,25 @@ def pixels(img):
     return px.reshape(-1, 4)[:, :3]
 
 
-def bake_room(res, samples):
-    """The Interior's texture, <OUT>/interior.exr: its colour times its light, plus what glows. The light
+def bake_room(room, res, samples):
+    """An Interior's texture, <OUT>/<texture>.exr: its colour times its light, plus what glows. The light
     comes from its lamps and downlights, the House's downlights and the sky through its glass, which hides
-    for the bake; it is denoised on its own, so the colours keep their edges."""
+    for the bake; it is denoised on its own, so the colours keep their edges. The other rooms' lamps stay
+    off."""
+    ob, name = room["ob"], room["texture"]
     set_layer("base")
     for lamp in room_lamps:
-        lamp.hide_render = False
-    for ob in glazing.values():
-        ob.hide_render = True
-    bake_layer(room, "interior-light", res, samples)
-    bake_layer(room, "interior-color", res, C.INTERIOR_COLOR_SAMPLES, passes=("COLOR",), denoise=False)
-    bake_layer(room, "interior-glow", res, C.INTERIOR_COLOR_SAMPLES, kind="EMIT", passes=(), denoise=False)
-    light, color, glow = (pixels(bpy.data.images.load(os.path.join(OUT, f"interior-{layer}.exr")))
+        lamp.hide_render = lamp not in room["lamps"]
+    for g in glazing.values():
+        g.hide_render = True
+    bake_layer(ob, f"{name}-light", res, samples)
+    bake_layer(ob, f"{name}-color", res, C.INTERIOR_COLOR_SAMPLES, passes=("COLOR",), denoise=False)
+    bake_layer(ob, f"{name}-glow", res, C.INTERIOR_COLOR_SAMPLES, kind="EMIT", passes=(), denoise=False)
+    light, color, glow = (pixels(bpy.data.images.load(os.path.join(OUT, f"{name}-{layer}.exr")))
                           for layer in ("light", "color", "glow"))
-    for ob in glazing.values():
-        ob.hide_render = False
-    out = bpy.data.images.new("interior", res, res, alpha=False, float_buffer=True)
+    for g in glazing.values():
+        g.hide_render = False
+    out = bpy.data.images.new(name, res, res, alpha=False, float_buffer=True)
     rgba = np.ones((res * res, 4), np.float32)
     rgba[:, :3] = (color * light + glow) * C.INTERIOR_EXPOSURE
     out.pixels.foreach_set(rgba.ravel())
@@ -1071,25 +1085,27 @@ def bake_room(res, samples):
     settings = scene.render.image_settings
     was = settings.file_format, settings.color_mode, settings.color_depth
     settings.file_format, settings.color_mode, settings.color_depth = "OPEN_EXR", "RGB", "16"
-    out.save_render(os.path.join(OUT, "interior.exr"), scene=scene)
+    out.save_render(os.path.join(OUT, f"{name}.exr"), scene=scene)
     settings.file_format, settings.color_mode, settings.color_depth = was
-    print(f"  interior: {os.path.getsize(os.path.join(OUT, 'interior.exr')) / 1e6:.2f} MB exr", flush=True)
+    print(f"  {name}: {os.path.getsize(os.path.join(OUT, f'{name}.exr')) / 1e6:.2f} MB exr", flush=True)
 
 
-if room and not args.no_bake:
-    bake_room(MODE["interior_res"], MODE["samples"])
-    lap(f"bake interior {MODE['interior_res']}")
-if room:
+for room in ROOMS:
+    ob = room["ob"]
+    if not args.no_bake:
+        bake_room(room, MODE["interior_res"], MODE["samples"])
+        lap(f"bake {room['node']} {MODE['interior_res']}")
     # its colours are in its texture now: one material for the GLB, and one UV set, the texture's
-    room.data.materials.clear()
-    room.data.materials.append(mats["interior"])
-    for p in room.data.polygons:
+    ob.data.materials.clear()
+    ob.data.materials.append(mats["interior"])
+    for p in ob.data.polygons:
         p.material_index = 0
-    for layer in [l for l in room.data.uv_layers if l.name != "lightmap"]:
-        room.data.uv_layers.remove(layer)
+    for layer in [l for l in ob.data.uv_layers if l.name != "lightmap"]:
+        ob.data.uv_layers.remove(layer)
 if terrace_glass:
     balustrade = join("balustrade", ([balustrade] if balustrade else []) + terrace_glass)
-exported = [o for o in [shell, balustrade, downlights, plinth, room, *glazing.values()] if o]
+room_obs = [room["ob"] for room in ROOMS]
+exported = [o for o in [shell, balustrade, downlights, plinth, *room_obs, *glazing.values()] if o]
 
 # ---------------------------------------------------------------- export
 
@@ -1099,12 +1115,16 @@ def gltf(v):
     return [round(v[0], 4), round(v[2], 4), round(-v[1], 4)]
 
 
+def interior_extras(room):
+    return {"volume": room["volume"], "kind": room["furnishing"]["kind"], "texture": f"{room['texture']}.ktx2"}
+
+
 root = bpy.data.objects.new(f"house:{SLUG}", None)
 col.objects.link(root)
 for o in exported:
     o.parent = root
 
-corners = [o.matrix_world @ Vector(c) for o in exported if o not in (plinth, room) for c in o.bound_box]
+corners = [o.matrix_world @ Vector(c) for o in exported if o is not plinth and o not in room_obs for c in o.bound_box]
 lo = gltf((min(c.x for c in corners), max(c.y for c in corners), min(c.z for c in corners)))
 hi = gltf((max(c.x for c in corners), min(c.y for c in corners), max(c.z for c in corners)))
 extras = {
@@ -1122,8 +1142,8 @@ extras = {
         for name, f in glazing_faces.items()
     },
     "lightmaps": lightmaps,
-    **({"interior": {"volume": INTERIOR["volume"], "kind": FURNISHING["kind"], "texture": "interior.ktx2"}}
-       if room else {}),
+    **({"interior": interior_extras(ROOMS[0])} if HERO else {}),
+    **({"otherInteriors": [interior_extras(room) for room in ROOMS[1:]]} if len(ROOMS) > 1 else {}),
 }
 
 for o in scene.objects:
@@ -1178,4 +1198,6 @@ if args.preview:
 with open(os.path.join(OUT, "timings.json"), "w") as f:
     json.dump({"mode": args.mode, **MODE, "texels_per_m": round(texels_per_m),
                "texels_per_m_unseen": round(texels_per_m_unseen), "unseen_m2": round(unseen_area), "tris": tris,
-               "interior_texels_per_m": round(room_texels_per_m), "interior_tris": room_tris, **timings}, f, indent=1)
+               "interiors": {room["node"]: {"texels_per_m": round(room["texels_per_m"]), "tris": room["tris"]}
+                             for room in ROOMS},
+               **timings}, f, indent=1)

@@ -18,7 +18,7 @@ export const senja = {
       "The slope was cut once. The lower room sits in the cut with its back to the hill, and the bar lies across it at the level of the snow behind. A stone wall holds the ground on the west side.",
     ],
     light: [
-      "The lower room is glazed along its whole front. The bar ends in one window facing north, so the last of the light comes down its length.",
+      "The lower room is glazed across the half of its front nearest the stone wall, and walled along the rest. The bar ends in one window facing north, so the last of the light comes down its length.",
     ],
     material: [
       "Board-formed concrete for the bar and the lower room, and a dry-laid stone wall that runs from the cut out into the slope.",
@@ -48,7 +48,11 @@ export const senja = {
       { name: "L0", elevation: 0, height: 3.3 },
     ],
     volumes: [
-      { name: "lower", rect: { x0: -10.0, y0: -6.0, x1: 4.0, y1: 1.0 }, from: "L-1", to: "L-1" },
+      {
+        name: "lower", rect: { x0: -10.0, y0: -6.0, x1: 4.0, y1: 1.0 }, from: "L-1", to: "L-1",
+        // the living room: the TV on the right wall, the one the glass and the arc look toward
+        interior: { kind: "lounge", tv: "right", lamp: "floor" },
+      },
       // cantilevers 4 m past the lower room's front
       {
         name: "bar", rect: { x0: -6.0, y0: -10.0, x1: 0.0, y1: 10.0 }, from: "L0", to: "L0",
@@ -63,8 +67,8 @@ export const senja = {
       { name: "ledge-west", rect: { x0: 0.0, y0: -6.6, x1: 4.4, y1: 1.0 }, level: "L-1", thickness: 0.25, fascia: 0.3, soffit: true },
     ],
     openings: [
-      { name: "lower-front", volume: "lower", face: "front", at: 0.5, width: 13.0, level: "L-1", depth: 0.35, fill: "glazing", mullions: 7 },
-      { name: "lower-side", volume: "lower", face: "left", at: 1.0, width: 4.4, level: "L-1", depth: 0.25, fill: "glazing" },
+      // the half of the front by the stone wall; the rest of the lower room's front, and its side, are wall
+      { name: "lower-front", volume: "lower", face: "front", at: 7.0, width: 6.5, level: "L-1", depth: 0.35, fill: "glazing", mullions: 3 },
       { name: "bar-end", volume: "bar", face: "front", at: 0.3, width: 5.4, level: "L0", depth: 0.4, fill: "glazing", mullions: 2 },
       { name: "bar-side", volume: "bar", face: "left", at: 3.0, width: 9.0, level: "L0", sill: 0.9, head: 2.6, depth: 0.25, fill: "glazing", mullions: 4, curtain: true },
       { name: "entry", volume: "bar", face: "back", at: 2.4, width: 1.2, level: "L0", head: 2.4, depth: 0.3, fill: "door" },

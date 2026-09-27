@@ -82,15 +82,15 @@ type PreparedHouse = {
   light: LightUniforms;
   /** Every window's glow, shared by the House's glazing, which hover and dim adjust. */
   glow: { value: number };
-  /** The Interior, lit by its baked texture alone, which brightens and dims with the glow. */
-  interior?: MeshBasicMaterial;
+  /** The Interiors, each lit by its baked texture alone, which brightens and dims with the glow. */
+  interiors: MeshBasicMaterial[];
   downlight?: MeshBasicMaterial;
   /** Where the hover label points: just above the roof, in three.js axes. */
   anchor: Vector3;
 };
 
 /** What a frame adjusts on one House, and how far it is into its hover and its dim (0–1, eased). */
-type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glow" | "interior" | "downlight"> & {
+type Look = Pick<PreparedHouse, "slug" | "anchor" | "light" | "glow" | "interiors" | "downlight"> & {
   hover: number;
   dim: number;
 };
@@ -116,7 +116,7 @@ export function Houses({
   onLabel,
 }: {
   layout: SceneLayout;
-  /** The Houses to load, each with whether it has an Interior. */
+  /** The Houses to load, each with its Interiors' GLB nodes. */
   houses: SceneHouse[];
   shadows: boolean;
   /** The shared detail maps to tile over the shells, the plinths and the terrain. */
@@ -141,7 +141,7 @@ export function Houses({
     },
   );
   const maps = detailMaps(detail);
-  const interiorUrls = assets.flatMap((a) => (a.interior ? [a.interior] : []));
+  const interiorUrls = assets.flatMap((a) => Object.values(a.interiors));
   // one loader for all: the detail maps and the Interiors' textures share the lightmaps' transcoder
   const textures = useLoader(
     KTX2Loader,
@@ -169,7 +169,12 @@ export function Houses({
   const houses = useMemo(() => {
     const prepared = slugs.map((slug, i) => {
       const [shellBase, shellSpill, plinthBase, plinthSpill] = textures.slice(i * 4, i * 4 + 4).map(asLightmap);
-      const interior = assets[i].interior;
+      const interiors = Object.fromEntries(
+        Object.entries(assets[i].interiors).map(([node, url]) => [
+          node,
+          asInteriorTexture(textures[lightmapCount + maps.length + interiorUrls.indexOf(url)]),
+        ]),
+      );
       return prepareHouse(
         slug,
         gltfs[i].scene,
@@ -179,7 +184,7 @@ export function Houses({
           plinth: { base: plinthBase, spill: plinthSpill },
         },
         { details, relief },
-        interior ? asInteriorTexture(textures[lightmapCount + maps.length + interiorUrls.indexOf(interior)]) : undefined,
+        interiors,
         shadows ? shadow : undefined,
       );
     });
@@ -204,12 +209,12 @@ export function Houses({
   const looks = useRef<Look[]>([]);
   const onScreen = useRef(new Vector3());
   useEffect(() => {
-    looks.current = houses.map(({ slug, anchor, light, glow, interior, downlight }) => ({
+    looks.current = houses.map(({ slug, anchor, light, glow, interiors, downlight }) => ({
       slug,
       anchor,
       light,
       glow,
-      interior,
+      interiors,
       downlight,
       hover: 0,
       dim: 0,
@@ -270,7 +275,7 @@ function asLightmap(texture: Texture): Texture {
   return texture;
 }
 
-/** The Interior's baked light, colours and all, on its only UV set. */
+/** An Interior's baked light, colours and all, on its only UV set. */
 function asInteriorTexture(texture: Texture): Texture {
   texture.channel = 0;
   texture.colorSpace = LinearSRGBColorSpace;
@@ -304,7 +309,8 @@ function prepareHouse(
   layout: SceneLayout,
   lightmaps: Lightmaps,
   detail: Detail,
-  interiorTexture: Texture | undefined,
+  /** Each Interior's baked texture, by its GLB node. */
+  interiorTextures: Record<string, Texture>,
   shadow: ShadowUniforms | undefined,
 ): PreparedHouse {
   const root = scene.clone(true);
@@ -330,12 +336,24 @@ function prepareHouse(
   const material = (name: string, source: Material): Material => {
     let m = byName.get(name);
     if (!m) {
-      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, detail, shellSpill, plinthSpill, interiorTexture, shadow);
+      m = makeMaterial(name, source as MeshStandardMaterial, lightmaps, detail, shellSpill, plinthSpill, shadow);
       byName.set(name, m);
     }
     return m;
   };
-  // each window looks into its own procedural room, or through glass into the Interior, some behind a Curtain
+  // each Interior is lit by its own baked texture, colours and all, and nothing else
+  const rooms = new Map<string, MeshBasicMaterial>();
+  const room = (part: string | undefined): MeshBasicMaterial => {
+    const map = part === undefined ? undefined : interiorTextures[part];
+    if (!part || !map) throw new Error(`${slug}.glb has an Interior, ${part}, that its record doesn't`);
+    let m = rooms.get(part);
+    if (!m) {
+      m = new MeshBasicMaterial({ map });
+      rooms.set(part, m);
+    }
+    return m;
+  };
+  // each window looks into its own procedural room, or through glass into an Interior, some behind a Curtain
   const panes: Material[] = [];
   const pane = (mesh: Mesh, part: string | undefined): Material => {
     const face = part?.startsWith("glazing:") ? extras.glazingFaces[part.slice("glazing:".length)] : undefined;
@@ -353,10 +371,11 @@ function prepareHouse(
     if (!(o instanceof Mesh)) return;
     const source = o.material as Material;
     const part = partOf(o);
-    o.material = source.name === "glazing" ? pane(o, part) : material(source.name, source);
+    o.material =
+      source.name === "glazing" ? pane(o, part) : source.name === "interior" ? room(part) : material(source.name, source);
     if (!UNSHADOWED.has(source.name)) o.layers.enable(CASTER_LAYER);
     if (source.name === "plinth") plinth = o;
-    // the room draws after the House's other opaque parts, so the depth test drops what its walls hide
+    // a room draws after the House's other opaque parts, so the depth test drops what its walls hide
     if (source.name === "interior") o.renderOrder = 1;
     if (!pickable(part)) o.raycast = () => {};
   });
@@ -381,10 +400,10 @@ function prepareHouse(
       max: [box.max.x, box.max.z],
       low: position[1] + extras.datum.plinth,
     },
-    materials: [...byName.values(), ...panes],
+    materials: [...byName.values(), ...rooms.values(), ...panes],
     light: shellSpill,
     glow,
-    interior: byName.get("interior") as MeshBasicMaterial | undefined,
+    interiors: [...rooms.values()],
     downlight: byName.get("downlight") as MeshBasicMaterial | undefined,
     anchor,
   };
@@ -424,7 +443,7 @@ function lookTo(h: Look, hovered: boolean, dimmed: boolean, dt: number) {
   h.light.spillK.value = 1 + (HOVER.spill - 1) * h.hover;
   h.light.lightDim.value = dim;
   h.glow.value = (1 + (HOVER.glow - 1) * h.hover) * dim;
-  h.interior?.color.setScalar(h.glow.value);
+  for (const m of h.interiors) m.color.setScalar(h.glow.value);
   h.downlight?.color.copy(DOWNLIGHT).multiplyScalar(dim);
 }
 
@@ -439,13 +458,9 @@ function makeMaterial(
   { details, relief }: Detail,
   shellSpill: LightUniforms,
   plinthSpill: LightUniforms,
-  interiorTexture: Texture | undefined,
   shadow: ShadowUniforms | undefined,
 ): Material {
   switch (name) {
-    case "interior":
-      // baked with its colours, and lit by nothing else
-      return new MeshBasicMaterial({ map: interiorTexture });
     case "balustrade":
       return new MeshStandardMaterial({
         color: "#d6e0ea",

@@ -7,9 +7,10 @@ import {
   glazingFaces,
   grossFloorArea,
   interiorRoom,
+  interiors,
   interiorShell,
-  interiorVolume,
   levelElevations,
+  type InteriorPart,
 } from "@/lib/house/derive";
 import { SCHEMA_VERSION, type House } from "@/lib/house/schema";
 import { formatIssues, type HouseIssue } from "@/lib/house/validate";
@@ -26,10 +27,10 @@ export class HouseExportError extends Error {
 /**
  * The builder JSON for one Project: the House, its placement and camera
  * block, and the derived facts the builder uses: the Glazing Faces it writes
- * into the GLB extras, each with the room it looks into, the Interior's room
- * shell and the face its template turns to (the one the interior image looks
- * out through), and the viewpoints (the overview and arc cameras in the
- * House frame) it marks faces seen from. It leaves out the Curtains: the
+ * into the GLB extras, each with the room it looks into, each Interior's room
+ * shell and the face its template turns to (for the hero Interior, the one
+ * the interior image looks out through), and the viewpoints (the overview
+ * and arc cameras in the House frame) it marks faces seen from. It leaves out the Curtains: the
  * Scene draws them, so they don't change a bake (`stampCurtains`).
  * Serialized with sorted keys so the same input always gives the same bytes.
  * Refuses a Project that fails validation, naming the offending parts.
@@ -43,7 +44,12 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
   const house = withoutCurtains(project.house);
   const orientation = { rotation: placement.rotation, north: layout.north };
   const opening = (name: string) => house.openings.find((o) => o.name === name)!;
-  const room = interiorVolume(house);
+  const [hero, ...others] = interiors(house, project.images.interior.glazingFace);
+  const shell = ({ volume, window }: InteriorPart) => ({
+    volume: volume.name,
+    face: window.face,
+    ...interiorShell(house, volume),
+  });
   return stableStringify({
     schemaVersion: SCHEMA_VERSION,
     slug: project.slug,
@@ -54,11 +60,9 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
       levels: levelElevations(house),
       grossFloorArea: Math.round(grossFloorArea(house) * 100) / 100,
       glazingFaces: glazingFaces(house, orientation).map((g) => ({ ...g, room: interiorRoom(house, opening(g.name)) })),
-      interior: room && {
-        volume: room.name,
-        face: opening(project.images.interior.glazingFace).face,
-        ...interiorShell(house, room),
-      },
+      interior: hero && shell(hero),
+      // only when there are some, so a House with one Interior keeps its bake hash
+      otherInteriors: others.length ? others.map(shell) : undefined,
       viewpoints: viewpoints(project.camera, placement, layout),
     },
   });

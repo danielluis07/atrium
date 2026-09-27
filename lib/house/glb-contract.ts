@@ -3,10 +3,12 @@ import {
   faceNormal,
   glazingFaces,
   interiorRoom,
-  interiorVolume,
+  interiors,
+  interiorVolumes,
   levelElevations,
   openingExtent,
   verticalExtent,
+  type InteriorPart,
 } from "@/lib/house/derive";
 import { SCHEMA_VERSION, type InteriorKind } from "@/lib/house/schema";
 
@@ -59,7 +61,7 @@ export type HouseExtras = {
   /**
    * `seen`: whether the overview or arc cameras see any of the Glazing Face. `room`: the room it looks
    * into (`interiorRoom`), its width, height and depth and the glass's sill above its floor, which the
-   * glazing shader draws. `interior`: whether it looks into the Interior instead, as glass over the room.
+   * glazing shader draws. `interior`: whether it looks into an Interior instead, as glass over the room.
    * `curtain`: whether it hangs a Curtain. The builder never sees Curtains: `stampCurtains` writes them in
    * after the bake.
    */
@@ -76,13 +78,20 @@ export type HouseExtras = {
     }
   >;
   /**
-   * The Interior, when the House has one: the volume it is in, its kind, and its baked texture beside the
-   * GLB, the `interior` node's full light with its colours, on its first UV set.
+   * The hero Interior, when the House has one: the volume it is in, its kind, and its baked texture beside
+   * the GLB, the `interior` node's full light with its colours, on its first UV set.
    */
-  interior?: { volume: string; kind: InteriorKind; texture: string };
+  interior?: InteriorExtras;
+  /**
+   * The House's other Interiors, when it has more than one, the same way: each in its own
+   * `interior:<volume>` node, with its own texture (`interiorTexture`).
+   */
+  otherInteriors?: InteriorExtras[];
   /** Lightmap files beside the GLB, per node and layer. */
   lightmaps: Record<string, { base: string; spill: string }>;
 };
+
+export type InteriorExtras = { volume: string; kind: InteriorKind; texture: string };
 
 /** The parts of a glTF JSON document the contract reads. */
 export type Gltf = {
@@ -193,7 +202,7 @@ export function expectedNodes(project: Project): { required: string[]; optional:
       "plinth",
       ...glazing,
       ...(hasBalustrade ? ["balustrade"] : []),
-      ...(interiorVolume(house) ? ["interior"] : []),
+      ...interiors(house, project.images.interior.glazingFace).map((i) => i.node),
     ],
     // a soffit that the volumes below cover entirely gets no downlights
     optional: ["downlights"],
@@ -241,7 +250,7 @@ export function checkGlbContract(
     }
   }
   for (const node of children) {
-    const kind = node.name?.startsWith("glazing:") ? "glazing" : (node.name ?? "");
+    const kind = node.name?.match(/^(glazing|interior):/)?.[1] ?? node.name ?? "";
     const allowed = NODE_MATERIALS[kind];
     if (node.mesh === undefined) {
       issues.push(`node ${node.name} has no mesh`);
@@ -258,7 +267,7 @@ export function checkGlbContract(
         issues.push(`node shell's ${material ?? "(none)"} has no TEXCOORD_0 for the detail maps`);
       }
       if (kind === "interior" && p.attributes?.TEXCOORD_0 === undefined) {
-        issues.push("node interior has no TEXCOORD_0 for its baked texture");
+        issues.push(`node ${node.name} has no TEXCOORD_0 for its baked texture`);
       }
     }
   }
@@ -326,7 +335,7 @@ export function checkGlbContract(
     if (!nearAll(face.room?.size, size3) || !near(face.room?.sill, room.sill)) {
       issues.push(`extras.glazingFaces.${g.name}.room is ${show(face.room)}, expected ${show({ size: size3, sill: room.sill })}`);
     }
-    const into = opening.volume === interiorVolume(house)?.name;
+    const into = interiorVolumes(house).some((v) => v.name === opening.volume);
     if (face.interior !== into) issues.push(`extras.glazingFaces.${g.name}.interior is ${show(face.interior)}, expected ${into}`);
     const curtain = opening.curtain ?? false;
     if (face.curtain !== curtain) {
@@ -336,17 +345,24 @@ export function checkGlbContract(
     }
   }
 
-  // the Interior: in the volume the record gives it, of its kind, with its texture
-  const hero = interiorVolume(house);
-  if (hero) {
-    const { volume, kind, texture } = extras.interior ?? {};
-    if (volume !== hero.name) issues.push(`extras.interior.volume is ${show(volume)}, expected ${hero.name}`);
-    if (kind !== hero.interior!.kind) issues.push(`extras.interior.kind is ${show(kind)}, expected ${hero.interior!.kind}`);
-    if (typeof texture !== "string" || !texture.endsWith(".ktx2")) {
-      issues.push(`extras.interior.texture ${show(texture)} is not a .ktx2 file name`);
+  // the Interiors: each in the volume the record gives it, of its kind, with its texture
+  const [hero, ...others] = interiors(house, project.images.interior.glazingFace);
+  const checkInterior = (at: string, found: Partial<InteriorExtras> | undefined, part: InteriorPart) => {
+    const { volume, kind, texture } = found ?? {};
+    if (volume !== part.volume.name) issues.push(`${at}.volume is ${show(volume)}, expected ${part.volume.name}`);
+    if (kind !== part.volume.interior!.kind) issues.push(`${at}.kind is ${show(kind)}, expected ${part.volume.interior!.kind}`);
+    if (texture !== part.texture) issues.push(`${at}.texture is ${show(texture)}, expected ${show(part.texture)}`);
+  };
+  if (hero) checkInterior("extras.interior", extras.interior, hero);
+  else if (extras.interior !== undefined) issues.push(`extras.interior is ${show(extras.interior)}, but the record has no Interior`);
+  if (others.length) {
+    const found = extras.otherInteriors ?? [];
+    if (found.length !== others.length) {
+      issues.push(`extras.otherInteriors has ${found.length} Interiors, expected ${others.length} (${others.map((i) => i.volume.name).join(", ")})`);
     }
-  } else if (extras.interior !== undefined) {
-    issues.push(`extras.interior is ${show(extras.interior)}, but the record has no Interior`);
+    others.forEach((part, i) => checkInterior(`extras.otherInteriors[${i}]`, found[i], part));
+  } else if (extras.otherInteriors !== undefined) {
+    issues.push(`extras.otherInteriors is ${show(extras.otherInteriors)}, but the record has one Interior at most`);
   }
 
   for (const node of ["shell", "plinth"]) {

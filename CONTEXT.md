@@ -33,11 +33,11 @@ One named, full-height glazed opening in a House, facing one compass direction. 
 _Avoid_: window (in data), glass, pane
 
 **Interior**:
-The furnished room inside one volume of a House, seen through every Glazing Face into that volume. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. Houses share one set of furniture and differ in how their Interiors are composed. Other glazing looks into a warm room with no furniture.
+Any furnished room of a House: the room inside one volume, seen through every Glazing Face into that volume. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. A House may have several. Houses share one set of furniture and differ in how their Interiors are composed. Other glazing looks into a warm room with no furniture.
 _Avoid_: room, set, furniture layout
 
 **Hero Interior**:
-A House's main Interior: the one behind the Glazing Face its Project's interior image names. For now it is the only furnished Interior in each House.
+A House's main Interior: the one behind the Glazing Face its Project's interior image names. Every House has one, and a House may have other Interiors besides it (Senja's living room, under the bar).
 _Avoid_: main room, showroom
 
 **Curtain**:

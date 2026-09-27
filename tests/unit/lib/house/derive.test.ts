@@ -9,8 +9,10 @@ import {
   grossFloorArea,
   INTERIOR_WALL,
   interiorRoom,
+  interiors,
   interiorShell,
-  interiorVolume,
+  interiorTexture,
+  interiorVolumes,
   levelElevations,
   openingRecess,
   unionArea,
@@ -57,17 +59,47 @@ describe("the room behind a Glazing Face", () => {
   });
 });
 
-describe("the Interior", () => {
-  test("is in the volume that has one, if any", () => {
-    expect(interiorVolume(lyngen.house)?.name).toBe("main");
-    expect(interiorVolume(senja.house)?.name).toBe("bar");
+describe("the Interiors", () => {
+  test("are in the volumes that have one, if any", () => {
+    expect(interiorVolumes(lyngen.house).map((v) => v.name)).toEqual(["main"]);
+    expect(interiorVolumes(senja.house).map((v) => v.name)).toEqual(["lower", "bar"]);
     const bare = structuredClone(lyngen.house);
     delete bare.volumes.find((v) => v.name === "main")!.interior;
-    expect(interiorVolume(bare)).toBeUndefined();
+    expect(interiorVolumes(bare)).toEqual([]);
+    expect(interiors(bare, "living-front")).toEqual([]);
+  });
+
+  test("the hero Interior comes first, as it was named before there were several", () => {
+    const [hero, ...others] = interiors(senja.house, "bar-end");
+    expect(hero).toMatchObject({ hero: true, node: "interior", texture: "interior.ktx2" });
+    expect(hero.volume.name).toBe("bar");
+    expect(hero.window.name).toBe("bar-end");
+    expect(others).toHaveLength(1);
+    expect(others[0]).toMatchObject({ hero: false, node: "interior:lower", texture: "interior-lower.ktx2" });
+    expect(others[0].window.name).toBe("lower-front");
+    expect(interiors(lyngen.house, "living-front").map((i) => i.node)).toEqual(["interior"]);
+  });
+
+  test("the hero Interior turns to the interior image's face, another to its largest glass", () => {
+    const house = structuredClone(senja.house) as House;
+    house.openings.push({ name: "lower-side", volume: "lower", face: "left", at: 1, width: 4.4, level: "L-1", depth: 0.25, fill: "glazing" });
+    expect(interiors(house, "bar-end").map((i) => i.window.name)).toEqual(["bar-end", "lower-front"]);
+    // bar-end is larger than bar-side, but the hero turns to the image's face
+    expect(interiors(house, "bar-side").map((i) => i.window.name)).toEqual(["bar-side", "lower-front"]);
+    // with the image in lower, lower is the hero, and bar turns to its larger window
+    expect(interiors(house, "lower-side").map((i) => [i.node, i.window.name])).toEqual([
+      ["interior", "lower-side"],
+      ["interior:bar", "bar-end"],
+    ]);
+  });
+
+  test("an Interior's texture is named after its node", () => {
+    expect(interiorTexture("interior")).toBe("interior.ktx2");
+    expect(interiorTexture("interior:lower")).toBe("interior-lower.ktx2");
   });
 
   test("its room shell is its volume inside the walls, floor to top", () => {
-    const main = interiorVolume(lyngen.house)!;
+    const main = interiorVolumes(lyngen.house)[0];
     const { rect, floor, ceiling } = interiorShell(lyngen.house, main);
     expect(INTERIOR_WALL).toBe(0.3);
     expect(rect.x0).toBeCloseTo(-3.1);

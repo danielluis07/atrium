@@ -95,8 +95,54 @@ export function interiorRoom(
 /** How thick the walls round an Interior are, metres. */
 export const INTERIOR_WALL = 0.3;
 
-/** The volume that holds the House's Interior, when it has one. */
-export const interiorVolume = (house: House): Volume | undefined => house.volumes.find((v) => v.interior);
+/** The volumes that hold the House's Interiors, in record order. */
+export const interiorVolumes = (house: House): Volume[] => house.volumes.filter((v) => v.interior);
+
+/** One of a House's Interiors, as the export, the GLB contract and the Scene name it. */
+export type InteriorPart = {
+  volume: Volume;
+  /** The hero Interior: the one behind the Glazing Face the Project's interior image looks out through. */
+  hero: boolean;
+  /**
+   * The Glazing Face its template turns to: for the hero Interior, the one
+   * the interior image looks out through; for another, its largest.
+   */
+  window: Opening;
+  /** Its GLB node: `interior` for the hero Interior, `interior:<volume>` for another. */
+  node: string;
+  /** Its baked texture beside the GLB: `interior.ktx2`, or `interior-<volume>.ktx2`. */
+  texture: string;
+};
+
+/** An Interior's baked texture, from its GLB node: `interior` has `interior.ktx2`, `interior:lower` has `interior-lower.ktx2`. */
+export const interiorTexture = (node: string): string => `${node.replace(":", "-")}.ktx2`;
+
+/**
+ * Every Interior of a House (ADR 0005), the hero Interior first, then the
+ * rest in record order. `heroFace` names the Glazing Face the interior image
+ * looks out through: the Interior in its volume is the hero. An Interior
+ * that no glass looks into has no window, and is left out (`validateHouse`
+ * refuses it).
+ */
+export function interiors(house: House, heroFace: string): InteriorPart[] {
+  const heroVolume = house.openings.find((o) => o.name === heroFace && o.fill === "glazing")?.volume;
+  const area = (o: Opening) => {
+    const { along, z } = openingExtent(house, o);
+    return (along[1] - along[0]) * (z[1] - z[0]);
+  };
+  const parts = interiorVolumes(house).flatMap((volume): InteriorPart[] => {
+    const hero = volume.name === heroVolume;
+    const glass = house.openings.filter((o) => o.volume === volume.name && o.fill === "glazing");
+    // the largest, the first of equals
+    const window = hero
+      ? glass.find((o) => o.name === heroFace)
+      : glass.reduce<Opening | undefined>((best, o) => (!best || area(o) > area(best) + 1e-9 ? o : best), undefined);
+    if (!window) return [];
+    const node = hero ? "interior" : `interior:${volume.name}`;
+    return [{ volume, hero, window, node, texture: interiorTexture(node) }];
+  });
+  return [...parts.filter((p) => p.hero), ...parts.filter((p) => !p.hero)];
+}
 
 /**
  * The room shell of the Interior in `volume` (ADR 0005): the volume's plan

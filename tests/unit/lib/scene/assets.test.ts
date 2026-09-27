@@ -24,7 +24,7 @@ const houses = projectOrder.map(sceneProject);
 describe("the Scene's assets", () => {
   for (const house of houses) {
     const { slug } = house;
-    test(`${slug}: the GLB's lightmaps and Interior texture are the files the Scene loads`, () => {
+    test(`${slug}: the GLB's lightmaps and Interior textures are the files the Scene loads`, () => {
       const assets = houseAssets(house);
       const gltf = readGlb(new Uint8Array(readFileSync(publicFile(assets.glb))));
       const extras = gltf.nodes.find((n) => n.name === `house:${slug}`)?.extras as HouseExtras;
@@ -33,15 +33,20 @@ describe("the Scene's assets", () => {
           expect(url).toBe(`/houses/${slug}/${extras.lightmaps[node][layer as "base" | "spill"]}`);
         }
       }
-      expect(assets.interior).toBe(extras.interior && `/houses/${slug}/${extras.interior.texture}`);
+      const rooms = [...(extras.interior ? [extras.interior] : []), ...(extras.otherInteriors ?? [])];
+      expect(Object.values(assets.interiors)).toEqual(rooms.map((r) => `/houses/${slug}/${r.texture}`));
     });
   }
 
-  test("only a House with an Interior downloads its texture", () => {
-    expect(houseAssets({ slug: "lyngen", interior: true }).interior).toBe("/houses/lyngen/interior.ktx2");
-    expect(houseAssets({ slug: "lyngen", interior: false }).interior).toBeUndefined();
-    const textures = sceneDownloads(houses, "lean").filter((u) => u.endsWith("/interior.ktx2"));
-    expect(textures).toEqual(houses.filter((h) => h.interior).map((h) => `/houses/${h.slug}/interior.ktx2`));
+  test("a House downloads each of its Interiors' textures, and no other", () => {
+    expect(houseAssets({ slug: "senja", interiors: ["interior", "interior:lower"] }).interiors).toEqual({
+      interior: "/houses/senja/interior.ktx2",
+      "interior:lower": "/houses/senja/interior-lower.ktx2",
+    });
+    expect(houseAssets({ slug: "lyngen", interiors: [] }).interiors).toEqual({});
+    const textures = sceneDownloads(houses, "lean").filter((u) => /\/interior(-[a-z0-9-]+)?\.ktx2$/.test(u));
+    expect(textures).toEqual(houses.flatMap((h) => Object.values(houseAssets(h).interiors)));
+    expect(textures).toHaveLength(houses.reduce((n, h) => n + h.interiors.length, 0));
   });
 
   for (const path of LIVE_PATHS) {
