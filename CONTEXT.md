@@ -44,6 +44,14 @@ _Avoid_: main room, showroom
 A warm sheer hung just inside a Glazing Face that looks into no Interior, closed across all of its glass and lit from behind by the room. It is drawn by the glazing shader, not baked, and glows and lifts on hover like every window. The one exception to "no Interior" is glass into the empty room behind a partition.
 _Avoid_: blind, drape, shade
 
+**Site Works**:
+The built pieces around a House and the snow they shape. The pieces are walls, steps, paths, terraces, aprons and the small warm lights set into them, in the House's own materials. The snow includes caps on their tops, drifts against them, and the lip and berms of a path cut into the snow. They stand on the House's plinth (the patch of baked snow it stands in) and are baked with the House. A House's Snow Shrubs are part of its Site Works. Pines are not.
+_Avoid_: landscaping, garden, hardscape, props
+
+**Snow Shrub**:
+A low shrub almost buried in snow, part of a House's Site Works: a soft snow mound with dark twig tips showing, modelled and baked with the House. It is the only planting in the Scene besides the pines.
+_Avoid_: bush, plant, planting, garden
+
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
 _Avoid_: modal, popup, card, drawer
