@@ -143,6 +143,9 @@ def palette():
     screen = C.oklch_to_linear(*C.INTERIOR_SCREEN)
     material("monitor", (0.01, 0.012, 0.015), 0.2, emission=screen, strength=C.INTERIOR_SCREEN_GLOW)
     material("leaf", (0.035, 0.075, 0.03), 0.7, node=varied(9, 0.35))
+    material("stoneware", (0.3, 0.25, 0.2), 0.5, node=varied(20, 0.15))
+    material("glaze", (0.16, 0.22, 0.2), 0.3)
+    material("wax", (0.78, 0.74, 0.66), 0.6)
     material("shade", (0.8, 0.7, 0.55), 0.8, emission=lamp, strength=C.INTERIOR_SHADE_GLOW)
     material("disc", lamp, 0.5, emission=lamp, strength=C.INTERIOR_DISC_GLOW)
     material("fire", fire, 1.0, emission=fire, strength=C.INTERIOR_FIRE_GLOW)
@@ -443,16 +446,45 @@ def wall_door(wall, a, width, height):
     wall.box(lever, 0.04, 1.0, lever + 0.06, 0.1, 1.03, "brass")
 
 
+def crockery(wall, u0, u1, v0, v1, z, height, rng):
+    """A kitchen shelf's things along a wall: stacks of plates, nested bowls and rows of jars, with gaps."""
+    u, v = u0 + rng.uniform(0.0, 0.1), (v0 + v1) / 2
+    while u < u1 - 0.25:
+        pick = rng.random()
+        if pick < 0.2:
+            u += rng.uniform(0.15, 0.35)
+        elif pick < 0.45:  # a stack of plates
+            r = min(rng.uniform(0.1, 0.12), (v1 - v0) / 2)
+            cyl(*wall.point(u + r, v), z, z + rng.uniform(0.04, 0.1), r, "ceramic", verts=10)
+            u += 2 * r + 0.04
+        elif pick < 0.7:  # bowls, nested
+            r = min(rng.uniform(0.08, 0.11), (v1 - v0) / 2)
+            cyl(*wall.point(u + r, v), z, z + r * 0.7, r * 0.55, rng.choice(("stoneware", "ceramic")), verts=8,
+                r_top=r)
+            u += 2 * r + 0.04
+        else:  # jars
+            for _ in range(rng.randint(2, 4)):
+                cyl(*wall.point(u + 0.045, v), z, z + rng.uniform(0.12, height * 0.8), 0.045,
+                    rng.choice(("glaze", "stoneware")), verts=6)
+                u += 0.105
+            u += 0.05
+
+
 def worktop(wall, u0, u1, h, o, rng):
-    """A kitchen run along a wall from u0 to u1, C.WORKTOP_DEPTH deep: base units and a stone worktop, a
-    splashback, and open shelves (with `shelving`) or cupboards above."""
+    """A kitchen run along a wall from u0 to u1, C.WORKTOP_DEPTH deep: base units and a stone worktop with a
+    cutting board and bowls on it, a splashback, and open shelves of crockery (with `shelving`) or cupboards
+    above."""
     wall.box(u0, 0.0, 0.0, u1, 0.62, 0.86, "walnut")
     wall.box(u0, 0.0, 0.86, u1, C.WORKTOP_DEPTH, 0.9, "stone")
     wall.box(u0, 0.0, 0.9, u1, 0.02, 1.5, "ceramic")  # splashback
+    board = u0 + (u1 - u0) * 0.3
+    wall.box(board - 0.24, 0.12, 0.9, board + 0.24, 0.46, 0.925, "oak")
+    for f, r, mat in ((0.62, 0.15, "stoneware"), (0.68, 0.1, "ceramic")):
+        cyl(*wall.point(u0 + (u1 - u0) * f, 0.3), 0.9, 0.9 + r * 0.6, r * 0.55, mat, verts=10, r_top=r)
     if o.get("shelving"):
         for z in (1.62, 2.02):
             wall.box(u0 + 0.2, 0.0, z, u1 - 0.2, 0.28, z + 0.03, "walnut")
-            books(wall, u0 + 0.3, u1 - 0.3, 0.02, 0.26, z + 0.03, 0.3, rng)
+            crockery(wall, u0 + 0.3, u1 - 0.3, 0.02, 0.26, z + 0.03, 0.3, rng)
     else:
         wall.box(u0, 0.0, 1.55, u1, 0.36, min(h - 0.05, 2.35), "walnut")
 
@@ -552,6 +584,38 @@ def plant(x, y):
         box(x + dx - s / 2, y + dy - s / 2, z, x + dx + s / 2, y + dy + s / 2, z + s * 0.6, "leaf", soft=0.08)
 
 
+def pot_plant(x, y, rng):
+    """A smaller plant by the glass, about 1.1 m high: a pale stoneware pot and three or four clumps of leaves."""
+    cyl(x, y, 0.0, 0.42, 0.17, "ceramic", verts=10, r_top=0.2)
+    cyl(x, y, 0.38, 0.4, 0.19, "soot", verts=10)
+    for i in range(rng.randint(3, 4)):
+        s = rng.uniform(0.28, 0.36)
+        dx, dy, z = rng.uniform(-0.1, 0.1), rng.uniform(-0.1, 0.1), 0.42 + i * 0.17
+        box(x + dx - s / 2, y + dy - s / 2, z, x + dx + s / 2, y + dy + s / 2, z + s * 0.6, "leaf", soft=0.08)
+
+
+def window_plants(w, rng):
+    """Two pot plants by the glass, one in each corner of the window wall."""
+    for x in (0.4, w - 0.4):
+        pot_plant(x, 0.4, rng)
+
+
+def free_canvas(w, h, d, back=None):
+    """A canvas on the side wall with the longest run clear of glass and doors, in front of what stands along
+    the back wall `back` deep; none where no run is long enough."""
+    runs = []
+    for name in ("left", "right"):
+        spans = [(0.3, d - (back or 0.0) - 0.3)]
+        for g in [*glass, *doors]:
+            if g[0] == name:
+                spans = [piece for a, b in spans for piece in ((a, min(b, g[1] - 0.15)), (max(a, g[2] + 0.15), b))]
+        runs += [(b - a, name, a, b) for a, b in spans]
+    length, name, a, b = max(runs)
+    if length >= 1.2:
+        artwork(Wall(name, w, d), (a + b) / 2, 1.3, min(1.4, length - 0.4), min(0.9, h - 2.0))
+
+
+
 # ---------------------------------------------------------------- templates, one per kind
 
 
@@ -632,38 +696,81 @@ def lounge(w, h, d, o, hearth, rng):
         floor_lamp(wall.frame(c + length / 2 + 0.5, v + 1.5, wall.toward))
 
 
+def sitting(w, d, end):
+    """A dining room's living room, in the third of the room at the `end` it names, turned toward the glass: a
+    sofa facing the window, a low stone table in front of it, and an armchair across the table from the end
+    wall, its back to the rest of the room; a rug under them and a floor lamp by the glass. Returns the span
+    along the room it leaves for the table, (lo, hi)."""
+    at = (lambda u: u) if end == "left" else (lambda u: w - u)  # along the room, in from the end wall
+    length = min(2.0, w / 3 - 0.8)
+    s, y = 0.6 + length / 2, min(3.2, d - 1.1)  # the sofa's middle
+    a = 0.6 + length + 0.5  # the armchair's
+    sofa(Frame(at(s), y), length)
+    table(Frame(at(s), y - 1.1), 1.1, 0.6, 0.36, top="stone")
+    armchair(Frame(at(a), y - 1.1, end), fabric="rust")
+    x0, x1 = sorted((at(0.3), at(a + 0.6)))
+    rug(x0, y - 2.0, x1, y + 0.7)
+    floor_lamp(Frame(at(0.4), y - 1.9))  # toward the glass, where its shade clears the roof's edge
+    return tuple(sorted((at(a + 0.45), at(w))))  # from the armchair's back
+
+
+def table_setting(cx, yc, length, top):
+    """A linen runner down a dining table, the vase on it, and three candles in brass holders, lit."""
+    box(cx - length / 2 + 0.25, yc - 0.17, top, cx + length / 2 - 0.25, yc + 0.17, top + 0.004, "linen")
+    vase(Frame(cx, yc), top + 0.004)
+    for du, tall in ((-0.55, 0.26), (-0.4, 0.2), (0.45, 0.23)):
+        z = top + 0.004
+        cyl(cx + du, yc, z, z + 0.03, 0.035, "brass", verts=8)
+        cyl(cx + du, yc, z + 0.03, z + 0.03 + tall, 0.018, "wax", verts=6)
+        box(cx + du - 0.007, yc - 0.007, z + 0.04 + tall, cx + du + 0.007, yc + 0.007, z + 0.07 + tall, "fire")
+
+
 def dining(w, h, d, o, hearth, rng):
-    """A table facing the window, chairs either side, under two pendants or by a floor lamp. On the back wall,
-    a sideboard and a canvas, shelving, or with `kitchen` a kitchen run centred behind the table (open shelves
-    over it with `shelving`), which the table keeps clear of."""
+    """A table facing the window, chairs either side, a runner and candles on it, under two pendants or by
+    a floor lamp. On the back wall, a sideboard and a canvas, shelving, or with `kitchen` a kitchen run centred
+    behind the table (open shelves over it with `shelving`), which the table keeps clear of. With `seating`,
+    the third of the room at the end it names is a living room (`sitting`), and the table moves to the rest,
+    1.2 m short of the far wall, with what stands behind it. Two pot plants stand by the glass, and without
+    the sideboard's canvas, a canvas hangs on a free side wall."""
     back = Wall("back", w, d)
     run = C.WORKTOP_DEPTH if o.get("kitchen") else 0.0
-    cx, yc = w / 2, min(max(2.4, d * 0.42), d - 1.8 - run)
-    length = min(2.8, max(1.4, w - 2.0))
+    lo, hi = 0.0, w  # the span along the room the table has
+    if o.get("seating"):
+        lo, hi = sitting(w, d, o["seating"])
+    length = min(2.8, max(1.4, hi - lo - 2.0))
+    cx, yc = (lo + hi) / 2, min(max(2.4, d * 0.42), d - 1.8 - run)
+    if hi - lo < w:
+        # toward the far wall, away from the seating
+        cx = max(cx, hi - 1.2 - length / 2) if hi == w else min(cx, lo + 1.2 + length / 2)
     table(Frame(cx, yc), length, 1.0, 0.74, thick=0.05)
     n = max(1, round(length / 0.7))
     for i in range(n):
         u = -length / 2 + length * (i + 0.5) / n
         chair(Frame(cx + u, yc - 0.75, "back"))
         chair(Frame(cx + u, yc + 0.75, "window"))
-    vase(Frame(cx, yc), 0.74)
+    table_setting(cx, yc, length, 0.74)
     if o.get("kitchen"):
-        # a little longer than the table, and short of the side walls, clear of any glass in them
-        half = min(w / 2 - 0.6, length / 2 + 1.2)
+        # a little longer than the table, short of the side walls, clear of any glass in them, and of the seating
+        half = min(cx - lo - (0.6 if lo == 0 else 0.3), hi - cx - (0.6 if hi == w else 0.3), length / 2 + 1.2)
         worktop(back, cx - half, cx + half, h, o, rng)
     elif o.get("shelving"):
-        shelving(back, max(0.15, cx - 1.8), min(w - 0.15, cx + 1.8), 0.36, min(2.2, h - 0.4), rng)
+        shelving(back, max(lo + 0.15, cx - 1.8), min(hi - 0.15, cx + 1.8), 0.36, min(2.2, h - 0.4), rng)
     else:
-        back.box(max(0.15, cx - 1.2), 0.0, 0.0, min(w - 0.15, cx + 1.2), 0.45, 0.75, "walnut")  # sideboard
+        back.box(max(lo + 0.15, cx - 1.2), 0.0, 0.0, min(hi - 0.15, cx + 1.2), 0.45, 0.75, "walnut")  # sideboard
         artwork(back, cx, 1.3, min(1.4, w * 0.3), 0.9)
     if o.get("lamp") == "floor":
-        floor_lamp(Frame(min(w - 0.4, cx + length / 2 + 0.7), yc + 0.9))
+        floor_lamp(Frame(min(hi - 0.4, cx + length / 2 + 0.7), yc + 0.9))
     else:
         for i in range(2):
             pendant(cx + (i - 0.5) * length / 2, yc, 1.55, h)
+    window_plants(w, rng)
+    if o.get("kitchen") or o.get("shelving"):
+        free_canvas(w, h, d, back=run)
 
 
 def kitchen(w, h, d, o, hearth, rng):
+    """A run along the back wall, wall to wall, and an island with stools at it, under pendants or by a floor
+    lamp. Two pot plants stand by the glass, and a canvas hangs on a free side wall."""
     # a run along the back wall, wall to wall
     worktop(Wall("back", w, d), 0.0, w, h, o, rng)
     # an island, and stools at it
@@ -684,6 +791,8 @@ def kitchen(w, h, d, o, hearth, rng):
         k = 3 if length > 1.8 else 2
         for i in range(k):
             pendant(cx - length / 2 + length * (i + 0.5) / k, yc, 1.65, h)
+    window_plants(w, rng)
+    free_canvas(w, h, d, back=C.WORKTOP_DEPTH)
 
 
 def library(w, h, d, o, hearth, rng):

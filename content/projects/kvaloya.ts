@@ -48,8 +48,9 @@ export const kvaloya = {
     volumes: [
       {
         name: "living", rect: { x0: -1.2, y0: -7.2, x1: 8.0, y1: -1.2 }, from: "L0", to: "L0",
-        // the table for eight faces the fjord, a kitchen run behind it
-        interior: { kind: "dining", lamp: "pendant", kitchen: true },
+        // a kitchen, dining and living room: seating at the left end by the court's glass, and the table for
+        // eight facing the fjord in the rest, a kitchen run behind it
+        interior: { kind: "dining", lamp: "pendant", kitchen: true, seating: "left" },
       },
       { name: "sleeping", rect: { x0: 1.2, y0: -1.2, x1: 7.2, y1: 7.2 }, from: "L0", to: "L0" },
       { name: "studio", rect: { x0: -8.0, y0: 1.2, x1: 1.2, y1: 7.2 }, from: "L0", to: "L0" },

@@ -193,7 +193,8 @@ CYCLES = {
 INTERIOR_OPTIONS = {
     "lounge": {"fireplace": bool, "lamp": ("floor", "pendant"), "shelving": bool, "partition": float, "door": bool,
                "tv": ("left", "right")},
-    "dining": {"lamp": ("floor", "pendant"), "shelving": bool, "kitchen": bool},
+    "dining": {"lamp": ("floor", "pendant"), "shelving": bool, "kitchen": bool,
+               "seating": ("left", "right")},
     "kitchen": {"lamp": ("floor", "pendant"), "shelving": bool},
     "library": {"fireplace": bool, "lamp": ("floor", "pendant"), "desk": ("left", "right"),
                 "door": ("left", "right")},

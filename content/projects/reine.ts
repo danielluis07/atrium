@@ -30,7 +30,7 @@ export const reine = {
     light: { src: "/projects/reine/light.avif", alt: "The living floor glowing above the west balcony." },
     interior: {
       src: "/projects/reine/interior.avif",
-      alt: "The living floor looking north over the water.",
+      alt: "The kitchen looking north over the water.",
       glazingFace: "living-front",
     },
     material: { src: "/projects/reine/material.avif", alt: "The stone wall beside the stacked concrete floors." },
