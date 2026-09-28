@@ -427,10 +427,14 @@ def side_door(w, d, beside, hearth, limit):
     if not fits:
         raise SystemExit(f"interior: a door needs a wall another volume stands against, and none fits: {beside}")
     name, u0, u1 = sorted(fits, key=lambda f: (hearth is not None and f[0] == hearth[0], f[0] == "back"))[0]
-    wall = Wall(name, w, d)
     a = max(u0 + 0.6, u1 - 0.8 - dw)
-    wall.box(a, 0.0, 0.0, a + dw, 0.04, dh, "walnut")
-    lever = a + 0.08 if name == "right" else a + dw - 0.14  # on the leaf's far side from its hinges
+    wall_door(Wall(name, w, d), a, dw, dh)
+
+
+def wall_door(wall, a, width, height):
+    """A closed walnut door on a wall, from u = a along it, with a brass lever."""
+    wall.box(a, 0.0, 0.0, a + width, 0.04, height, "walnut")
+    lever = a + 0.08 if wall.name == "right" else a + width - 0.14  # on the leaf's far side from its hinges
     wall.box(lever, 0.04, 1.0, lever + 0.06, 0.1, 1.03, "brass")
 
 
@@ -720,11 +724,12 @@ def bedroom(w, h, d, o, hearth, rng):
 TEMPLATES = {"lounge": lounge, "dining": dining, "kitchen": kitchen, "library": library, "bedroom": bedroom}
 
 
-def furnish(interior, w, h, d, hearth, beside, seed):
+def furnish(interior, w, h, d, hearth, beside, seed, doors=()):
     """Build the kind's template in a room w wide, h high and d deep (room frame), with its downlights and,
     when the Interior asks for one, a door into the room beside it. `hearth` is the wall the House's stone
     mass stands behind and the span of it the room sees, as ("left" | "right" | "back", u0, u1), or None;
-    `beside` lists the walls the House's other volumes stand against, the same way. Returns the parts and the
+    `beside` lists the walls the House's other volumes stand against, the same way. `doors` are the House's
+    doors in the room's walls, (wall, u0, u1, head), each shown closed from inside. Returns the parts and the
     lamps."""
     parts.clear()
     lamps.clear()
@@ -733,5 +738,7 @@ def furnish(interior, w, h, d, hearth, beside, seed):
     v = interior.get("partition")
     if interior.get("door"):
         side_door(w, d, beside, hearth, v or d)
+    for name, u0, u1, head in doors:
+        wall_door(Wall(name, w, d), u0, u1 - u0, head)
     downlights(w, h, d, skip=v and (v, v + C.PARTITION_THICKNESS))
     return list(parts), list(lamps)

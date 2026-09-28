@@ -12,6 +12,7 @@ import {
   levelElevations,
   type InteriorPart,
 } from "@/lib/house/derive";
+import { balconyPlan, pergolaPlan } from "@/lib/house/balcony";
 import { SCHEMA_VERSION, type House } from "@/lib/house/schema";
 import { sitePlan } from "@/lib/house/site";
 import { formatIssues, type HouseIssue } from "@/lib/house/validate";
@@ -31,8 +32,9 @@ export class HouseExportError extends Error {
  * into the GLB extras, each with the room it looks into, each Interior's room
  * shell and the face its template turns to (for the hero Interior, the one
  * the interior image looks out through), and the viewpoints (the overview
- * and arc cameras in the House frame) it marks faces seen from, and its
- * Site Works as plan pieces (`sitePlan`). It leaves out the Curtains: the
+ * and arc cameras in the House frame) it marks faces seen from, its
+ * Site Works as plan pieces (`sitePlan`), and its Balcony Furniture and
+ * pergolas as plan pieces (`balconyPlan`, `pergolaPlan`). It leaves out the Curtains: the
  * Scene draws them, so they don't change a bake (`stampCurtains`).
  * Serialized with sorted keys so the same input always gives the same bytes.
  * Refuses a Project that fails validation, naming the offending parts.
@@ -69,6 +71,9 @@ export function exportHouse(project: Project, layout: SceneLayout): string {
       viewpoints: viewpoints(project.camera, placement, layout),
       // only with Site Works, so a House without them keeps its builder JSON
       site: sitePlan(house),
+      // only with Balcony Furniture or a pergola, so a House without them keeps its builder JSON
+      balcony: balconyPlan(house),
+      pergolas: pergolaPlan(house),
     },
   });
 }

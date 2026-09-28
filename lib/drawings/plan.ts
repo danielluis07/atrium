@@ -1,4 +1,5 @@
 import { type Box, CHAIN, el, hatched, line, outline, poche, sheet, text, union } from "@/lib/drawings/svg";
+import { pergolaPlan } from "@/lib/house/balcony";
 import { level, openingExtent, openingRecess, verticalExtent } from "@/lib/house/derive";
 import type { House, Rect, Volume } from "@/lib/house/schema";
 
@@ -15,8 +16,8 @@ const view = (bottom: number, top: number): View =>
 /**
  * The massing plan, cut at the entrance Level: cut volumes as poché with
  * their openings' recesses left open, a thin line where each fill sits, the
- * stone mass hatched, and what is overhead (slabs and upper volumes)
- * dashed. The front faces down the sheet. The chain line marks the cut of
+ * stone mass hatched, and what is overhead (slabs, pergolas and upper
+ * volumes) dashed. The front faces down the sheet. The chain line marks the cut of
  * the section, A–A.
  */
 export function planSvg(house: House): string {
@@ -57,6 +58,13 @@ export function planSvg(house: House): string {
     const at = view(underside, underside + s.thickness);
     const attrs = { "data-part": "slab", "data-name": s.name, "data-view": at };
     (at === "below" ? below : overhead).push(outline(attrs, box(s.rect), at !== "below"));
+  }
+
+  // a pergola is drawn like a slab: its outline
+  for (const p of pergolaPlan(house) ?? []) {
+    const at = view(p.bottom, p.top);
+    const attrs = { "data-part": "pergola", "data-name": p.slab, "data-view": at };
+    (at === "below" ? below : overhead).push(outline(attrs, box(p.rect), at !== "below"));
   }
 
   const fills = cut
