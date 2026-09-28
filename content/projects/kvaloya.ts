@@ -70,5 +70,26 @@ export const kvaloya = {
     balustrades: [],
     // through the passage, the court and the roof's front overhang
     section: { axis: "x", at: -6 },
+    siteWorks: {
+      // stone paving under the whole roof, cleared, with the snow cut back along its drip line
+      terrace: { rect: { x0: -9.6, y0: -9.2, x1: 9.6, y1: 8.8 }, level: "L0" },
+      walls: [
+        // the living room's front face carried east past its end, out into the snow
+        { name: "east", rect: { x0: 8.0, y0: -7.2, x1: 13.4, y1: -6.9 }, top: 0.45 },
+      ],
+      steps: [],
+      paths: [],
+      aprons: [],
+      lights: [
+        { wall: "east", face: "front", at: 11.0 },
+        { wall: "east", face: "front", at: 12.8 },
+      ],
+      shrubs: [
+        // round the wall's end
+        { at: [14.2, -6.6], size: 0.9 },
+        { at: [12.9, -8.0], size: 0.7 },
+        { at: [13.1, -5.9], size: 0.6 },
+      ],
+    },
   },
 } satisfies Project;

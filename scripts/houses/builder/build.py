@@ -139,12 +139,6 @@ def plinth_z(x, y, sx=None, sy=None):
     return PLINTH_Z * (1 - t * t * (3 - 2 * t))
 
 
-# the House's Site Works (ADR 0006), when it has them: their pieces, and the snow they shape, which the plinth takes
-SITE = (S.Site(DATA["derived"]["site"], plinth_z, SLUG, [(b[0], b[1], b[3], b[4]) for b in SOLIDS])
-        if DATA["derived"].get("site") else None)
-ground_z = SITE.ground if SITE else plinth_z
-
-
 def opening_extent(o):
     """Along the face from its left edge seen from outside, and absolute z. Mirrors lib/house/derive.ts."""
     floor = LEVELS[o["level"]]["elevation"]
@@ -184,28 +178,29 @@ class FaceFrame:
         return self.y1 - self.y0 if self.face in ("front", "back") else self.x1 - self.x0
 
 
-def subtract(rects, holes):
-    """Plan rectangles minus holes, as a list of non-overlapping rectangles."""
-    for hx0, hy0, hx1, hy1 in holes:
-        nxt = []
-        for rx0, ry0, rx1, ry1 in rects:
-            ix0, iy0, ix1, iy1 = max(rx0, hx0), max(ry0, hy0), min(rx1, hx1), min(ry1, hy1)
-            if ix0 >= ix1 - EPS or iy0 >= iy1 - EPS:
-                nxt.append((rx0, ry0, rx1, ry1))
-                continue
-            for r in [(rx0, ry0, rx1, iy0), (rx0, iy1, rx1, ry1), (rx0, iy0, ix0, iy1), (ix1, iy0, rx1, iy1)]:
-                if r[2] - r[0] > 0.02 and r[3] - r[1] > 0.02:
-                    nxt.append(r)
-        rects = nxt
-    return rects
-
-
 def exposed_top(box6):
     """The parts of a volume or stone top that nothing stands or rests on."""
     x0, y0, _, x1, y1, top = box6
     holes = [(b[0], b[1], b[3], b[4]) for b in SOLIDS if b is not box6 and b[2] <= top + EPS < b[5]]
     holes += [s["r"] for s in SLABS if abs(s["zb"] - top) < EPS]
-    return subtract([(x0, y0, x1, y1)], holes)
+    return S.subtract([(x0, y0, x1, y1)], holes)
+
+
+# where the House stands on its floors: each solid in plan with its floor's level, and the plan of each opening cut
+# into it at its floor, whose floor is the ground's: a void's, through the solid, and a glazing's or a door's recess
+cuts = {}
+for o in H["openings"]:
+    (a0, a1), (z0, _) = opening_extent(o)
+    if o["fill"] in ("void", "glazing", "door") and z0 <= VOLUMES[o["volume"]][2] + EPS:
+        ff = FaceFrame(VOLUMES[o["volume"]], o["face"])
+        c = ff.box(a0, a1, 0, ff.depth if o["fill"] == "void" else o["depth"], 0, 0)
+        cuts.setdefault(o["volume"], []).append((c[0], c[1], c[3], c[4]))
+FLOORS = [((b[0], b[1], b[3], b[4]), b[2], cuts.get(name, [])) for name, b in [*VOLUMES.items(), (None, STONE)]]
+
+# the House's Site Works (ADR 0006), when it has them: their pieces, and the snow they shape, which the plinth takes
+SITE = (S.Site(DATA["derived"]["site"], plinth_z, SLUG, [(b[0], b[1], b[3], b[4]) for b in SOLIDS], FLOORS)
+        if DATA["derived"].get("site") else None)
+ground_z = SITE.ground if SITE else plinth_z
 
 
 # ---------------------------------------------------------------- scene helpers
@@ -466,7 +461,7 @@ for s in SLABS:
     if s["soffit"]:
         # only where the slab overhangs: a soffit face buried in a volume top wastes lightmap texels
         holes = [(b[0], b[1], b[3], b[4]) for b in SOLIDS if b[2] < zb - 0.01 and b[5] >= zb - 0.01]
-        soffits = subtract([(x0 + ft, y0 + ft, x1 - ft, y1 - ft)], holes)
+        soffits = S.subtract([(x0 + ft, y0 + ft, x1 - ft, y1 - ft)], holes)
         for rx0, ry0, rx1, ry1 in soffits:
             parts["shell"].append(box(f"{s['name']}-soffit", rx0, ry0, zb - C.SOFFIT_THICKNESS, rx1, ry1, zb, "timber"))
         lamps.extend((x, y, zb - C.SOFFIT_THICKNESS) for x, y in downlights_along(s, soffits))
