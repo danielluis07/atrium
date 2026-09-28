@@ -96,6 +96,34 @@ SHRUB_TWIG = (0.2, 0.42)  # how far a twig stands out of the mound
 SHRUB_TWIG_RADIUS = (0.014, 0.024)
 TWIG_TEXEL_RATIO = 0.25  # thin twigs bake at this fraction of the seen texels per metre
 
+# ---------------------------------------------------------------- balconies (balcony.py)
+
+# each Balcony Furniture piece's footprint, across its front and front to back: mirrors PIECE_SIZE in
+# lib/house/balcony.ts
+PIECE_SIZE = {"chair": (0.75, 0.95), "table": (0.9, 0.55), "pine": (0.6, 0.6), "tub": (1.8, 1.8),
+              "fire-bowl": (0.9, 0.9), "bench": (1.5, 0.42), "telescope": (0.8, 0.8)}
+TABLE_HEIGHT = 0.4
+BENCH_HEIGHT = 0.45
+POT_HEIGHT = 0.42
+TUB_HEIGHT = 0.95
+TUB_FREEBOARD = 0.15  # the water, below the rim
+FIRE_BOWL_HEIGHT = 0.45  # its rim
+TELESCOPE_HEAD = 1.15  # the tripod's head, above the deck
+TELESCOPE_TILT = 12.0  # degrees up from level
+TELESCOPE_LENGTH = 1.0
+# the three lights: the lantern on a table and the fire in a fire bowl, points; the tub's glow, a disc of warm light
+# just over the water, the size of it, shining down into it
+LANTERN_WATTS = 8.0
+FIRE_BOWL_WATTS = 40.0
+TUB_GLOW_WATTS = 12.0
+TUB_GLOW_ABOVE = 0.1
+# a pergola (lib/house/balcony.ts gives its outline, posts and depth): beams round it and between its posts, and
+# timber slats across them
+PERGOLA_BEAM = 0.08  # the beams' width; their depth is the pergola's, less the slats'
+PERGOLA_SLAT = (0.045, 0.12)  # a slat's width and depth
+PERGOLA_PITCH = 0.35
+BALCONY_TEXEL_RATIO = 0.5  # the pieces and the pergolas bake at this fraction of the seen texels per metre
+
 # ---------------------------------------------------------------- bevels (width, segments)
 
 BEVEL_VOLUME = (0.015, 2)

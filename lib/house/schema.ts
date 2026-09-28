@@ -230,6 +230,41 @@ export const SiteWorks = z.object({
   shrubs: z.array(SnowShrub),
 });
 
+/**
+ * Slatted timber over a whole balcony slab, on slender dark metal posts,
+ * its slats' tops at `top` (relative to the datum). It is architecture:
+ * the drawings show it like a slab.
+ */
+export const Pergola = z.object({ slab: name, top: metres });
+
+/**
+ * One piece of Balcony Furniture, standing on its slab with its middle
+ * `at` a plan point and its front toward `facing` (the front of the House
+ * when left out). Each kind has one size, in the builder's kit. A `chair`
+ * is a low timber lounge chair, with a sheepskin over it when `sheepskin`;
+ * a `table` is a low table, with a lantern on it when `lantern`; a `pine`
+ * is a dwarf pine in a concrete pot; a `tub` is an open round timber hot
+ * tub with a warm glow in its water; a `fire-bowl` is a dark metal bowl of
+ * fire; a `bench` is a timber bench; a `telescope` stands on a tripod,
+ * pointed out past its front. Only the lantern, the fire bowl and the tub
+ * give light.
+ */
+export const BalconyPiece = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("chair"), at: PlanPoint, facing: Face.optional(), sheepskin: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal("table"), at: PlanPoint, facing: Face.optional(), lantern: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal("pine"), at: PlanPoint, facing: Face.optional() }),
+  z.strictObject({ kind: z.literal("tub"), at: PlanPoint, facing: Face.optional() }),
+  z.strictObject({ kind: z.literal("fire-bowl"), at: PlanPoint, facing: Face.optional() }),
+  z.strictObject({ kind: z.literal("bench"), at: PlanPoint, facing: Face.optional() }),
+  z.strictObject({ kind: z.literal("telescope"), at: PlanPoint, facing: Face.optional() }),
+]);
+
+/**
+ * The Balcony Furniture on one slab: the pieces set out on it. Unlike Site
+ * Works, it stands on a slab, not on the plinth.
+ */
+export const BalconyFurniture = z.object({ slab: name, pieces: z.array(BalconyPiece).min(1) });
+
 export const House = z.object({
   levels: z.array(Level).min(1),
   volumes: z.array(Volume).min(1),
@@ -239,6 +274,8 @@ export const House = z.object({
   balustrades: z.array(Balustrade),
   section: Section,
   siteWorks: SiteWorks.optional(),
+  pergolas: z.array(Pergola).optional(),
+  balconyFurniture: z.array(BalconyFurniture).optional(),
 });
 
 export type Rect = z.infer<typeof Rect>;
@@ -257,4 +294,7 @@ export type SiteWall = z.infer<typeof SiteWall>;
 export type SiteSteps = z.infer<typeof SiteSteps>;
 export type SitePath = z.infer<typeof SitePath>;
 export type SiteWorks = z.infer<typeof SiteWorks>;
+export type Pergola = z.infer<typeof Pergola>;
+export type BalconyPiece = z.infer<typeof BalconyPiece>;
+export type BalconyFurniture = z.infer<typeof BalconyFurniture>;
 export type House = z.infer<typeof House>;

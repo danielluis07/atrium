@@ -7,6 +7,7 @@ import {
   verticalExtent,
 } from "@/lib/house/derive";
 import { House, type Rect, type Slab, type Volume } from "@/lib/house/schema";
+import { checkBalconies } from "@/lib/house/balcony";
 import { checkSiteWorks } from "@/lib/house/site";
 
 /** One problem with a House, naming the part it is about (`opening living-front`). */
@@ -50,8 +51,8 @@ function describePath(input: unknown, path: PropertyKey[]): string {
  * a volume of one Level that glass looks into and no void or terrace cuts
  * through, every slab touches a volume or the stone mass, names are
  * unique, the gross floor area is within ±15% of the authored m², and the
- * Site Works fit the House (`checkSiteWorks`). Returns no issues when the
- * House is valid.
+ * Site Works and the balconies fit the House (`checkSiteWorks`,
+ * `checkBalconies`). Returns no issues when the House is valid.
  */
 export function validateHouse(house: House, { floorArea }: { floorArea: number }): HouseIssue[] {
   const issues: HouseIssue[] = [];
@@ -180,8 +181,11 @@ export function validateHouse(house: House, { floorArea }: { floorArea: number }
     issue("section", `the cut at ${house.section.axis} = ${m(house.section.at)} misses the House`);
   }
 
-  // Site Works, once the rest of the House holds together
-  if (!issues.length) checkSiteWorks(house, issue);
+  // Site Works and balconies, once the rest of the House holds together
+  if (!issues.length) {
+    checkSiteWorks(house, issue);
+    checkBalconies(house, issue);
+  }
 
   // Gross floor area
   if (volumesOk) {

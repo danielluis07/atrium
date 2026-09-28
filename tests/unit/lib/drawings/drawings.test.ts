@@ -244,3 +244,19 @@ test("Lyngen's section looks toward +x, with the front on the right", () => {
   expect(parts(nodes, "volume").map((v) => v.attrs["data-name"])).not.toContain("wing");
   expect(parts(nodes, "stone")).toHaveLength(0);
 });
+
+test("Reine's pergola is drawn like a slab: dashed overhead in plan, outlined beyond the cut in section", () => {
+  const reine = getProjects().find((p) => p.slug === "reine")!.house;
+  // flush against the top's wall on its left, drawn in from the slab's other edges
+  const rect = { x0: 1.8, y0: -5.48, x1: 8.48, y1: 2.88 };
+  const plan = named(parse(planSvg(reine)), "pergola", "balcony-upper");
+  expect(isDashed(plan)).toBe(true);
+  expectBox(boxes(plan)[0], planBox(rect));
+  const section = named(parse(sectionSvg(reine)), "pergola", "balcony-upper");
+  expect(section.attrs["data-view"]).toBe("beyond");
+  // looking toward +x, so the front is on the right; from its beams' underside to its slats' top
+  expectBox(boxes(section)[0], { h0: -2.88, h1: 5.48, v0: 8.7, v1: 9 });
+  for (const other of getProjects().filter((p) => p.slug !== "reine")) {
+    expect(parts(parse(planSvg(other.house)), "pergola")).toHaveLength(0);
+  }
+});

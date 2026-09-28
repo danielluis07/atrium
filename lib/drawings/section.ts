@@ -1,4 +1,5 @@
 import { type Box, CHAIN, el, hatched, line, num, outline, poche, sheet, text, union } from "@/lib/drawings/svg";
+import { pergolaPlan } from "@/lib/house/balcony";
 import { level, levelElevations, openingExtent, openingRecess, verticalExtent } from "@/lib/house/derive";
 import type { House, Rect } from "@/lib/house/schema";
 import { formatLevel } from "@/lib/format";
@@ -90,6 +91,15 @@ export function sectionSvg(house: House): string {
     // a slab with no thickness is only its fascia line
     if (seen === "cut" && s.thickness > 0) mass.push(poche(attrs, b));
     else beyond.push(outline(attrs, b));
+  }
+
+  // a pergola is drawn like a slab, from its beams' underside to its slats' top; slatted, it is never poché
+  for (const p of pergolaPlan(house) ?? []) {
+    const seen = viewOf(p.rect);
+    if (!seen) continue;
+    const b = box(p.rect, p.bottom, p.top);
+    boxes.push(b);
+    beyond.push(outline({ "data-part": "pergola", "data-name": p.slab, "data-view": seen }, b));
   }
 
   const extent = union(boxes);

@@ -72,6 +72,8 @@ export const reine = {
     ],
     openings: [
       { name: "entry", volume: "base", face: "front", at: 1.0, width: 1.2, level: "L0", head: 2.4, depth: 0.3, fill: "door" },
+      // from the kitchen onto the lower balcony, toward the back, clear of the island
+      { name: "balcony", volume: "middle", face: "left", at: 1.4, width: 1.0, level: "L1", sill: 0.3, head: 2.4, depth: 0.2, fill: "door" },
       { name: "base-front", volume: "base", face: "front", at: 3.0, width: 5.6, level: "L0", depth: 0.3, fill: "glazing", mullions: 2, curtain: true },
       { name: "stair", volume: "base", face: "right", at: 2.0, width: 0.8, level: "L0", sill: 0.3, head: 2.8, depth: 0.25, fill: "glazing", curtain: true },
       { name: "living-front", volume: "middle", face: "front", at: 0.6, width: 8.8, level: "L1", depth: 0.3, fill: "glazing", mullions: 4 },
@@ -82,6 +84,31 @@ export const reine = {
     balustrades: [
       { slab: "balcony-upper", edges: ["front", "right"] },
       { slab: "balcony-lower", edges: ["front", "left"] },
+    ],
+    // slatted timber over the whole upper balcony, below the roof
+    pergolas: [{ slab: "balcony-upper", top: 9.0 }],
+    balconyFurniture: [
+      {
+        // under the top's overhang: two lounge chairs facing the water, a table with a lantern, pines in the corner
+        slab: "balcony-lower",
+        pieces: [
+          { kind: "chair", at: [-4.55, -2.1], sheepskin: true },
+          { kind: "chair", at: [-3.05, -2.1], sheepskin: true },
+          { kind: "table", at: [-3.8, -3.3], lantern: true },
+          { kind: "pine", at: [-5.1, -4.1] },
+          { kind: "pine", at: [-5.1, -3.3] },
+        ],
+      },
+      {
+        // a hot tub against the top's wall, a fire bowl with a bench, and the telescope alone at the corner
+        slab: "balcony-upper",
+        pieces: [
+          { kind: "tub", at: [2.9, -2.35] },
+          { kind: "fire-bowl", at: [5.4, -3.3] },
+          { kind: "bench", at: [5.4, -2.2] },
+          { kind: "telescope", at: [7.85, -4.85] },
+        ],
+      },
     ],
     // through all three Levels, showing how each one shifts
     section: { axis: "x", at: 0.5 },

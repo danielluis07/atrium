@@ -10,6 +10,9 @@ the plinth with OIDN denoise, and exports a raw GLB whose root carries the contr
 A House with Site Works (ADR 0006) has its pieces built from siteworks.py's kit and baked with the shell, then
 split out as the `site` node, and its plinth takes the snow they shape, refined only along them.
 
+A House with Balcony Furniture or a pergola has them built from balcony.py's kit and baked with the shell, as part
+of it, with the lights the pieces carry; the slabs they stand on are kept clear of snow.
+
 A House with Interiors (ADR 0005) also has each of their volumes hollowed to its room shell, the Glazing
 Faces into it cut through, and the room furnished from interior.py's kit. Each room bakes on its own, lit by
 its lamps and downlights and by the sky through its glass, into one texture that holds its colours too.
@@ -34,6 +37,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
+import balcony as B
 import config as C
 import interior as I
 import siteworks as S
@@ -201,6 +205,8 @@ FLOORS = [((b[0], b[1], b[3], b[4]), b[2], cuts.get(name, [])) for name, b in [*
 SITE = (S.Site(DATA["derived"]["site"], plinth_z, SLUG, [(b[0], b[1], b[3], b[4]) for b in SOLIDS], FLOORS)
         if DATA["derived"].get("site") else None)
 ground_z = SITE.ground if SITE else plinth_z
+# its balconies: the Balcony Furniture on its slabs and the pergolas over them, which stand on a slab, not the plinth
+BALCONY = B.Balcony(DATA["derived"].get("balcony"), DATA["derived"].get("pergolas"), SLUG)
 
 
 # ---------------------------------------------------------------- scene helpers
@@ -465,7 +471,9 @@ for s in SLABS:
         for rx0, ry0, rx1, ry1 in soffits:
             parts["shell"].append(box(f"{s['name']}-soffit", rx0, ry0, zb - C.SOFFIT_THICKNESS, rx1, ry1, zb, "timber"))
         lamps.extend((x, y, zb - C.SOFFIT_THICKNESS) for x, y in downlights_along(s, soffits))
-    # roof snow: a soft cushion inside the fascia
+    # roof snow: a soft cushion inside the fascia, but none on a balcony that is furnished or under a pergola
+    if s["name"] in BALCONY.clear:
+        continue
     si = ft + C.SNOW_INSET
     sn = box(f"{s['name']}-snow", x0 + si, y0 + si, zb + thick, x1 - si, y1 - si, zb + max(thick, fd) + C.SNOW_CUSHION, "snow")
     bevel(sn, C.BEVEL_SNOW)
@@ -588,6 +596,52 @@ if SITE:
         lo.location = (x, y, z)
         lo.rotation_euler = Vector(direction).to_track_quat("-Z", "Y").to_euler()
         col.objects.link(lo)
+
+def piece(m, tag=False):
+    """A balcony piece's mesh from balcony.py, merged where its points meet and shaded as it asks. With `tag`, its
+    faces are tagged through the join and the culling, so they unwrap on their own: as strips along their seams
+    (4), or as any other piece (3)."""
+    me = bpy.data.meshes.new(m.name)
+    me.from_pydata(m.verts, [], m.faces)
+    if m.strips:
+        seams = {frozenset(e) for e in m.seams}
+        for e in me.edges:
+            e.use_seam = frozenset(e.vertices) in seams
+    else:
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+        bm.to_mesh(me)
+        bm.free()
+    if m.smooth:
+        me.shade_smooth()
+        if m.smooth != "all":
+            me.set_sharp_from_angle(angle=m.smooth)
+    ob = bpy.data.objects.new(m.name, me)
+    col.objects.link(ob)
+    me.materials.append(mats[m.material])
+    if tag:
+        me.attributes.new("balcony", "INT", "FACE").data.foreach_set("value", [4 if m.strips else 3] * len(me.polygons))
+    return ob
+
+
+# the balconies: the pieces and the pergolas join the shell and bake on its lightmap, their warm glass and fire join
+# the downlights, and their lights light the bake
+meshes, glows, balcony_lights = BALCONY.build()
+parts["shell"] += [piece(m, tag=True) for m in meshes]
+parts["downlights"] += [piece(m) for m in glows]
+for kind, (x, y, z), watts, colour, radius, size in balcony_lights:
+    ld = bpy.data.lights.new("balcony-lamp", kind)
+    ld.energy = watts
+    ld.color = C.oklch_to_linear(*(C.INTERIOR_FIRE if colour == "fire" else C.INTERIOR_LAMP))
+    if kind == "AREA":
+        ld.shape = "DISK"
+        ld.size = size  # it shines down, along its -z
+    else:
+        ld.shadow_soft_size = radius
+    lo = bpy.data.objects.new("balcony-lamp", ld)
+    lo.location = (x, y, z)
+    col.objects.link(lo)
 
 # the snow plinth: the footprint plus a margin, at the lowest exposed floor, stepping up to ±0.00 behind
 # any solids that start below it
@@ -833,6 +887,29 @@ def beside(room, m, w, d):
             for wall in against(room, s, m, w, d)]
 
 
+def doors_in(room, m, w, d):
+    """The House's doors in a room's side and back walls, which the room shows closed, in the room frame:
+    [("left" | "right" | "back", u0, u1, head above the finished floor)]."""
+    inv, floor = m.inverted(), room["floor"] + C.INTERIOR_FINISH
+    out = []
+    for o in H["openings"]:
+        if o["volume"] != room["volume"] or o["fill"] != "door":
+            continue
+        ff = FaceFrame(VOLUMES[o["volume"]], o["face"])
+        (a0, a1), (_, z1) = opening_extent(o)
+        a, b = (inv @ Vector((*ff.point(t, 0), 0)) for t in (a0, a1))
+        if max(a.x, b.x) < 0:
+            wall, span = "left", (a.y, b.y)
+        elif min(a.x, b.x) > w:
+            wall, span = "right", (a.y, b.y)
+        elif min(a.y, b.y) > d:
+            wall, span = "back", (a.x, b.x)
+        else:
+            continue
+        out.append((wall, min(span), max(span), z1 - floor))
+    return out
+
+
 def furnished_room(room, walls):
     """An Interior: its walls, a floor and a ceiling, and the kind's template from the shared kit, joined
     into one object in the House frame; and the lamps that light it. The hero Interior is seeded with the
@@ -840,7 +917,7 @@ def furnished_room(room, walls):
     m, w, h, d = room_frame(room)
     where, doors = hearth(room, m, w, d), beside(room, m, w, d)
     seed = SLUG if room is ROOMS[0] else f"{SLUG}:{room['volume']}"
-    furniture, room_lamps = I.furnish(room["furnishing"], w, h, d, where, doors, seed)
+    furniture, room_lamps = I.furnish(room["furnishing"], w, h, d, where, doors, seed, doors_in(room, m, w, d))
     floor = quad("room-floor", [(0, 0, 0), (w, 0, 0), (w, d, 0), (0, d, 0)], [(0, 0)] * 4, "concrete")
     ceiling = quad("room-ceiling", [(0, 0, h), (0, d, h), (w, d, h), (w, 0, h)], [(0, 0)] * 4, "concrete")
     for ob, name in ((floor, "oak"), (ceiling, "ceiling")):
@@ -947,10 +1024,20 @@ def texel_density(ob, res, polys):
 
 def lightmap_uv(ob, margin, seen, site=None):
     """Unwrap the seen and unseen faces apart, bring the unseen ones to UNSEEN_TEXEL_RATIO of the seen
-    texel density, then pack both into one lightmap. With `site` (each face's site works tag), the site works'
-    seen faces unwrap on their own with a wider angle, so their bevels join the faces beside them and pack tight,
-    and the Snow Shrubs' twigs on their own at TWIG_TEXEL_RATIO."""
-    group_of = [("twig" if site and site[i] == 2 else "site" if site and site[i] and s else s) for i, s in enumerate(seen)]
+    texel density, then pack both into one lightmap. With `site` (each face's tag: 1 for the site works, 2 for the
+    Snow Shrubs' twigs, 3 for the balconies' pieces, 4 for the pergolas' long boxes), the site works' seen faces
+    unwrap on their own with a wider angle, so their bevels join the faces beside them and pack tight, the Snow
+    Shrubs' twigs on their own at TWIG_TEXEL_RATIO, the balconies' seen faces with the site works' angle at
+    BALCONY_TEXEL_RATIO, and the pergolas' boxes along their seams, each a strip, seen or unseen, so their thin
+    faces don't each take an island and its margin."""
+    tag = site or [0] * len(seen)
+
+    def group(i, s):
+        if tag[i] == 4:
+            return "strip" if s else "strip-unseen"
+        return "twig" if tag[i] == 2 else "balcony" if tag[i] == 3 and s else "site" if tag[i] == 1 and s else s
+
+    group_of = [group(i, s) for i, s in enumerate(seen)]
     me = ob.data
     me.uv_layers.new(name="lightmap")
     me.uv_layers.active = me.uv_layers["lightmap"]
@@ -961,9 +1048,12 @@ def lightmap_uv(ob, margin, seen, site=None):
     bpy.context.tool_settings.use_uv_select_sync = True
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.context.tool_settings.mesh_select_mode = (False, False, True)
-    # each group: its texel density against the seen faces', its unwrap angle, and where it is parked apart
+    # each group: its texel density against the seen faces', its unwrap angle (None: along its seams), and where it
+    # is parked apart
     groups = [(True, 1.0, C.SMART_PROJECT_ANGLE, 0.0), (False, C.UNSEEN_TEXEL_RATIO, C.SMART_PROJECT_ANGLE, 2.0),
-              ("site", 1.0, C.SITE_PROJECT_ANGLE, 4.0), ("twig", C.TWIG_TEXEL_RATIO, C.SMART_PROJECT_ANGLE, 6.0)]
+              ("site", 1.0, C.SITE_PROJECT_ANGLE, 4.0), ("twig", C.TWIG_TEXEL_RATIO, C.SMART_PROJECT_ANGLE, 6.0),
+              ("balcony", C.BALCONY_TEXEL_RATIO, C.SITE_PROJECT_ANGLE, 8.0),
+              ("strip", C.BALCONY_TEXEL_RATIO, None, 10.0), ("strip-unseen", C.UNSEEN_TEXEL_RATIO, None, 12.0)]
     for group, _, angle, _ in groups:
         bpy.ops.mesh.select_all(action="DESELECT")
         ebm = bmesh.from_edit_mesh(me)
@@ -971,7 +1061,9 @@ def lightmap_uv(ob, margin, seen, site=None):
         for f in chosen:
             f.select_set(True)
         bmesh.update_edit_mesh(me)
-        if chosen:
+        if chosen and angle is None:
+            bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=margin)
+        elif chosen:
             bpy.ops.uv.smart_project(angle_limit=angle, island_margin=margin, area_weight=0.0,
                                      correct_aspect=True, scale_to_bounds=False)
     bpy.ops.object.mode_set(mode="OBJECT")
@@ -996,7 +1088,22 @@ def lightmap_uv(ob, margin, seen, site=None):
         me.uv_layers.active = me.uv_layers["UVMap"]
 
 
-lightmap_uv(shell, C.ISLAND_MARGIN, seen, [a.value for a in shell.data.attributes["site"].data] if SITE else None)
+def shell_tags():
+    """Each shell face's tag for the unwrap: its site works tag, or its balcony tag (3 or 4, `piece`)."""
+    attrs = shell.data.attributes
+    site_tag = [a.value for a in attrs["site"].data] if "site" in attrs else None
+    balcony_tag = [a.value for a in attrs["balcony"].data] if "balcony" in attrs else None
+    if not balcony_tag:
+        return site_tag
+    return [b or (site_tag[i] if site_tag else 0) for i, b in enumerate(balcony_tag)]
+
+
+lightmap_uv(shell, C.ISLAND_MARGIN, seen, shell_tags())
+if "balcony" in shell.data.attributes:
+    balcony_faces = {i for i, a in enumerate(shell.data.attributes["balcony"].data) if a.value}
+    shell.data.attributes.remove(shell.data.attributes["balcony"])
+else:
+    balcony_faces = set()
 for room in ROOMS:
     # a room's only UV set: its texture's
     lightmap_uv(room["ob"], C.ISLAND_MARGIN, room["seen"])
@@ -1015,6 +1122,12 @@ seen_polys = [p for p in shell.data.polygons if seen[p.index]]
 unseen_polys = [p for p in shell.data.polygons if not seen[p.index]]
 texels_per_m = texel_density(shell, MODE["res"], seen_polys)
 texels_per_m_unseen = texel_density(shell, MODE["res"], unseen_polys)
+if balcony_faces:
+    ours = [p for p in shell.data.polygons if p.index in balcony_faces]
+    print(f"balconies: {sum(p.area for p in ours if seen[p.index]):.0f} m2 seen, "
+          f"{sum(p.area for p in ours if not seen[p.index]):.0f} unseen; the rest of the shell "
+          f"{texel_density(shell, MODE['res'], [p for p in seen_polys if p.index not in balcony_faces]):.1f} texels/m seen",
+          flush=True)
 if SITE:
     tag = shell.data.attributes["site"].data
     site_seen = [p for p in seen_polys if tag[p.index].value]
