@@ -306,6 +306,7 @@ def bevel(ob, spec):
 parts = {"shell": [], "balustrade": [], "downlights": []}
 glazing = {}  # Glazing Face name -> its glass object
 terrace_glass = []  # glazed back walls of terrace recesses
+terrace_rooms = {}  # terrace name -> the glazed back wall of a recess into an Interior, a node of its own
 frames = []  # thin metal parts, bevelled together at the end
 lamps = []  # (x, y, z) of each downlight
 glazing_faces = {}  # name -> contract extras (House frame; converted to glTF at export)
@@ -349,8 +350,8 @@ for o in H["openings"]:
     ff = FaceFrame(box6, o["face"])
     (a0, a1), (z0, z1) = opening_extent(o)
     fill, d = o["fill"], o["depth"]
-    # a void cuts through its volume, and glass into an Interior through to its room
-    into_room = o["volume"] in ROOM_IN and fill == "glazing"
+    # a void cuts through its volume, and glass into an Interior, or a terrace's, through to its room
+    into_room = o["volume"] in ROOM_IN and fill in ("glazing", "terrace")
     through = ff.depth + 1 if fill == "void" else (ff.depth / 2 if into_room else d)
     cut(vol_ob[o["volume"]], box("cutter", *ff.box(a0, a1, -1, through, z0, z1), "concrete"))
     level_lines = [l["elevation"] for l in H["levels"] if z0 + 0.3 < l["elevation"] < z1 - 0.3]
@@ -367,11 +368,16 @@ for o in H["openings"]:
     elif fill == "terrace":
         # a recess with a glazed back wall, snow floor, glass balustrade and timber ceiling. Its glass
         # isn't a Glazing Face, so it joins the balustrade node, after the bake: it lights the spill layer.
+        # Glass into an Interior, where the room starts at the recess's back, is its own node instead.
         g = d - C.GLASS_INSET
         (xa, ya), (xb, yb) = ff.point(a0, g), ff.point(a1, g)
-        terrace_glass.append(
-            quad("terrace-glass", [(xa, ya, z0), (xb, yb, z0), (xb, yb, z1), (xa, ya, z1)],
-                 [(0, 0), (1, 0), (1, 1), (0, 1)], "glazing"))
+        glass = quad(f"terrace:{o['name']}" if into_room else "terrace-glass",
+                     [(xa, ya, z0), (xb, yb, z0), (xb, yb, z1), (xa, ya, z1)], [(0, 0), (1, 0), (1, 1), (0, 1)],
+                     "glazing")
+        if into_room:
+            terrace_rooms[o["name"]] = glass
+        else:
+            terrace_glass.append(glass)
         n = mullions + 1
         for i in range(n + 1):
             t = a0 + (a1 - a0) * i / n
@@ -453,17 +459,31 @@ def downlights_along(slab, soffits):
     return points
 
 
+def clear_rooms(ob, b6):
+    """A slab's core or fascia `ob`, box `b6`, stops where it runs into an Interior's room shell, hollowed as
+    its volume is: the room brings its own ceiling. A fascia hanging its drop below a slab that sits on the
+    room's ceiling doesn't count: the room's ceiling hides it. Returns `ob`."""
+    for room in ROOMS:
+        r = room["rect"]
+        if (b6[0] < r["x1"] - EPS and b6[3] > r["x0"] + EPS and b6[1] < r["y1"] - EPS and b6[4] > r["y0"] + EPS
+                and b6[2] < room["ceiling"] - C.FASCIA_DROP - EPS and b6[5] > room["floor"] + EPS):
+            cut(ob, box("cutter", r["x0"], r["y0"], room["floor"] - 1, r["x1"], r["y1"], room["ceiling"] + 1, "concrete"))
+    return ob
+
+
 for s in SLABS:
     x0, y0, x1, y1 = s["r"]
     zb, thick, fd, ft = s["zb"], s["thickness"], s["fascia"], C.FASCIA_THICKNESS
     if thick > 0:
-        core = box(s["name"], x0 + ft, y0 + ft, zb, x1 - ft, y1 - ft, zb + thick, "concrete")
+        b6 = (x0 + ft, y0 + ft, zb, x1 - ft, y1 - ft, zb + thick)
+        core = clear_rooms(box(s["name"], *b6, "concrete"), b6)
         bevel(core, C.BEVEL_SLAB)
         parts["shell"].append(core)
     for fx0, fy0, fx1, fy1 in [
         (x0, y0, x1, y0 + ft), (x0, y1 - ft, x1, y1), (x0, y0 + ft, x0 + ft, y1 - ft), (x1 - ft, y0 + ft, x1, y1 - ft)
     ]:
-        frames.append(box(f"{s['name']}-fascia", fx0, fy0, zb - C.FASCIA_DROP if thick else zb, fx1, fy1, zb + fd, "metal"))
+        b6 = (fx0, fy0, zb - C.FASCIA_DROP if thick else zb, fx1, fy1, zb + fd)
+        frames.append(clear_rooms(box(f"{s['name']}-fascia", *b6, "metal"), b6))
     if s["soffit"]:
         # only where the slab overhangs: a soffit face buried in a volume top wastes lightmap texels
         holes = [(b[0], b[1], b[3], b[4]) for b in SOLIDS if b[2] < zb - 0.01 and b[5] >= zb - 0.01]
@@ -890,13 +910,24 @@ def beside(room, m, w, d):
 def doors_in(room, m, w, d):
     """The House's doors in a room's side and back walls, which the room shows closed, in the room frame:
     [("left" | "right" | "back", u0, u1, head above the finished floor)]."""
+    return [(wall, u0, u1, head) for wall, u0, u1, _, head in openings_in(room, m, w, d, "door")]
+
+
+def glass_in(room, m, w, d):
+    """The Glazing Faces in a room's side and back walls, in the room frame: [("left" | "right" | "back", u0, u1,
+    sill, head)], the sill and head above the finished floor."""
+    return openings_in(room, m, w, d, "glazing")
+
+
+def openings_in(room, m, w, d, fill):
+    """The House's openings of one fill in a room's side and back walls, in the room frame, as `glass_in`."""
     inv, floor = m.inverted(), room["floor"] + C.INTERIOR_FINISH
     out = []
     for o in H["openings"]:
-        if o["volume"] != room["volume"] or o["fill"] != "door":
+        if o["volume"] != room["volume"] or o["fill"] != fill:
             continue
         ff = FaceFrame(VOLUMES[o["volume"]], o["face"])
-        (a0, a1), (_, z1) = opening_extent(o)
+        (a0, a1), (z0, z1) = opening_extent(o)
         a, b = (inv @ Vector((*ff.point(t, 0), 0)) for t in (a0, a1))
         if max(a.x, b.x) < 0:
             wall, span = "left", (a.y, b.y)
@@ -906,7 +937,7 @@ def doors_in(room, m, w, d):
             wall, span = "back", (a.x, b.x)
         else:
             continue
-        out.append((wall, min(span), max(span), z1 - floor))
+        out.append((wall, min(span), max(span), z0 - floor, z1 - floor))
     return out
 
 
@@ -917,7 +948,8 @@ def furnished_room(room, walls):
     m, w, h, d = room_frame(room)
     where, doors = hearth(room, m, w, d), beside(room, m, w, d)
     seed = SLUG if room is ROOMS[0] else f"{SLUG}:{room['volume']}"
-    furniture, room_lamps = I.furnish(room["furnishing"], w, h, d, where, doors, seed, doors_in(room, m, w, d))
+    furniture, room_lamps = I.furnish(room["furnishing"], w, h, d, where, doors, seed, doors_in(room, m, w, d),
+                                     glass_in(room, m, w, d))
     floor = quad("room-floor", [(0, 0, 0), (w, 0, 0), (w, d, 0), (0, d, 0)], [(0, 0)] * 4, "concrete")
     ceiling = quad("room-ceiling", [(0, 0, h), (0, d, h), (w, d, h), (w, 0, h)], [(0, 0)] * 4, "concrete")
     for ob, name in ((floor, "oak"), (ceiling, "ceiling")):
@@ -1137,7 +1169,7 @@ if SITE:
 area = sum(p.area for p in shell.data.polygons)
 unseen_area = sum(p.area for p in unseen_polys)
 coverage = sum(uv_area(shell.data.uv_layers["lightmap"].data, p) for p in shell.data.polygons)
-exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values(), *terrace_glass] if o]
+exported = [o for o in [shell, balustrade, downlights, plinth, *glazing.values(), *terrace_glass, *terrace_rooms.values()] if o]
 tris = sum(len(p.vertices) - 2 for o in exported for p in o.data.polygons)
 print(f"shell surface {area:.0f} m2 ({unseen_area:.0f} unseen), uv coverage {coverage:.2f}, "
       f"{texels_per_m:.1f} texels/m seen and {texels_per_m_unseen:.1f} unseen at {MODE['res']}, {tris} tris")
@@ -1302,14 +1334,14 @@ def bake_room(room, res, samples):
     set_layer("base")
     for lamp in room_lamps:
         lamp.hide_render = lamp not in room["lamps"]
-    for g in glazing.values():
+    for g in [*glazing.values(), *terrace_rooms.values()]:
         g.hide_render = True
     bake_layer(ob, f"{name}-light", res, samples)
     bake_layer(ob, f"{name}-color", res, C.INTERIOR_COLOR_SAMPLES, passes=("COLOR",), denoise=False)
     bake_layer(ob, f"{name}-glow", res, C.INTERIOR_COLOR_SAMPLES, kind="EMIT", passes=(), denoise=False)
     light, color, glow = (pixels(bpy.data.images.load(os.path.join(OUT, f"{name}-{layer}.exr")))
                           for layer in ("light", "color", "glow"))
-    for g in glazing.values():
+    for g in [*glazing.values(), *terrace_rooms.values()]:
         g.hide_render = False
     out = bpy.data.images.new(name, res, res, alpha=False, float_buffer=True)
     rgba = np.ones((res * res, 4), np.float32)
@@ -1360,7 +1392,7 @@ def split_site():
 
 site = split_site() if SITE else None
 room_obs = [room["ob"] for room in ROOMS]
-exported = [o for o in [shell, site, balustrade, downlights, plinth, *room_obs, *glazing.values()] if o]
+exported = [o for o in [shell, site, balustrade, downlights, plinth, *room_obs, *glazing.values(), *terrace_rooms.values()] if o]
 
 # ---------------------------------------------------------------- export
 

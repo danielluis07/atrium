@@ -64,7 +64,11 @@ const Side = z.enum(["left", "right"]);
  * wall, or with `bedside` its head to the side wall it names, left or right
  * as seen from outside, so the glass sees it side-on; its `tv` is a dark
  * wall TV over a low walnut unit on the side wall across from the bed,
- * facing it, so it needs a `bedside`.
+ * facing it, so it needs a `bedside`. A library's `desk` is a long walnut
+ * desk with a computer against the side wall it names, left or right as
+ * seen from outside, so the window sees it side-on. Its `door` is a
+ * closed walnut door toward the back of the side wall it names, into the
+ * rest of the House.
  */
 export const Interior = z.discriminatedUnion("kind", [
   z.strictObject({
@@ -78,7 +82,13 @@ export const Interior = z.discriminatedUnion("kind", [
   }),
   z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional(), kitchen: z.boolean().optional() }),
   z.strictObject({ kind: z.literal("kitchen"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
-  z.strictObject({ kind: z.literal("library"), fireplace: z.boolean().optional(), lamp: Lamp.optional() }),
+  z.strictObject({
+    kind: z.literal("library"),
+    fireplace: z.boolean().optional(),
+    lamp: Lamp.optional(),
+    desk: Side.optional(),
+    door: Side.optional(),
+  }),
   z.strictObject({
     kind: z.literal("bedroom"),
     lamp: Lamp.optional(),

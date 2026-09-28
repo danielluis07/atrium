@@ -56,8 +56,12 @@ export const lyngen = {
       // the room over the lounge, under the roof slab
       { name: "loft", rect: { x0: -3.4, y0: -4.4, x1: 4.6, y1: 5.0 }, from: "L1", to: "L1" },
       { name: "lower", rect: { x0: 4.6, y0: -3.4, x1: 11.4, y1: 5.0 }, from: "L0", to: "L0" },
-      // the upper frame rises past its Level
-      { name: "frame", rect: { x0: 5.0, y0: -5.0, x1: 12.6, y1: 5.4 }, from: "L1", to: "L1", top: 7.2 },
+      // the upper frame rises past its Level: a library behind the terrace, with a desk on its left wall and
+      // a door behind it, toward the rest of the House
+      {
+        name: "frame", rect: { x0: 5.0, y0: -5.0, x1: 12.6, y1: 5.4 }, from: "L1", to: "L1", top: 7.2,
+        interior: { kind: "library", lamp: "floor", desk: "left", door: "left" },
+      },
     ],
     stone: { name: "chimney", rect: { x0: -5.0, y0: -5.4, x1: -3.4, y1: 2.0 }, from: "L0", to: "L1", top: 8.4 },
     slabs: [
@@ -73,7 +77,7 @@ export const lyngen = {
       { name: "loft-side", volume: "loft", face: "left", at: 0.4, width: 2.4, level: "L1", sill: 0.4, depth: 0.25, fill: "glazing", curtain: true },
       { name: "dining-front", volume: "lower", face: "front", at: 0.8, width: 5.4, level: "L0", depth: 0.3, fill: "glazing", mullions: 2, curtain: true },
       { name: "terrace", volume: "frame", face: "front", at: 0.35, width: 6.9, level: "L1", depth: 1.6, fill: "terrace", mullions: 3 },
-      { name: "study-side", volume: "frame", face: "right", at: 3.0, width: 6.0, level: "L1", sill: 0.7, head: 3.1, depth: 0.25, fill: "glazing", curtain: true },
+      { name: "study-side", volume: "frame", face: "right", at: 3.0, width: 6.0, level: "L1", sill: 0.7, head: 3.1, depth: 0.25, fill: "glazing" },
     ],
     balustrades: [],
     section: { axis: "x", at: 0.6 },

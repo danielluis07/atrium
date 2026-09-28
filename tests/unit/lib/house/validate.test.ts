@@ -40,6 +40,7 @@ describe("Interiors", () => {
 
   test("a volume takes a kind and the options its template honours", () => {
     expect(withInterior({ kind: "library", fireplace: true, lamp: "pendant" }).ok).toBe(true);
+    expect(withInterior({ kind: "library", desk: "left", door: "right" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom" }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom", lamp: "floor", partition: 5 }).ok).toBe(true);
     expect(withInterior({ kind: "bedroom", bedside: "right", tv: true }).ok).toBe(true);
@@ -64,6 +65,9 @@ describe("Interiors", () => {
       { kind: "bedroom", bedside: "back" },
       { kind: "bedroom", tv: "left" },
       { kind: "lounge", bedside: "left" },
+      { kind: "library", desk: "back" },
+      { kind: "library", door: true },
+      { kind: "lounge", desk: "left" },
     ]) {
       const result = withInterior(bad);
       expect(result.ok).toBe(false);
@@ -90,7 +94,7 @@ describe("Interiors", () => {
       h.openings = h.openings.filter((o) => o.volume !== "lower");
     });
     expect(validateHouse(house, { floorArea })).toEqual([
-      { part: "volume lower", message: "has an Interior, but no Glazing Face looks into it" },
+      { part: "volume lower", message: "has an Interior, but no Glazing Face or terrace looks into it" },
     ]);
   });
 
@@ -108,17 +112,22 @@ describe("Interiors", () => {
   test("some glass looks into it", () => {
     const house = broken((h) => (h.openings = h.openings.filter((o) => o.volume !== "main")));
     expect(validateHouse(house, { floorArea })).toEqual([
-      { part: "volume main", message: "has an Interior, but no Glazing Face looks into it" },
+      { part: "volume main", message: "has an Interior, but no Glazing Face or terrace looks into it" },
     ]);
   });
 
-  test("no void or terrace cuts through it", () => {
-    const house = broken((h) => {
-      volume(h, "frame").interior = volume(h, "main").interior;
-      delete volume(h, "main").interior;
-    });
+  test("a terrace may cut into it: the room starts at the recess's glazed back wall", () => {
+    expect(volume(lyngen.house, "frame").interior?.kind).toBe("library");
+    expect(validateHouse(lyngen.house, { floorArea })).toEqual([]);
+    // with only the terrace's glass looking in
+    const house = broken((h) => (h.openings = h.openings.filter((o) => o.name !== "study-side")));
+    expect(validateHouse(house, { floorArea })).toEqual([]);
+  });
+
+  test("no void cuts through it", () => {
+    const house = broken((h) => (opening(h, "terrace").fill = "void"));
     expect(validateHouse(house, { floorArea })).toEqual([
-      { part: "opening terrace", message: "is a terrace, which would cut through the Interior in frame" },
+      { part: "opening terrace", message: "is a void, which would cut through the Interior in frame" },
     ]);
   });
 });
@@ -241,12 +250,12 @@ describe("validateHouse", () => {
       broken((h) => {
         opening(h, "terrace").level = "L2";
         h.slabs[0].level = "L3";
-        h.volumes.find((v) => v.name === "frame")!.to = "L4";
+        h.volumes.find((v) => v.name === "wing")!.to = "L4";
       }),
       { floorArea },
     );
     expect(issues).toEqual([
-      { part: "volume frame", message: "to names Level L4, which the House does not declare" },
+      { part: "volume wing", message: "to names Level L4, which the House does not declare" },
       { part: "opening terrace", message: "level names Level L2, which the House does not declare" },
       { part: "slab roof-main", message: "level names Level L3, which the House does not declare" },
     ]);

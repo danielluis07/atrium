@@ -172,6 +172,10 @@ export function validateProject(project: Project): HouseIssue[] {
       issues.push(...bedsideIssues(house, room, window, partition));
       continue;
     }
+    if (interior.kind === "library") {
+      issues.push(...libraryIssues(house, room, window));
+      continue;
+    }
     if (interior.kind !== "lounge") continue;
     const { floor } = interiorShell(house, room);
     const limit = partition ?? inward.depth;
@@ -267,6 +271,57 @@ function bedsideIssues(house: House, room: House["volumes"][number], window: Hou
         });
       }
     }
+  }
+  return issues;
+}
+
+/** How much of its side wall a library's desk takes, centred along it, metres: the builder's `C.DESK_LENGTH` and a margin. */
+const DESK_RUN = 2.6;
+/**
+ * A library's door, on its side wall: how far its far jamb stands in front
+ * of the back wall, clear of the back wall's shelves, and how wide it is,
+ * metres: the builder's `library` and `C.DOOR_WIDTH`.
+ */
+const LIBRARY_DOOR_BACK = 0.66;
+const LIBRARY_DOOR_WIDTH = 0.9;
+
+/**
+ * A library's `desk` and `door`, as the builder's `library` places them:
+ * the desk centred along the side wall it names, and the door toward the
+ * back of its side wall. Each needs its span of the wall free of glass and
+ * doors, and of each other.
+ */
+function libraryIssues(house: House, room: House["volumes"][number], window: House["openings"][number]): HouseIssue[] {
+  const interior = room.interior;
+  if (interior?.kind !== "library") return [];
+  const part = `volumes.${room.name}.interior`;
+  const inward = inFrom(interiorShell(house, room).rect, window.face);
+  const d = inward.depth;
+  const pieces: { what: "desk" | "door"; side: "left" | "right"; span: [number, number] }[] = [];
+  if (interior.desk) pieces.push({ what: "desk", side: interior.desk, span: [(d - DESK_RUN) / 2, (d + DESK_RUN) / 2] });
+  if (interior.door) {
+    pieces.push({ what: "door", side: interior.door, span: [d - LIBRARY_DOOR_BACK - LIBRARY_DOOR_WIDTH, d - LIBRARY_DOOR_BACK] });
+  }
+  const issues: HouseIssue[] = [];
+  const at = ([lo, hi]: [number, number]) => `${lo.toFixed(2)} to ${hi.toFixed(2)} m in from ${window.name}`;
+  for (const { what, side, span } of pieces) {
+    if (span[0] < 0) {
+      issues.push({ part, message: `is ${d.toFixed(2)} m deep, too shallow for its ${what} on the ${side} wall` });
+      continue;
+    }
+    const face = SIDE_FACES[window.face][side];
+    for (const o of house.openings) {
+      if (o.volume !== room.name || o.face !== face) continue;
+      const [a, b] = openingRecess(house, o).back.map(inward.at);
+      const [lo, hi] = [Math.min(a, b), Math.max(a, b)];
+      if (hi > span[0] + 1e-6 && lo < span[1] - 1e-6) {
+        issues.push({ part, message: `its ${what} is on the ${side} wall, but ${o.name} is there, ${at([lo, hi])}: the ${what} takes ${at(span)}` });
+      }
+    }
+  }
+  const [desk, door] = [pieces.find((p) => p.what === "desk"), pieces.find((p) => p.what === "door")];
+  if (desk && door && desk.side === door.side && door.span[0] < desk.span[1] - 1e-6) {
+    issues.push({ part, message: `its door and its desk are both on the ${desk.side} wall, and the door, ${at(door.span)}, runs into the desk` });
   }
   return issues;
 }

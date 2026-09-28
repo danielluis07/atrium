@@ -33,7 +33,7 @@ One named, full-height glazed opening in a House, facing one compass direction. 
 _Avoid_: window (in data), glass, pane
 
 **Interior**:
-Any furnished room of a House: the room inside one volume, seen through every Glazing Face into that volume. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. A House may have several. Houses share one set of furniture and differ in how their Interiors are composed. Other glazing looks into a warm room with no furniture.
+Any furnished room of a House: the room inside one volume, seen through every Glazing Face into that volume, and through the glazed back wall of a terrace cut into it. It has a kind (lounge, dining, kitchen, library, bedroom) and a furnishing. A House may have several. Houses share one set of furniture and differ in how their Interiors are composed. Other glazing looks into a warm room with no furniture.
 _Avoid_: room, set, furniture layout
 
 **Hero Interior**:

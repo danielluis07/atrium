@@ -48,8 +48,8 @@ function describePath(input: unknown, path: PropertyKey[]): string {
 /**
  * Checks what zod cannot: references exist, openings fit their faces and
  * don't overlap, only Glazing Faces hang Curtains, each Interior sits in
- * a volume of one Level that glass looks into and no void or terrace cuts
- * through, every slab touches a volume or the stone mass, names are
+ * a volume of one Level that glass looks into and no void cuts through
+ * (a terrace's recess stops where the room starts), every slab touches a volume or the stone mass, names are
  * unique, the gross floor area is within ±15% of the authored m², and the
  * Site Works and the balconies fit the House (`checkSiteWorks`,
  * `checkBalconies`). Returns no issues when the House is valid.
@@ -140,14 +140,17 @@ export function validateHouse(house: House, { floorArea }: { floorArea: number }
     }
   }
 
-  // Interiors: each a room shell, in one Level, that some glass looks into and nothing cuts through
+  // Interiors: each a room shell, in one Level, that some glass looks into and no void cuts through. A
+  // terrace's recess stops at its glazed back wall, where the room starts (`interiorShell`)
   for (const v of interiorVolumes(house)) {
     const part = `volume ${v.name}`;
     const into = house.openings.filter((o) => o.volume === v.name);
     if (v.from !== v.to) issue(part, `has an Interior, so it must span one Level, not ${v.from} to ${v.to}`);
-    if (!into.some((o) => o.fill === "glazing")) issue(part, "has an Interior, but no Glazing Face looks into it");
-    for (const o of into.filter((o) => o.fill === "void" || o.fill === "terrace")) {
-      issue(`opening ${o.name}`, `is a ${o.fill}, which would cut through the Interior in ${v.name}`);
+    if (!into.some((o) => o.fill === "glazing" || o.fill === "terrace")) {
+      issue(part, "has an Interior, but no Glazing Face or terrace looks into it");
+    }
+    for (const o of into.filter((o) => o.fill === "void")) {
+      issue(`opening ${o.name}`, `is a void, which would cut through the Interior in ${v.name}`);
     }
   }
 

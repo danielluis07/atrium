@@ -224,6 +224,19 @@ describe("checkGlbContract", () => {
     expect(check(gltf)).toEqual(expect.arrayContaining(["node interior is missing", "node room is not in the House record"]));
   });
 
+  test("wants a terrace's glass into an Interior in a node of its own, of glass", () => {
+    expect(expectedNodes(lyngen).required).toContain("terrace:terrace");
+    const gltf = fresh();
+    gltf.nodes.find((n) => n.name === "terrace:terrace")!.name = "terrace-glass";
+    expect(check(gltf)).toEqual(
+      expect.arrayContaining(["node terrace:terrace is missing", "node terrace-glass is not in the House record"]),
+    );
+    const bad = fresh();
+    const glass = bad.nodes.find((n) => n.name === "terrace:terrace")!;
+    bad.meshes[glass.mesh!].primitives[0].material = bad.materials.findIndex((m) => m.name === "concrete");
+    expect(check(bad)).toEqual(["node terrace:terrace uses material concrete, expected one of glazing"]);
+  });
+
   test("fails when the room has no UV set for its texture", () => {
     const gltf = fresh();
     const room = gltf.nodes.find((n) => n.name === "interior")!;
@@ -233,11 +246,12 @@ describe("checkGlbContract", () => {
 
   test("fails on an Interior the record doesn't give", () => {
     const project = structuredClone(lyngen) as Project;
-    delete project.house.volumes.find((v) => v.name === "main")!.interior;
+    delete project.house.volumes.find((v) => v.name === "frame")!.interior;
     expect(check(fresh(), project)).toEqual([
-      "node interior is not in the House record",
-      "extras.glazingFaces.living-front.interior is true, expected false",
-      'extras.interior is {"volume":"main","kind":"lounge","texture":"interior.ktx2"}, but the record has no Interior',
+      "node interior:frame is not in the House record",
+      "node terrace:terrace is not in the House record",
+      "extras.glazingFaces.study-side.interior is true, expected false",
+      'extras.otherInteriors is [{"volume":"frame","kind":"library","texture":"interior-frame.ktx2"}], but the record has one Interior at most',
     ]);
   });
 
@@ -247,19 +261,22 @@ describe("checkGlbContract", () => {
     expect(check(fresh(), project)).toEqual([
       "node interior:lower is missing",
       "extras.glazingFaces.dining-front.interior is false, expected true",
-      "extras.otherInteriors has 0 Interiors, expected 1 (lower)",
-      "extras.otherInteriors[0].volume is undefined, expected lower",
-      "extras.otherInteriors[0].kind is undefined, expected dining",
-      'extras.otherInteriors[0].texture is undefined, expected "interior-lower.ktx2"',
+      "extras.otherInteriors has 1 Interiors, expected 2 (lower, frame)",
+      'extras.otherInteriors[0].volume is "frame", expected lower',
+      'extras.otherInteriors[0].kind is "library", expected dining',
+      'extras.otherInteriors[0].texture is "interior-frame.ktx2", expected "interior-lower.ktx2"',
+      "extras.otherInteriors[1].volume is undefined, expected frame",
+      "extras.otherInteriors[1].kind is undefined, expected library",
+      'extras.otherInteriors[1].texture is undefined, expected "interior-frame.ktx2"',
     ]);
-    // a copy of the hero's node and extras, renamed, stands in for the bake
+    // a copy of the hero's node and extras, renamed, stands in for the bake, in record order
     const gltf = fresh();
     const hero = gltf.nodes.find((n) => n.name === "interior")!;
     gltf.nodes.push({ ...hero, name: "interior:lower" });
     rootOf(gltf, "lyngen").children!.push(gltf.nodes.length - 1);
     const extras = extrasOf(gltf, "lyngen");
     extras.glazingFaces["dining-front"].interior = true;
-    extras.otherInteriors = [{ volume: "lower", kind: "dining", texture: "interior-lower.ktx2" }];
+    extras.otherInteriors = [{ volume: "lower", kind: "dining", texture: "interior-lower.ktx2" }, ...extras.otherInteriors!];
     expect(check(gltf, project)).toEqual([]);
     delete gltf.meshes[hero.mesh!].primitives[0].attributes!.TEXCOORD_0;
     expect(check(gltf, project)).toEqual([
@@ -269,7 +286,7 @@ describe("checkGlbContract", () => {
     expect(check(gltf)).toEqual(
       expect.arrayContaining([
         "node interior:lower is not in the House record",
-        'extras.otherInteriors is [{"volume":"lower","kind":"dining","texture":"interior-lower.ktx2"}], but the record has one Interior at most',
+        "extras.otherInteriors has 2 Interiors, expected 1 (frame)",
       ]),
     );
   });
