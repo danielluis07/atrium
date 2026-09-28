@@ -168,7 +168,7 @@ Slow and heavy, like moving a heavy object.
 
 ## Wordmark
 
-- **Mark:** a square outline with a square void in the center, the plan view of an atrium. Draw it as SVG with hairline strokes, in ink.
+- **Atrium Mark:** a solid geometric symbol built from offset modernist volumes around a square central void. It reads as both a flat-roof House and the plan of an atrium, stays legible at favicon size, and is drawn as a single-color SVG in ink or snow paper.
 - **Wordmark:** "atrium" in lowercase Newsreader, set beside the mark.
 
 ## Voice and naming

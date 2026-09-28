@@ -3,18 +3,19 @@ import Link from "next/link";
 import { focusClass } from "@/components/site/label";
 import { cn } from "@/lib/utils";
 
-/** The mark: an atrium in plan, a square with a square void at its center. */
-export function Mark({ className }: { className?: string }) {
+/** Atrium's modernist house mark: offset volumes around a central court. */
+export function AtriumMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1}
+      viewBox="0 0 24 24"
+      fill="currentColor"
       aria-hidden="true"
       className={cn("size-5", className)}>
-      <rect x="0.5" y="0.5" width="19" height="19" vectorEffect="non-scaling-stroke" />
-      <rect x="7" y="7" width="6" height="6" vectorEffect="non-scaling-stroke" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2 3h15v3h5v15H8v-3H2V3Zm6 5h8v8H8V8Z"
+      />
     </svg>
   );
 }
@@ -28,7 +29,7 @@ export function Wordmark({ className }: { className?: string }) {
         focusClass,
         className,
       )}>
-      <Mark />
+      <AtriumMark />
       <span className="font-heading text-2xl leading-none font-normal lowercase">
         atrium
       </span>
