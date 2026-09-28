@@ -75,7 +75,7 @@ describe("exportHouse", () => {
     const { derived } = JSON.parse(exportHouse(lyngen, sceneLayout));
     expect(derived.site.walls.map((w: { name: string }) => w.name)).toEqual(["front", "west", "divider", "east"]);
     expect(derived.site.paths[0].runs).toHaveLength(5);
-    expect(exportHouse(reine, sceneLayout)).not.toContain('"site"');
+    expect(exportHouse({ ...reine, house: { ...reine.house, siteWorks: undefined } }, sceneLayout)).not.toContain('"site"');
   });
 
   test("leaves out the framing pines, which the Scene draws live", () => {
