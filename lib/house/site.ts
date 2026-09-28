@@ -291,6 +291,23 @@ export function checkSiteWorks(house: House, issue: (part: string, message: stri
 
   // Paths: axis-aligned runs, turning square, reaching a door
   const aprons = site.aprons.map((a) => ({ a, rect: apronRect(house, a) }));
+  // where a path may end: on an apron, at a door, or on a terrace a door opens onto at its level
+  const doors = house.openings.flatMap((o) => {
+    const v = house.volumes.find((v) => v.name === o.volume);
+    if (o.fill !== "door" || !v || !levels.has(o.level)) return [];
+    const { along } = openingExtent(house, o);
+    return [{ level: o.level, rect: rectBetween(facePoint(v.rect, o.face, along[0], 0), facePoint(v.rect, o.face, along[1], 0)) }];
+  });
+  const onTerrace = (d: (typeof doors)[number]) =>
+    terrace !== undefined &&
+    levels.has(terrace.level) &&
+    level(house, d.level).elevation === level(house, terrace.level).elevation &&
+    within(d.rect, terrace.rect);
+  const doorways = [
+    ...aprons.flatMap(({ rect }) => (rect ? [rect] : [])),
+    ...doors.map((d) => d.rect),
+    ...(doors.some(onTerrace) ? [terrace!.rect] : []),
+  ];
   for (const p of site.paths) {
     const part = `path ${p.name}`;
     const segs = p.line.slice(1).map((b, i) => [b[0] - p.line[i][0], b[1] - p.line[i][1]] as const);
@@ -306,16 +323,10 @@ export function checkSiteWorks(house: House, issue: (part: string, message: stri
     }
     if (ok && pathRuns(p).length !== 2 * segs.length - 1) issue(part, "a run of its line is too short for its width");
     const ends = [p.line[0], p.line[p.line.length - 1]];
-    const door = (pt: readonly [number, number]) =>
-      aprons.some(({ rect }) => rect && rectDistance(rect, pt) < EPS) ||
-      house.openings.some((o) => {
-        if (o.fill !== "door") return false;
-        const v = house.volumes.find((v) => v.name === o.volume);
-        if (!v) return false;
-        const { along } = openingExtent(house, o);
-        return rectDistance(rectBetween(facePoint(v.rect, o.face, along[0], 0), facePoint(v.rect, o.face, along[1], 0)), pt) < EPS;
-      });
-    if (!ends.some(door)) issue(part, "reaches no door: neither end of its line is on an apron or at a door");
+    const door = (pt: readonly [number, number]) => doorways.some((r) => rectDistance(r, pt) < EPS);
+    if (!ends.some(door)) {
+      issue(part, "reaches no door: neither end of its line is on an apron, at a door, or on a terrace a door opens onto");
+    }
   }
 
   // Aprons

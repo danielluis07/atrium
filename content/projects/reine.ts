@@ -85,5 +85,31 @@ export const reine = {
     ],
     // through all three Levels, showing how each one shifts
     section: { axis: "x", at: 0.5 },
+    siteWorks: {
+      // stone paving under the overhangs round the base, cleared to the middle's drip line; the base stands on it
+      terrace: { rect: { x0: -5.0, y0: -5.0, x1: 8.0, y1: 4.0 }, level: "L0" },
+      walls: [
+        // the stone wall's outer line carried forward along the plot's edge, open for the path
+        { name: "west", rect: { x0: -8.0, y0: -9.0, x1: -7.7, y1: -4.0 }, top: 0.45, gaps: [{ from: -7.0, to: -5.8 }] },
+      ],
+      steps: [],
+      paths: [
+        // out from the paving at the entry, then west through the wall and off the plot
+        { name: "entry-path", width: 1.2, line: [[-3.4, -5.0], [-3.4, -6.4], [-9.8, -6.4]], from: 0, to: 0 },
+      ],
+      aprons: [],
+      lights: [
+        { wall: "west", face: "left", at: -8.0 },
+        { wall: "west", face: "left", at: -4.9 },
+        { wall: "west", face: "right", at: -8.0 },
+      ],
+      shrubs: [
+        // outside by the gap, at the wall's end inside, at the path's turn, and at the paving's corner
+        { at: [-8.75, -5.2], size: 0.9 },
+        { at: [-7.1, -8.7], size: 0.6 },
+        { at: [-2.3, -7.3], size: 0.7 },
+        { at: [8.45, -5.45], size: 0.8 },
+      ],
+    },
   },
 } satisfies Project;

@@ -9,6 +9,8 @@ import { pathRuns, sitePlan, wallSegments } from "@/lib/house/site";
 import { parseHouse, validateHouse, type HouseIssue } from "@/lib/house/validate";
 
 const floorArea = lyngen.floorArea;
+/** Reine without its Site Works: a House that has none. */
+const bare = { ...reine.house, siteWorks: undefined } as House;
 
 /** A copy of the Lyngen House with something in its Site Works changed. */
 function edited(edit: (house: House & { siteWorks: NonNullable<House["siteWorks"]> }) => void): HouseIssue[] {
@@ -19,9 +21,9 @@ function edited(edit: (house: House & { siteWorks: NonNullable<House["siteWorks"
 const messages = (issues: HouseIssue[]) => issues.map((i) => `${i.part}: ${i.message}`);
 
 describe("the Site Works field", () => {
-  test("is optional, and Lyngen's, Senja's and Kvaløya's are valid", () => {
-    expect(parseHouse(reine.house).ok).toBe(true);
-    expect((reine.house as House).siteWorks).toBeUndefined();
+  test("is optional, and every House's is valid", () => {
+    expect(parseHouse(bare).ok).toBe(true);
+    expect(validateHouse(reine.house, { floorArea: reine.floorArea })).toEqual([]);
     expect(validateHouse(lyngen.house, { floorArea })).toEqual([]);
     expect(validateHouse(senja.house, { floorArea: senja.floorArea })).toEqual([]);
     expect(validateHouse(kvaloya.house, { floorArea: kvaloya.floorArea })).toEqual([]);
@@ -38,7 +40,7 @@ describe("sitePlan", () => {
   const plan = sitePlan(lyngen.house)!;
 
   test("is left out for a House without Site Works", () => {
-    expect(sitePlan(reine.house)).toBeUndefined();
+    expect(sitePlan(bare)).toBeUndefined();
   });
 
   test("stands a wall as boxes between its gaps", () => {
@@ -111,9 +113,20 @@ describe("checkSiteWorks", () => {
           h.siteWorks.paths[0].line[3] = [-9.4, -7.5];
         }),
       ),
-    ).toContain("path garage-path: reaches no door: neither end of its line is on an apron or at a door");
+    ).toContain("path garage-path: reaches no door: neither end of its line is on an apron, at a door, or on a terrace a door opens onto");
     expect(messages(edited((h) => (h.siteWorks.paths[0].line[1] = [2.0, -10.6])))).toContain(
       "path garage-path: run 1 of its line is not along x or y",
+    );
+  });
+
+  test("takes a path that ends on a terrace only when a door opens onto it", () => {
+    // Reine's path starts on the paving in front of its entry
+    const house = structuredClone(reine.house) as House & { siteWorks: NonNullable<House["siteWorks"]> };
+    expect(validateHouse(house, { floorArea: reine.floorArea })).toEqual([]);
+    // paving that stops short of the entry leaves the path reaching no door
+    house.siteWorks.terrace!.rect.x0 = -2.0;
+    expect(messages(validateHouse(house, { floorArea: reine.floorArea }))).toContain(
+      "path entry-path: reaches no door: neither end of its line is on an apron, at a door, or on a terrace a door opens onto",
     );
   });
 
