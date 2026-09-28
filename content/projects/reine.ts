@@ -1,10 +1,6 @@
 import type { Project } from "@/content/schema";
 
-/**
- * Reine House: a compact stack of three Levels, each shifted off the one
- * below, with balconies on the overhangs and a stone wall up the east side.
- * Copy is placeholder until the write-up is drafted from the baked House.
- */
+/** Reine House: three shifted Levels beside a full-height stone wall. */
 export const reine = {
   name: "Reine House",
   slug: "reine",
@@ -12,28 +8,28 @@ export const reine = {
   elevation: 12,
   year: 2025,
   floorArea: 235,
-  lede: "Three floors stacked on a small plot, each one shifted to find its own view.",
+  lede: "Three concrete floors shift across a narrow plot, making a terrace from each roof below.",
   writeUp: {
     site: [
-      "The plot is narrow and close to the water, so the house goes up. Each floor slides off the one below it, and a stone wall on the east side takes the wind off the stack.",
+      "The narrow plot keeps the house to a compact stack. A stone wall runs the full height and extends into the snow; the entry path passes through a gap in its lower end before turning beneath the first overhang.",
     ],
     light: [
-      "The living floor reaches out west over the entrance and is glazed on two sides. Where a floor steps back, the roof below it becomes a balcony, so every Level has a place outside.",
+      "Clear glass wraps the kitchen on the middle floor and the bedroom above it. The lower balcony shelters two chairs beneath the bedroom, while the upper terrace sits under a timber pergola with a fire bowl and a view along the water.",
     ],
     material: [
-      "Board-formed concrete floors, a stone wall three storeys high, and glass balustrades that leave the edges of the slabs clear.",
+      "Board-formed concrete defines the shifted floors. The stone wall braces the stack, while glass balustrades and a timber pergola keep the two terraces open to the view.",
     ],
   },
   images: {
-    hero: { src: "/projects/reine/hero.avif", alt: "Reine House at blue hour, three shifted floors lit above the snow." },
-    site: { src: "/projects/reine/site.avif", alt: "Reine House close to the water, with the peaks behind." },
-    light: { src: "/projects/reine/light.avif", alt: "The living floor glowing above the west balcony." },
+    hero: { src: "/projects/reine/hero.avif", alt: "The three shifted floors of Reine House lit above the snow." },
+    site: { src: "/projects/reine/site.avif", alt: "Reine House rising beside a full-height stone wall near the water." },
+    light: { src: "/projects/reine/light.avif", alt: "Warm kitchen and bedroom glazing opening onto Reine House's two terraces." },
     interior: {
       src: "/projects/reine/interior.avif",
-      alt: "The kitchen looking north over the water.",
+      alt: "The kitchen at Reine House looking through five glass panels toward the water.",
       glazingFace: "living-front",
     },
-    material: { src: "/projects/reine/material.avif", alt: "The stone wall beside the stacked concrete floors." },
+    material: { src: "/projects/reine/material.avif", alt: "The stone wall beside offset concrete slabs, glass rails and a timber pergola." },
   },
   camera: {
     azimuth: 20,

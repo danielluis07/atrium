@@ -1,7 +1,4 @@
-/**
- * Site-wide copy. Project records live in `content/projects/`.
- * The Studio, Approach and Contact copy is placeholder until it is drafted.
- */
+/** Site-wide copy. Project records live in `content/projects/`. */
 
 import type { Project } from "@/content/schema";
 
@@ -12,11 +9,11 @@ export const studio = {
   founded: 2014,
   /** The Studio Depth's display statement, and the home page description. */
   statement:
-    "Atrium designs houses for the far north, where the sun stays low for half the year and the ground is snow.",
+    "Atrium designs houses around northern ground, winter light and the weather coming off the sea.",
   paragraphs: [
-    "The studio was founded in Tromsø in 2014. We work on a few houses at a time, in Troms and Nordland, for people who want to live close to the weather.",
-    "Each house starts on its site: where the snow drifts, where the wind comes from, where the sun sits in December. The plan follows from that.",
-    "We build in concrete, stone and timber, and keep the palette small so the light has something to work on.",
+    "The studio was founded in Tromsø in 2014. Our four completed houses stand across Troms and Nordland, close to the water and open weather.",
+    "We begin with the ground. Winter drifts, wind direction and the low path of the sun settle the section before the rooms take shape.",
+    "Concrete carries the houses, stone anchors them and timber lines the sheltered parts. Clear glass opens the main rooms to the water; curtains close the rest.",
   ],
 } as const;
 
@@ -32,29 +29,29 @@ type Crop = {
 export const approach: { label: string; head: string; paragraph: string; crop: Crop }[] = [
   {
     label: "Site",
-    head: "Start from the ground.",
+    head: "Let the ground set the section.",
     paragraph:
-      "A house stands on a concrete plinth above the snow, set where the drifts leave it clear. We walk each site in winter before we draw anything.",
+      "Each house meets the slope on a plinth. Low walls, paths and steps carry the same level out into the snow and shelter the ground beside the rooms.",
     crop: { project: "lyngen", image: "site", focus: "50% 75%" },
   },
   {
     label: "Light",
-    head: "Hold the low sun.",
+    head: "Open the rooms to winter light.",
     paragraph:
-      "In winter the sun barely clears the mountains. The glazing faces the long views, and the roof slabs reach out to keep the snow off the glass, so the rooms glow at blue hour.",
+      "Low sun reaches beneath the roof slabs. At blue hour, clear glass shows the main room while curtains turn the other windows into a softer light.",
     crop: { project: "senja", image: "light", focus: "50% 70%" },
   },
   {
     label: "Material",
-    head: "Few materials, left as they are.",
+    head: "Build with a short palette.",
     paragraph:
-      "Board-formed concrete, one stone mass and timber under the roofs. Nothing is clad or painted, so each house weathers into its site.",
+      "Board-formed concrete carries the volumes. Stone holds the hearth, chimney or ground, while timber warms the soffits beneath dark metal edges.",
     crop: { project: "kvaloya", image: "material", focus: "50% 60%" },
   },
 ];
 
 export const contact = {
-  line: "Write to us about a site in the north.",
+  line: "Tell us about your site in the north.",
 } as const;
 
 /** The home page Depths the header links to, in page order. */

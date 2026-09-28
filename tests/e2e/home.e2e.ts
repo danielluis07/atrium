@@ -18,7 +18,7 @@ const depths = [
 ];
 
 const statement =
-  "Atrium designs houses for the far north, where the sun stays low for half the year and the ground is snow.";
+  "Atrium designs houses around northern ground, winter light and the weather coming off the sea.";
 
 const indexRows = (page: Page) => page.locator("#projects").getByRole("listitem");
 const readout = (page: Page) => page.locator('[data-slot="depth-readout"]');

@@ -1,10 +1,6 @@
 import type { Project } from "@/content/schema";
 
-/**
- * Senja House: set into the slope. A glazed lower volume under a long bar
- * that cantilevers 4 m toward the fjord, with a stone wall across the slope.
- * Copy is placeholder until the write-up is drafted from the baked House.
- */
+/** Senja House: a lower room beneath a long bar set across the slope. */
 export const senja = {
   name: "Senja House",
   slug: "senja",
@@ -12,28 +8,28 @@ export const senja = {
   elevation: 25,
   year: 2018,
   floorArea: 220,
-  lede: "A long concrete bar laid across the slope, reaching four metres out past the room below it.",
+  lede: "A concrete bar crosses the slope and projects four metres beyond a lower room cut into the snow.",
   writeUp: {
     site: [
-      "The slope was cut once. The lower room sits in the cut with its back to the hill, and the bar lies across it at the level of the snow behind. A stone wall holds the ground on the west side.",
+      "The lower lounge sits against the hill, with a paved terrace kept clear beneath the bar. A stone wall holds the upper grade; beyond its end, a lit stair of sixteen risers descends through the snow to the terrace.",
     ],
     light: [
-      "The lower room is glazed across the half of its front nearest the stone wall, and walled along the rest. The bar ends in one window facing north, so the last of the light comes down its length.",
+      "One wide window closes the bedroom at the end of the bar. Below it, glass is confined to half of the lounge front, gathering the warm light beneath the cantilever while the rest of the room stays enclosed.",
     ],
     material: [
-      "Board-formed concrete for the bar and the lower room, and a dry-laid stone wall that runs from the cut out into the slope.",
+      "The bar and lower room are board-formed concrete. A dry-laid stone wall continues from the cut into the slope, with timber beneath the roof and two lower ledges.",
     ],
   },
   images: {
-    hero: { src: "/projects/senja/hero.avif", alt: "Senja House at blue hour, the bar reaching out over the lit room below." },
-    site: { src: "/projects/senja/site.avif", alt: "Senja House set into the snow slope above the water." },
-    light: { src: "/projects/senja/light.avif", alt: "The glazed lower room glowing under the cantilever." },
+    hero: { src: "/projects/senja/hero.avif", alt: "Senja House crossing the slope above a lower room cut into the snow." },
+    site: { src: "/projects/senja/site.avif", alt: "The stone retaining wall and long stair descending beside Senja House." },
+    light: { src: "/projects/senja/light.avif", alt: "The lower lounge glowing beneath Senja House's concrete cantilever." },
     interior: {
       src: "/projects/senja/interior.avif",
-      alt: "The end of the bar, one wide window looking north over the fjord.",
+      alt: "The bedroom at Senja House looking through its three-panel end window toward the fjord.",
       glazingFace: "bar-end",
     },
-    material: { src: "/projects/senja/material.avif", alt: "The stone wall meeting the concrete bar." },
+    material: { src: "/projects/senja/material.avif", alt: "The dry-laid stone wall meeting Senja House's board-formed concrete bar." },
   },
   camera: {
     azimuth: 35,

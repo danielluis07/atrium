@@ -1,9 +1,6 @@
 import type { Project } from "@/content/schema";
 
-/**
- * Lyngen House: the reference House, translated from the prototype massing.
- * Copy is placeholder until the write-up is drafted from the baked House.
- */
+/** Lyngen House: the reference House, translated from the prototype massing. */
 export const lyngen = {
   name: "Lyngen House",
   slug: "lyngen",
@@ -11,28 +8,28 @@ export const lyngen = {
   elevation: 40,
   year: 2021,
   floorArea: 320,
-  lede: "A low concrete house under one long roof, facing the fjord across a slope of snow.",
+  lede: "A broad concrete house that rises from a low garage wing to two rooms stacked beside a stone chimney.",
   writeUp: {
     site: [
-      "The house sits on a shelf above the fjord, with the Lyngen Alps behind it. A low wing holds the garage and the entrance and takes the weather off the main room.",
+      "The house occupies a shelf above the fjord. A stone path links the garage apron to three lit steps at the main terrace, where low walls hold the snow back from the glass.",
     ],
     light: [
-      "The glass runs two floors up the front, toward the water: the lounge round the fire below, and a curtained room above it. In winter the light comes low and blue across the fjord, and the roof slab reaches out to keep the snow off the glass.",
+      "The fireplace lounge and curtained loft share the tall front elevation. At the far end, an upper library opens behind a recessed terrace and returns along the side wall to face the water.",
     ],
     material: [
-      "Board-formed concrete throughout, a stone chimney that runs past the roof, and timber for the soffits, the garage door and the terrace ceiling.",
+      "Board-formed concrete makes the three wings. The chimney is rough stone; dark metal trims the roof slabs, with timber beneath the main roof and the lounge canopy.",
     ],
   },
   images: {
-    hero: { src: "/projects/lyngen/hero.avif", alt: "Lyngen House at blue hour, lit from within, above the fjord." },
-    site: { src: "/projects/lyngen/site.avif", alt: "Lyngen House on its snow shelf with the mountains behind." },
-    light: { src: "/projects/lyngen/light.avif", alt: "The glazed main room glowing under the roof slab." },
+    hero: { src: "/projects/lyngen/hero.avif", alt: "Lyngen House rising from its garage wing beside a tall stone chimney." },
+    site: { src: "/projects/lyngen/site.avif", alt: "Lyngen House on a snow shelf with a walled terrace facing the fjord." },
+    light: { src: "/projects/lyngen/light.avif", alt: "Warm light behind the lounge and upper library glazing at Lyngen House." },
     interior: {
       src: "/projects/lyngen/interior.avif",
-      alt: "The lounge by the fire, looking out over the fjord.",
+      alt: "The fireplace lounge at Lyngen House looking through four glass panels toward the fjord.",
       glazingFace: "living-front",
     },
-    material: { src: "/projects/lyngen/material.avif", alt: "Board-formed concrete meeting the stone chimney." },
+    material: { src: "/projects/lyngen/material.avif", alt: "Snow-capped concrete roof slabs meeting the stone chimney and timber soffit." },
   },
   camera: {
     azimuth: -25,
