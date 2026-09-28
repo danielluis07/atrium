@@ -65,6 +65,8 @@
   --window: oklch(0.8 0.13 70);
   --window-ink: oklch(0.55 0.13 60);
   --dusk: oklch(0.42 0.08 255);
+  /* The shadowed foreground snow that becomes the page below the Section Cut. */
+  --below-grade: oklch(0.35 0.047 247);
   --radius: 0;
 
   /* The drawing sheet: page margin, gutter and header height. */
@@ -124,11 +126,45 @@
 }
 
 /*
- * Over the Scene the header is clear, with ink and paper swapped; it cuts
- * back to ink, with no fade, the moment the section line crosses its
- * baseline (`data-surface`). Until the header has looked, a page with a
+ * Below grade, the drawing sheet takes the colour of the Scene's foreground
+ * snow. The local semantic tokens keep the section drawing legible without
+ * turning Project pages or the light Project Panel into dark surfaces.
+ */
+[data-slot="paper"],
+:root:has([data-slot="section-cut"]) [data-slot="site-header"][data-surface="paper"],
+:root:has([data-slot="section-cut"]) footer {
+  --background: var(--below-grade);
+  --foreground: oklch(0.975 0.004 240);
+  --card: oklch(0.39 0.043 247);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.39 0.043 247);
+  --popover-foreground: var(--foreground);
+  --primary: var(--foreground);
+  --primary-foreground: var(--below-grade);
+  --secondary: oklch(0.42 0.04 247);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.42 0.04 247);
+  --muted-foreground: oklch(0.79 0.022 245);
+  --accent: oklch(0.42 0.04 247);
+  --accent-foreground: var(--foreground);
+  --border: oklch(0.9 0.01 245 / 0.22);
+  --input: var(--border);
+  --ring: var(--foreground);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Keep the home page's footer and overscroll under the same snow layer. */
+:root:has([data-slot="section-cut"]) body {
+  background-color: var(--below-grade);
+}
+
+/*
+ * Over the Scene the header is clear and pale. When the section line crosses
+ * its baseline (`data-surface`), the same pale type sits on the below-grade
+ * snow surface, with no fade. Until the header has looked, a page with a
  * section line starts over the Scene. Without JavaScript nothing can look,
- * so the header stays ink.
+ * so the header stays on the light-paper fallback.
  */
 @media (scripting: enabled) {
   [data-slot="site-header"][data-surface="scene"],

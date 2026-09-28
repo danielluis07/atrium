@@ -37,7 +37,7 @@ Houses are **assembled from shared parts** (volume, stone mass, slab, opening, b
   - **Site Works:** designed, like the House, for its arc; at the overview they only need to read as a silhouette. Every piece is modelled with real thickness, its snow modelled too (caps on its tops, drifts against it, the lip and berms of a path), and baked with the House. No decals, painted paths, billboards, leafy planting, alpha-tested cards or anything animated. Lights are set into walls and steps, never on posts or bollards. Framing pines stand where the arc needs them and never cover a House from an arc camera or the overview (`docs/adr/0006-houses-stand-in-built-site-works.md`).
 - **Hover:** the House's windows brighten and a small mono label with the Project name appears in the Scene. The cursor changes to a pointer.
 - **Select:** the camera flies to the House's hero angle (about 1.5s, ease-in-out), the other Houses dim, and the **Project Panel** slides in from the right. Clicking another House flies straight to it. Esc or a click on empty snow closes the panel and flies the camera back.
-- **Section Cut:** scrolling past the hero drops the camera toward the ground, and the snow surface becomes a crisp ink **section line** across the viewport, with the dark Scene above and snow paper below. Right under the line runs a narrow band of section hatch (snow strata). The line scrolls up and away, and the page continues below grade. It is a cut, not a fade, so no fog has to match the paper color. If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). The line is the paper page's top edge in the DOM, and the camera drop is keyed to it. See `docs/adr/0002-section-cut-replaces-whiteout.md` and `docs/adr/0003-section-cut-is-the-papers-dom-edge.md`.
+- **Section Cut:** scrolling past the hero drops the camera toward the ground, and the snow surface becomes a crisp pale **section line** across the viewport, with the dark Scene above and the shadowed foreground-snow colour continuing below. Right under the line runs a narrow band of section hatch (snow strata). The line scrolls up and away, and the page continues below grade on that same blue-shadow surface, giving the sensation of passing beneath the ice. It is a cut, not a fade. If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). The line is the below-grade page's top edge in the DOM, and the camera drop is keyed to it. See `docs/adr/0002-section-cut-replaces-whiteout.md` and `docs/adr/0003-section-cut-is-the-papers-dom-edge.md`.
 - **Degradation:**
   - Touch-primary devices (`(pointer: coarse)` without `(hover: hover)`) get a lighter live Scene, the mobile Scene: fewer snow particles, no real-time shadows, reduced camera motion. Touch has no orbit: a selected House holds its hero angle, and swipes always scroll. The choice follows input, not GPU power, so a mouse on a weak laptop still gets orbit.
   - `prefers-reduced-motion`, no WebGL, a software renderer (SwiftShader, llvmpipe, or `failIfMajorPerformanceCaveat` failing) or a `detect-gpu` tier 0 gets a pre-rendered still of the Scene, cropped so its snow line sits on the same section line and hatch band (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
@@ -59,13 +59,14 @@ Houses are **assembled from shared parts** (volume, stone mass, slab, opening, b
 
 ## Theme
 
-Light only, with no dark mode. The Scene is the only dark surface on the site.
+There is no user-selectable dark mode. Project pages and sheets are light; the home Depths continue the Scene's shadowed foreground snow below the Section Cut.
 
 Map these onto shadcn's CSS variables in `app/globals.css` (`:root`), and remove the `.dark` block.
 
 | Role | Token | Value | Notes |
 | --- | --- | --- | --- |
-| Snow paper | `--background` | `oklch(0.975 0.004 240)` | Cool white with a hint of blue-grey. The page "below grade", under the Section Cut. |
+| Snow paper | `--background` | `oklch(0.975 0.004 240)` | Cool white with a hint of blue-grey. Project pages and light sheets. |
+| Below grade | `--below-grade` | `oklch(0.35 0.047 247)` | Blue-shadow foreground snow continued through the home Depths. |
 | Sheet | `--card`, `--popover` | `oklch(0.99 0.002 240)` | Project Panel and raised surfaces. |
 | Basalt ink | `--foreground`, `--primary` | `oklch(0.2 0.01 250)` | Text and primary buttons. Never pure black. |
 | Ink on basalt | `--primary-foreground` | `oklch(0.975 0.004 240)` | |
@@ -130,7 +131,7 @@ Routes: `/`, `/projects/[slug]` and a styled 404. Nothing else: no `/projects` p
 
 ### Header and footer
 
-- **Header:** fixed and quiet: the wordmark on the left, anchor links (Projects, Studio, Approach, Contact) in mono 12px uppercase, and the current Depth on the right (`±0.00` over the Scene, then `▽ −2.00` etc.), which replaces an active-link underline. Over the Scene it is paper-colored. It cuts to ink with no fade when the section line crosses its baseline. On Project pages the links go to `/#…`. On mobile the links collapse into a shadcn `Sheet`.
+- **Header:** fixed and quiet: the wordmark on the left, anchor links (Projects, Studio, Approach, Contact) in mono 12px uppercase, and the current Depth on the right (`±0.00` over the Scene, then `▽ −2.00` etc.), which replaces an active-link underline. Over the Scene it is pale and transparent. When the section line crosses its baseline, the header fills with the blue-shadow below-grade surface while its type stays pale, with no fade. On Project pages the links go to `/#…`. On mobile the links collapse into a shadcn `Sheet`.
 - **Footer:** shared by every page, a hairline-topped strip like the edge of a drawing sheet: the wordmark, the studio's location (`Tromsø, Norway`) in mono, the contact email, and the line "Atrium is a fictional studio."
 
 ### Home (`/`)

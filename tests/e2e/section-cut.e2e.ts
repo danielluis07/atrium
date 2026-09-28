@@ -8,12 +8,46 @@ import { HOME } from "./paths";
 const header = (page: Page) => page.getByRole("banner");
 const sectionLine = (page: Page) => page.locator('[data-slot="section-line"]');
 
-/** The paper and ink colours, as the page computes them. */
+/** The active page surface and its ink colour, as the page computes them. */
 const colours = (page: Page) =>
   page.evaluate(() => {
-    const body = getComputedStyle(document.body);
-    return { paper: body.backgroundColor, ink: body.color };
+    const surface = document.querySelector<HTMLElement>('[data-slot="paper"]') ?? document.body;
+    const style = getComputedStyle(surface);
+    return { surface: style.backgroundColor, ink: style.color };
   });
+
+/** The light-paper palette outside a contextual surface. */
+const rootColours = (page: Page) =>
+  page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.cssText = "background-color:var(--background);color:var(--foreground)";
+    document.body.append(probe);
+    const style = getComputedStyle(probe);
+    const result = { surface: style.backgroundColor, ink: style.color };
+    probe.remove();
+    return result;
+  });
+
+test("the page below grade continues the foreground snow colour", async ({ page }) => {
+  await page.goto(HOME);
+  const colours = await page.evaluate(() => {
+    const paper = document.querySelector<HTMLElement>('[data-slot="paper"]')!;
+    const footer = document.querySelector<HTMLElement>("footer")!;
+    const probe = document.createElement("div");
+    probe.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue("--below-grade");
+    document.body.append(probe);
+    const result = {
+      snow: getComputedStyle(probe).backgroundColor,
+      paper: getComputedStyle(paper).backgroundColor,
+      footer: getComputedStyle(footer).backgroundColor,
+    };
+    probe.remove();
+    return result;
+  });
+
+  expect(colours.paper).toBe(colours.snow);
+  expect(colours.footer).toBe(colours.snow);
+});
 
 test("the section line and its hatch run across the paper's top edge, at the stage's foot at rest", async ({
   page,
@@ -66,20 +100,20 @@ test("over the still, the stage holds until the line meets the still's snow line
   }
 });
 
-test("the header is paper-coloured over the Scene and cuts to ink when the line crosses its baseline", async ({
+test("the header stays pale over the Scene and fills with the snow surface below grade", async ({
   page,
 }) => {
   await page.goto(HOME);
-  const { paper, ink } = await colours(page);
+  const { surface, ink } = await colours(page);
   const expectOverScene = async () => {
     await expect(header(page)).toHaveAttribute("data-surface", "scene");
-    await expect(header(page)).toHaveCSS("color", paper);
+    await expect(header(page)).toHaveCSS("color", ink);
     await expect(header(page)).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   };
   const expectOnPaper = async () => {
     await expect(header(page)).toHaveAttribute("data-surface", "paper");
     await expect(header(page)).toHaveCSS("color", ink);
-    await expect(header(page)).toHaveCSS("background-color", paper);
+    await expect(header(page)).toHaveCSS("background-color", surface);
   };
 
   await expectOverScene();
@@ -94,10 +128,10 @@ test("the header is paper-coloured over the Scene and cuts to ink when the line 
 
 test("the header is ink on a page without a Scene", async ({ page }) => {
   await page.goto("/projects/lyngen");
-  const { paper, ink } = await colours(page);
+  const { surface, ink } = await colours(page);
   await expect(header(page)).not.toHaveAttribute("data-surface", "scene");
   await expect(header(page)).toHaveCSS("color", ink);
-  await expect(header(page)).toHaveCSS("background-color", paper);
+  await expect(header(page)).toHaveCSS("background-color", surface);
 });
 
 test.describe("without JavaScript", () => {
@@ -105,9 +139,9 @@ test.describe("without JavaScript", () => {
 
   test("the header stays ink, since nothing can tell it where the line is", async ({ page }) => {
     await page.goto(HOME);
-    const { paper, ink } = await colours(page);
+    const { surface, ink } = await rootColours(page);
     await expect(header(page)).toHaveCSS("color", ink);
-    await expect(header(page)).toHaveCSS("background-color", paper);
+    await expect(header(page)).toHaveCSS("background-color", surface);
     await expect(sectionLine(page)).toBeAttached();
   });
 });

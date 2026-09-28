@@ -10,9 +10,9 @@ import { depthHref } from "@/lib/depth";
 import { cn } from "@/lib/utils";
 
 /**
- * Fixed and quiet: paper-coloured over the Scene, ink on paper below the
- * Section Cut (`HeaderFrame`). Nothing in it fades between the two, so the
- * change is a cut.
+ * Fixed and quiet: pale over the Scene, then on the blue-shadow surface below
+ * the Section Cut (`HeaderFrame`). Nothing in it fades between the two, so
+ * the change is a cut.
  */
 export function SiteHeader() {
   return (
