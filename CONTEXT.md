@@ -52,6 +52,10 @@ _Avoid_: landscaping, garden, hardscape, props
 A low shrub almost buried in snow, part of a House's Site Works: a soft snow mound with dark twig tips showing, modelled and baked with the House. It is the only planting in the Scene besides the pines.
 _Avoid_: bush, plant, planting, garden
 
+**Balcony Furniture**:
+The pieces set out on a House's balcony, such as seats, tables, a hot tub, a telescope, pots and the small warm lights among them. They're built in the House's materials and baked with the House. Unlike Site Works, they stand on a slab, not on the plinth.
+_Avoid_: props, decor, outdoor set, terrace furniture
+
 **Project Panel**:
 The paper sheet that opens over the Scene when a House is selected, summarising its Project and linking to the Project page.
 _Avoid_: modal, popup, card, drawer
