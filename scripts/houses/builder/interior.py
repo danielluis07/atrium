@@ -23,6 +23,8 @@ import config as C
 
 parts = []  # every piece of furniture, one material each
 lamps = []  # the room's lights
+glass = []  # the Glazing Faces in the room's side and back walls, (wall, u0, u1, sill, head)
+doors = []  # the doors in them, (wall, u0, u1, head)
 mats = {}
 
 # ---------------------------------------------------------------- palette
@@ -138,6 +140,9 @@ def palette():
     material("bedding", (0.72, 0.7, 0.66), 0.9, node=varied(25, 0.1))
     material("books", (0.3, 0.2, 0.15), 0.8, node=spines)
     material("screen", (0.006, 0.006, 0.007), 0.2)
+    screen = C.oklch_to_linear(*C.INTERIOR_SCREEN)
+    material("monitor", (0.01, 0.012, 0.015), 0.2, emission=screen, strength=C.INTERIOR_SCREEN_GLOW)
+    material("leaf", (0.035, 0.075, 0.03), 0.7, node=varied(9, 0.35))
     material("shade", (0.8, 0.7, 0.55), 0.8, emission=lamp, strength=C.INTERIOR_SHADE_GLOW)
     material("disc", lamp, 0.5, emission=lamp, strength=C.INTERIOR_DISC_GLOW)
     material("fire", fire, 1.0, emission=fire, strength=C.INTERIOR_FIRE_GLOW)
@@ -483,6 +488,70 @@ def downlights(w, h, d, skip=None):
             y += pitch
 
 
+def desk(wall, c):
+    """A long walnut desk against a wall, centred at c along it, with a drawer unit at one end: a slim monitor
+    on a stand, whose screen glows a dim, cool blue, a keyboard, a brass task lamp and a desk chair."""
+    n, dd, top = C.DESK_LENGTH / 2, 0.75, 0.74
+    wall.box(c - n, 0.0, top - 0.04, c + n, dd, top, "walnut")
+    wall.box(c - n, 0.02, 0.0, c - n + 0.04, dd - 0.04, top - 0.04, "walnut")  # the leg at the open end
+    wall.box(c + n - 0.55, 0.02, 0.0, c + n, dd - 0.04, top - 0.04, "walnut")  # the drawers
+    for z in (0.24, 0.47):
+        wall.box(c + n - 0.53, dd - 0.04, z - 0.004, c + n - 0.02, dd - 0.036, z + 0.004, "black")  # drawer joints
+    wall.box(c + n - 0.33, dd - 0.04, 0.58, c + n - 0.23, dd - 0.02, 0.6, "brass")
+    m = c - 0.25  # the monitor, a little toward the open end
+    wall.box(m - 0.12, 0.14, top, m + 0.12, 0.34, top + 0.012, "black")  # its foot
+    wall.box(m - 0.03, 0.16, top, m + 0.03, 0.19, top + 0.2, "black")  # its neck
+    wall.box(m - 0.31, 0.19, top + 0.12, m + 0.31, 0.215, top + 0.48, "black")
+    wall.box(m - 0.3, 0.215, top + 0.13, m + 0.3, 0.218, top + 0.47, "monitor")
+    x, y = wall.point(m, 0.4)
+    light("POINT", x, y, top + 0.3, C.INTERIOR_SCREEN_WATTS, C.oklch_to_linear(*C.INTERIOR_SCREEN), radius=0.2)
+    wall.box(m - 0.22, 0.42, top, m + 0.22, 0.56, top + 0.018, "black")  # the keyboard
+    # the task lamp, over the drawer end: a brass post, an arm out over the desk, a small brass shade
+    lamp = wall.frame(c + n - 0.3, 0.16, wall.away)
+    lamp.cyl(0, 0, top, top + 0.02, 0.08, "brass", verts=10)
+    lamp.cyl(0, 0, top + 0.02, top + 0.46, 0.01, "brass", verts=6)
+    wall.box(c + n - 0.31, 0.16, top + 0.44, c + n - 0.29, 0.42, top + 0.46, "brass")
+    shade = wall.frame(c + n - 0.3, 0.42, wall.away)
+    shade.cyl(0, 0, top + 0.34, top + 0.46, 0.08, "brass", verts=10, r_top=0.035)
+    lampshade(shade.cyl(0, 0, top + 0.335, top + 0.34, 0.075, "shade", verts=10))
+    x, y = wall.point(c + n - 0.3, 0.42)
+    light("POINT", x, y, top + 0.3, C.INTERIOR_LAMP_WATTS * 0.35, lamp_light(), radius=0.05)
+    desk_chair(wall.frame(m, 1.05, wall.toward))
+
+
+def desk_chair(f):
+    """A task chair, seat toward local -y: wool seat and back on a black post and a five-spoked foot."""
+    f.cyl(0, 0, 0.0, 0.06, 0.3, "black", verts=5)
+    f.cyl(0, 0, 0.06, 0.42, 0.025, "black", verts=6)
+    f.box(-0.24, -0.23, 0.42, 0.24, 0.23, 0.5, "wool", soft=0.03)
+    f.box(-0.22, 0.2, 0.55, 0.22, 0.26, 0.98, "wool", soft=0.03)
+    f.box(-0.03, 0.2, 0.45, 0.03, 0.24, 0.55, "black")  # the back's stem
+
+
+def daybed(wall, c, length):
+    """A low walnut daybed against a wall, centred at c along it, under a window's sill: a linen mattress, a
+    wool bolster along the wall and two cushions."""
+    n, dd = length / 2, 0.85
+    wall.box(c - n, 0.0, 0.08, c + n, dd, 0.28, "walnut")
+    for u in (c - n + 0.06, c + n - 0.06):
+        for v in (0.06, dd - 0.06):
+            wall.box(u - 0.025, v - 0.025, 0.0, u + 0.025, v + 0.025, 0.08, "black")
+    wall.box(c - n + 0.02, 0.02, 0.28, c + n - 0.02, dd - 0.02, 0.42, "linen", soft=0.04)
+    wall.box(c - n + 0.05, 0.02, 0.42, c + n - 0.05, 0.24, 0.6, "wool", soft=0.06)  # the bolster
+    wall.box(c - n + 0.12, 0.2, 0.42, c - n + 0.58, 0.34, 0.66, "rust", soft=0.05)
+    wall.box(c + n - 0.62, 0.2, 0.42, c + n - 0.14, 0.34, 0.64, "linen", soft=0.05)
+
+
+def plant(x, y):
+    """A large plant in a dark pot: a slender stem and loose clumps of broad leaves, about 1.8 m high."""
+    cyl(x, y, 0.0, 0.5, 0.26, "black", verts=10, r_top=0.3)
+    cyl(x, y, 0.46, 0.49, 0.27, "soot", verts=10)
+    cyl(x, y, 0.49, 1.45, 0.018, "walnut", verts=5)
+    for dx, dy, z, s in ((0.14, -0.08, 0.72, 0.36), (-0.16, 0.05, 0.9, 0.4), (0.06, 0.16, 1.1, 0.38),
+                         (-0.05, -0.15, 1.28, 0.34), (0.12, 0.04, 1.45, 0.3), (-0.06, 0.02, 1.6, 0.26)):
+        box(x + dx - s / 2, y + dy - s / 2, z, x + dx + s / 2, y + dy + s / 2, z + s * 0.6, "leaf", soft=0.08)
+
+
 # ---------------------------------------------------------------- templates, one per kind
 
 
@@ -618,30 +687,79 @@ def kitchen(w, h, d, o, hearth, rng):
 
 
 def library(w, h, d, o, hearth, rng):
-    """Shelving floor to near ceiling, two armchairs by the fire or facing the back wall."""
+    """Shelving floor to near ceiling along the back wall, and on along each side wall that has no desk or
+    fire, either side of its glass and doors; two armchairs by the fire, or else turned toward the window,
+    with a side table and a lamp, on a rug.
+
+    With `desk`, a long walnut desk with a computer is centred along that side wall, so the window sees it
+    side-on; a large plant stands in the window's corner on that side, and a low daybed under the sill of the
+    widest glass in the other side wall. With `door`, a closed walnut door stands toward the back of that side
+    wall, clear of the back wall's shelves."""
     wall, c, span = feature_wall(w, d, o, hearth)
     back = Wall("back", w, d)
     top = min(h - 0.1, 3.4)
     breast = min(2.0, span, wall.length * 0.34)
-    if o.get("fireplace"):
+    fire = wall.name if o.get("fireplace") else None
+    if fire:
         fireplace(wall, c, breast, h)
-    if o.get("fireplace") and wall.name == "back":
-        side = (w - breast) / 2 - 0.2
-        if side > 0.6:
-            shelving(back, 0.1, 0.1 + side, 0.36, top, rng)
-            shelving(back, w - 0.1 - side, w - 0.1, 0.36, top, rng)
+    if fire == "back":
+        run = (w - breast) / 2 - 0.2
+        if run > 0.6:
+            shelving(back, 0.1, 0.1 + run, 0.36, top, rng)
+            shelving(back, w - 0.1 - run, w - 0.1, 0.36, top, rng)
     else:
         shelving(back, 0.1, w - 0.1, 0.36, top, rng)
-    v = min(2.2, (w if wall.name != "back" else d) / 3)
-    armchair(wall.frame(c - 0.7, v, wall.plus))
-    armchair(wall.frame(c + 0.7, v, wall.minus), fabric="rust")
-    table(wall.frame(c, v + 0.1, wall.toward), 0.5, 0.5, 0.45)
-    wall.box(c - 1.4, v - 1.0, 0.0, c + 1.4, v + 1.0, 0.012, "rug")
+    side = o.get("desk")
+    closed = list(doors)
+    if o.get("door"):
+        # toward the back of its wall, clear of the back wall's shelves: validateProject's LIBRARY_DOOR_BACK
+        a = d - 0.66 - C.DOOR_WIDTH
+        wall_door(Wall(o["door"], w, d), a, C.DOOR_WIDTH, C.DOOR_HEIGHT)
+        closed.append((o["door"], a, a + C.DOOR_WIDTH, C.DOOR_HEIGHT))
+    # the side walls' shelving, from the window wall to the back wall's shelves, round their glass and doors
+    for name in ("left", "right"):
+        if name in (side, fire):
+            continue
+        spans = [(0.0, d - 0.36)]
+        for g in [*glass, *closed]:
+            if g[0] == name:
+                spans = [piece for a, b in spans for piece in ((a, min(b, g[1] - 0.1)), (max(a, g[2] + 0.1), b))]
+        for a, b in spans:
+            if b - a >= 0.5:
+                shelving(Wall(name, w, d), a, b, 0.36, top, rng)
+    if side:
+        desk(Wall(side, w, d), d / 2)
+        plant(0.45 if side == "left" else w - 0.45, 0.45)
+    # the daybed, under the widest glass in the other side wall with a sill it clears
+    other = {"left": "right", "right": "left"}.get(side)
+    under = [g for g in glass if g[0] == other and g[3] >= 0.5 and g[2] - g[1] >= 2.2]
+    bed = max(under, key=lambda g: g[2] - g[1], default=None)
+    if bed:
+        daybed(Wall(other, w, d), (bed[1] + bed[2]) / 2, 2.0)
+    if fire:
+        v = min(2.2, (w if wall.name != "back" else d) / 3)
+        armchair(wall.frame(c - 0.7, v, wall.plus))
+        armchair(wall.frame(c + 0.7, v, wall.minus), fabric="rust")
+        table(wall.frame(c, v + 0.1, wall.toward), 0.5, 0.5, 0.45)
+        wall.box(c - 1.4, v - 1.0, 0.0, c + 1.4, v + 1.0, 0.012, "rug")
+        if o.get("lamp") == "pendant":
+            pendant(*wall.point(c, v), 1.7, h)
+        else:
+            floor_lamp(wall.frame(c - 1.25, v + 0.55, wall.toward))
+        return
+    # the armchairs, turned toward the window, between the desk's chair and the daybed or the shelving
+    lo = 1.8 if side == "left" else (0.95 if bed and other == "left" else 0.6)
+    hi = w - (1.8 if side == "right" else (0.95 if bed and other == "right" else 0.6))
+    cx, v = (lo + hi) / 2, min(2.6, d / 3)
+    armchair(Frame(cx - 0.75, v))
+    armchair(Frame(cx + 0.75, v), fabric="rust")
+    table(Frame(cx, v + 0.1), 0.45, 0.45, 0.5)
+    vase(Frame(cx, v + 0.1), 0.5)
+    box(cx - 1.55, v - 1.0, 0.0, cx + 1.55, v + 1.0, 0.012, "rug")
     if o.get("lamp") == "pendant":
-        x, y = wall.point(c, v)
-        pendant(x, y, 1.7, h)
+        pendant(cx, v + 0.1, 1.7, h)
     else:
-        floor_lamp(wall.frame(c - 1.25, v + 0.55, wall.toward))
+        floor_lamp(Frame(cx + 1.4, v + 0.45))
 
 
 def bedroom(w, h, d, o, hearth, rng):
@@ -724,19 +842,22 @@ def bedroom(w, h, d, o, hearth, rng):
 TEMPLATES = {"lounge": lounge, "dining": dining, "kitchen": kitchen, "library": library, "bedroom": bedroom}
 
 
-def furnish(interior, w, h, d, hearth, beside, seed, doors=()):
+def furnish(interior, w, h, d, hearth, beside, seed, house_doors=(), house_glass=()):
     """Build the kind's template in a room w wide, h high and d deep (room frame), with its downlights and,
     when the Interior asks for one, a door into the room beside it. `hearth` is the wall the House's stone
     mass stands behind and the span of it the room sees, as ("left" | "right" | "back", u0, u1), or None;
-    `beside` lists the walls the House's other volumes stand against, the same way. `doors` are the House's
-    doors in the room's walls, (wall, u0, u1, head), each shown closed from inside. Returns the parts and the
-    lamps."""
+    `beside` lists the walls the House's other volumes stand against, the same way. `house_doors` are the
+    House's doors in the room's side and back walls, (wall, u0, u1, head), each shown closed from inside, and
+    `house_glass` its Glazing Faces there, (wall, u0, u1, sill, head), which a template keeps clear of.
+    Returns the parts and the lamps."""
     parts.clear()
     lamps.clear()
+    doors[:] = house_doors
+    glass[:] = house_glass
     palette()
     TEMPLATES[interior["kind"]](w, h, d, interior, hearth, random.Random(seed))
     v = interior.get("partition")
-    if interior.get("door"):
+    if interior["kind"] == "lounge" and interior.get("door"):
         side_door(w, d, beside, hearth, v or d)
     for name, u0, u1, head in doors:
         wall_door(Wall(name, w, d), u0, u1 - u0, head)

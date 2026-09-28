@@ -359,15 +359,18 @@ function prepareHouse(
     }
     return m;
   };
-  // each window looks into its own procedural room, or through glass into an Interior, some behind a Curtain
+  // each window looks into its own procedural room, or through glass into an Interior, some behind a Curtain;
+  // a terrace's glass looks into the procedural room behind it, or into an Interior (`terrace:<name>`)
   const panes: Material[] = [];
   const pane = (mesh: Mesh, part: string | undefined): Material => {
     const face = part?.startsWith("glazing:") ? extras.glazingFaces[part.slice("glazing:".length)] : undefined;
-    const m = face?.interior
-      ? interiorGlassMaterial(toHouse, { glow, width: face.size[0], curtain: face.curtain })
-      : face
-        ? glazingMaterial(toHouse, glow, { ...face.room, glass: face.size[1] }, face.curtain)
-        : glazingMaterial(toHouse, glow, terraceRoom(mesh, toHouse));
+    const m = part?.startsWith("terrace:")
+      ? interiorGlassMaterial(toHouse, { glow, width: 0, curtain: false })
+      : face?.interior
+        ? interiorGlassMaterial(toHouse, { glow, width: face.size[0], curtain: face.curtain })
+        : face
+          ? glazingMaterial(toHouse, glow, { ...face.room, glass: face.size[1] }, face.curtain)
+          : glazingMaterial(toHouse, glow, terraceRoom(mesh, toHouse));
     panes.push(m);
     return m;
   };
@@ -453,8 +456,13 @@ function partOf(o: Object3D): string | undefined {
  */
 const SITE = "site-";
 
-/** Only a House's shell and glazing select it; the balustrade glass, the lights, the plinth and the site works let the pointer through. */
-const pickable = (part: string | undefined) => part === "shell" || !!part?.startsWith("glazing:");
+/**
+ * Only a House's shell and glass select it: its Glazing Faces, and a terrace's glass into an Interior, which
+ * stands where the shell's wall would. The balustrade glass, the lights, the plinth and the site works let the
+ * pointer through.
+ */
+const pickable = (part: string | undefined) =>
+  part === "shell" || !!part?.startsWith("glazing:") || !!part?.startsWith("terrace:");
 
 /** Eases a House a frame toward its hover and dim, and lights it accordingly. */
 function lookTo(h: Look, hovered: boolean, dimmed: boolean, dt: number) {

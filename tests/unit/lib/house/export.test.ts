@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { projectOrder } from "@/content/projects";
+import { kvaloya } from "@/content/projects/kvaloya";
 import { lyngen } from "@/content/projects/lyngen";
 import { reine } from "@/content/projects/reine";
 import { senja } from "@/content/projects/senja";
@@ -68,7 +69,15 @@ describe("exportHouse", () => {
       { volume: "lower", face: "front", rect: { x0: -9.7, y0: -5.7, x1: 3.7, y1: 0.7 }, floor: -3.2, ceiling: 0 },
     ]);
     // so a House with one Interior keeps the bake hash it had before there could be several
-    expect(exportHouse(lyngen, sceneLayout)).not.toContain("otherInteriors");
+    expect(exportHouse(kvaloya, sceneLayout)).not.toContain("otherInteriors");
+  });
+
+  test("gives a room behind a terrace the terrace's face, from the recess's glazed back wall", () => {
+    const { derived } = JSON.parse(exportHouse(lyngen, sceneLayout));
+    expect(derived.otherInteriors).toHaveLength(1);
+    const [{ rect, ...frame }] = derived.otherInteriors;
+    expect(frame).toEqual({ volume: "frame", face: "front", floor: 3.5, ceiling: 7.2 });
+    for (const [k, v] of Object.entries({ x0: 5.3, y0: -3.4, x1: 12.3, y1: 5.1 })) expect(rect[k]).toBeCloseTo(v);
   });
 
   test("carries the Site Works as plan pieces, and a House without them keeps its JSON", () => {

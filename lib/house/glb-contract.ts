@@ -38,8 +38,10 @@ const NODE_MATERIALS: Record<string, readonly string[]> = {
   // the Site Works: built pieces in the shell's materials, on its lightmap
   site: ["concrete", "stone", "timber", "metal", "snow"],
   glazing: ["glazing"],
-  // a terrace's glazed back wall isn't a Glazing Face, so it rides with the balustrade glass
+  // a terrace's glazed back wall isn't a Glazing Face, so it rides with the balustrade glass, or, when it
+  // looks into an Interior, is a `terrace:<name>` node of its own: glass over the room
   balustrade: ["balustrade", "glazing"],
+  terrace: ["glazing"],
   downlights: ["downlight"],
   plinth: ["plinth"],
   interior: ["interior"],
@@ -198,11 +200,14 @@ export function expectedNodes(project: Project): { required: string[]; optional:
   const { house } = project;
   const glazing = house.openings.filter((o) => o.fill === "glazing").map((o) => `glazing:${o.name}`);
   const hasBalustrade = house.balustrades.length > 0 || house.openings.some((o) => o.fill === "terrace");
+  const rooms = new Set(interiorVolumes(house).map((v) => v.name));
+  const terraces = house.openings.filter((o) => o.fill === "terrace" && rooms.has(o.volume)).map((o) => `terrace:${o.name}`);
   return {
     required: [
       "shell",
       "plinth",
       ...glazing,
+      ...terraces,
       ...(hasBalustrade ? ["balustrade"] : []),
       ...interiors(house, project.images.interior.glazingFace).map((i) => i.node),
     ],
@@ -252,7 +257,7 @@ export function checkGlbContract(
     }
   }
   for (const node of children) {
-    const kind = node.name?.match(/^(glazing|interior):/)?.[1] ?? node.name ?? "";
+    const kind = node.name?.match(/^(glazing|interior|terrace):/)?.[1] ?? node.name ?? "";
     const allowed = NODE_MATERIALS[kind];
     if (node.mesh === undefined) {
       issues.push(`node ${node.name} has no mesh`);

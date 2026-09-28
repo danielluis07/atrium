@@ -130,17 +130,17 @@ describe("createContent", () => {
     const bad = structuredClone(lyngen) as Project;
     bad.images.interior.glazingFace = "dining-front";
     expect(() => createContent([bad], sceneLayout)).toThrow(
-      /images.interior: looks out through dining-front, which is in lower, not main, which has the Interior/,
+      /images.interior: looks out through dining-front, which is in lower, not main or frame, which have the Interiors/,
     );
   });
 
   test("when a House has several Interiors, its interior image looks out of one of them", () => {
     const bad = structuredClone(lyngen) as Project;
     bad.house.volumes.find((v) => v.name === "lower")!.interior = { kind: "dining" };
-    bad.images.interior.glazingFace = "study-side";
+    bad.images.interior.glazingFace = "loft-front";
     const only = { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } };
     expect(() => createContent([bad], only)).toThrow(
-      /images.interior: looks out through study-side, which is in frame, not main or lower, which have the Interiors/,
+      /images.interior: looks out through loft-front, which is in loft, not main or lower or frame, which have the Interiors/,
     );
     // either one can be the hero Interior
     bad.images.interior.glazingFace = "dining-front";
@@ -171,6 +171,27 @@ describe("createContent", () => {
     bad.house.volumes.find((v) => v.name === "lower")!.interior = { kind: "lounge", tv: "right", fireplace: true };
     expect(() => createContent([bad], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } })).toThrow(
       /volumes.lower.interior: has a fireplace and a TV, but a lounge turns to one or the other/,
+    );
+  });
+
+  test("a library's desk and door stand on side walls clear of their glass", () => {
+    const frame = (p: Project) => p.house.volumes.find((v) => v.name === "frame")!;
+    expect(frame(lyngen).interior).toMatchObject({ kind: "library", desk: "left", door: "left" });
+    const only = { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } };
+    const bad = structuredClone(lyngen) as Project;
+    frame(bad).interior = { kind: "library", desk: "right", door: "right" };
+    // the room turns to the terrace, and study-side is in its right wall, 1.4 to 7.4 m in
+    expect(() => createContent([bad], only)).toThrow(
+      /volumes.frame.interior: its desk is on the right wall, but study-side is there, 1.40 to 7.40 m in from terrace: the desk takes 2.95 to 5.55 m in from terrace/,
+    );
+    expect(() => createContent([bad], only)).toThrow(/its door is on the right wall, but study-side is there/);
+  });
+
+  test("glass into the room behind a terrace hangs no Curtain", () => {
+    const bad = structuredClone(lyngen) as Project;
+    bad.house.openings.find((o) => o.name === "study-side")!.curtain = true;
+    expect(() => createContent([bad], { ...sceneLayout, houses: { lyngen: sceneLayout.houses.lyngen } })).toThrow(
+      /opening study-side: hangs a Curtain, but looks into the Interior in frame/,
     );
   });
 
@@ -333,8 +354,8 @@ describe("createContent", () => {
 
   test("the Scene learns only its House's Interiors, by their GLB nodes, the hero Interior first", () => {
     const bare = structuredClone(lyngen) as Project;
-    delete bare.house.volumes.find((v) => v.name === "main")!.interior;
-    expect(sceneProject(lyngen).interiors).toEqual(["interior"]);
+    for (const v of bare.house.volumes) delete v.interior;
+    expect(sceneProject(lyngen).interiors).toEqual(["interior", "interior:frame"]);
     expect(sceneProject(senja).interiors).toEqual(["interior", "interior:lower"]);
     expect(sceneProject(bare).interiors).toEqual([]);
     expect(sceneProject(lyngen)).not.toHaveProperty("house");

@@ -61,10 +61,10 @@ describe("the room behind a Glazing Face", () => {
 
 describe("the Interiors", () => {
   test("are in the volumes that have one, if any", () => {
-    expect(interiorVolumes(lyngen.house).map((v) => v.name)).toEqual(["main"]);
+    expect(interiorVolumes(lyngen.house).map((v) => v.name)).toEqual(["main", "frame"]);
     expect(interiorVolumes(senja.house).map((v) => v.name)).toEqual(["lower", "bar"]);
     const bare = structuredClone(lyngen.house);
-    delete bare.volumes.find((v) => v.name === "main")!.interior;
+    for (const v of bare.volumes) delete v.interior;
     expect(interiorVolumes(bare)).toEqual([]);
     expect(interiors(bare, "living-front")).toEqual([]);
   });
@@ -77,7 +77,21 @@ describe("the Interiors", () => {
     expect(others).toHaveLength(1);
     expect(others[0]).toMatchObject({ hero: false, node: "interior:lower", texture: "interior-lower.ktx2" });
     expect(others[0].window.name).toBe("lower-front");
-    expect(interiors(lyngen.house, "living-front").map((i) => i.node)).toEqual(["interior"]);
+    expect(interiors(lyngen.house, "living-front").map((i) => i.node)).toEqual(["interior", "interior:frame"]);
+  });
+
+  test("another Interior may turn to a terrace's glazed back wall, when it is its largest glass", () => {
+    // the terrace's glass, 6.9 × 3.3 m, is larger than study-side's 6 × 2.4 m
+    expect(interiors(lyngen.house, "living-front").map((i) => i.window.name)).toEqual(["living-front", "terrace"]);
+    const house = structuredClone(lyngen.house) as House;
+    house.openings.find((o) => o.name === "study-side")!.sill = 0;
+    house.openings.find((o) => o.name === "study-side")!.head = 3.3;
+    house.openings.find((o) => o.name === "study-side")!.width = 7;
+    expect(interiors(house, "living-front").map((i) => i.window.name)).toEqual(["living-front", "study-side"]);
+  });
+
+  test("the hero Interior never turns to a terrace, which is no Glazing Face", () => {
+    expect(interiors(lyngen.house, "terrace").map((i) => i.node)).toEqual(["interior:main", "interior:frame"]);
   });
 
   test("the hero Interior turns to the interior image's face, another to its largest glass", () => {
@@ -108,6 +122,16 @@ describe("the Interiors", () => {
     expect(rect.y1).toBeCloseTo(4.7);
     // the lounge is on L0, under the loft
     expect({ floor, ceiling }).toEqual({ floor: 0, ceiling: 3.5 });
+  });
+
+  test("behind a terrace, its room shell starts at the recess's glazed back wall", () => {
+    const frame = lyngen.house.volumes.find((v) => v.name === "frame")!;
+    const { rect, floor, ceiling } = interiorShell(lyngen.house, frame);
+    // the terrace is 1.6 m deep in the front face, at y = -5
+    expect(rect.y0).toBeCloseTo(-3.4);
+    expect([rect.x0, rect.x1, rect.y1].map((n) => +n.toFixed(6))).toEqual([5.3, 12.3, 5.1]);
+    // the frame rises past L1 to 7.2 m
+    expect({ floor, ceiling }).toEqual({ floor: 3.5, ceiling: 7.2 });
   });
 });
 
