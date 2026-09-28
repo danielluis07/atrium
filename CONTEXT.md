@@ -10,6 +10,10 @@ The website of Atrium, a fictional architecture studio based in northern Norway.
 The fictional architecture studio this site presents. It is based in northern Norway and designs modernist houses for Arctic sites.
 _Avoid_: the firm, the agency, the company
 
+**Atrium Mark**:
+The Studio's official geometric brand symbol, abstracted from a modernist house and used across the site and its identity.
+_Avoid_: house icon, home icon, loading icon
+
 **Project**:
 One house the studio designed, named "<Place> House" after the real Arctic place it stands in (e.g. Lyngen House). It has a location, elevation, year, floor area, a one-sentence lede and a write-up in three parts: Site, Light and Material. It has no coordinates. Each Project is shown as exactly one House in the Scene.
 _Avoid_: work, case study, build, property
@@ -19,6 +23,10 @@ _Avoid_: work, case study, build, property
 **Scene**:
 The interactive 3D landscape at blue hour (dusk) where the studio's Houses stand in the snow. It is the hero of the home page.
 _Avoid_: world, canvas, 3D view
+
+**Scene Cover**:
+The branded hero shown in place of the Scene while it loads, or permanently when the Scene is unavailable. It carries the Atrium Mark and Studio identity over a blue-hour field.
+_Avoid_: loading screen, splash screen, preloader
 
 **House**:
 The 3D representation of a Project inside the Scene. Selecting a House reveals its Project.

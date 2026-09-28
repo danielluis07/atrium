@@ -39,7 +39,7 @@ export const SNOW_GAP = 6;
  * the still until the rising line meets its snow line
  * (`components/home/section-cut.tsx`), so a recaptured still updates these.
  */
-export const STILL = { aspect: 16 / 9, snowLine: 0.62 };
+export const STILL = { aspect: 16 / 9, snowLine: 0.91 };
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
