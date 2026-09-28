@@ -176,6 +176,10 @@ export function validateProject(project: Project): HouseIssue[] {
       issues.push(...libraryIssues(house, room, window));
       continue;
     }
+    if (interior.kind === "dining") {
+      issues.push(...diningIssues(house, room, window));
+      continue;
+    }
     if (interior.kind !== "lounge") continue;
     const { floor } = interiorShell(house, room);
     const limit = partition ?? inward.depth;
@@ -324,6 +328,24 @@ function libraryIssues(house: House, room: House["volumes"][number], window: Hou
     issues.push({ part, message: `its door and its desk are both on the ${desk.side} wall, and the door, ${at(door.span)}, runs into the desk` });
   }
   return issues;
+}
+
+/** How wide a dining room with `seating` must be, for the seating in a third of it and the table in the rest, metres. */
+const SEATING_ROOM_WIDTH = 7.0;
+
+/** A dining room's `seating`, as the builder's `dining` places it: in the third of the room at the end it names. */
+function diningIssues(house: House, room: House["volumes"][number], window: House["openings"][number]): HouseIssue[] {
+  const interior = room.interior;
+  if (interior?.kind !== "dining" || !interior.seating) return [];
+  const rect = interiorShell(house, room).rect;
+  const width = window.face === "front" || window.face === "back" ? rect.x1 - rect.x0 : rect.y1 - rect.y0;
+  if (width >= SEATING_ROOM_WIDTH) return [];
+  return [
+    {
+      part: `volumes.${room.name}.interior`,
+      message: `is ${width.toFixed(2)} m wide: a dining room with seating needs ${SEATING_ROOM_WIDTH} m, a third for the seating and the rest for the table`,
+    },
+  ];
 }
 
 /** How much wall a door into the room beside the Interior needs in common with that room, and how high that room must be, metres. */

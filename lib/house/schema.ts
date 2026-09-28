@@ -60,7 +60,10 @@ const Side = z.enum(["left", "right"]);
  * left or right as seen from outside, with the sofa facing it side-on to
  * the glass; it takes the fire's place, so a lounge has one or the other.
  * A dining room's `kitchen` is a kitchen run along its back wall, behind
- * the table. A bedroom's bed faces the window with its head to the back
+ * the table. Its `seating` makes the third of the room at the end it
+ * names, left or right as seen from outside, a living room: a sofa and an
+ * armchair round a low table, turned toward the glass. The table moves to
+ * the rest. A bedroom's bed faces the window with its head to the back
  * wall, or with `bedside` its head to the side wall it names, left or right
  * as seen from outside, so the glass sees it side-on; its `tv` is a dark
  * wall TV over a low walnut unit on the side wall across from the bed,
@@ -80,7 +83,13 @@ export const Interior = z.discriminatedUnion("kind", [
     door: z.boolean().optional(),
     tv: Side.optional(),
   }),
-  z.strictObject({ kind: z.literal("dining"), lamp: Lamp.optional(), shelving: z.boolean().optional(), kitchen: z.boolean().optional() }),
+  z.strictObject({
+    kind: z.literal("dining"),
+    lamp: Lamp.optional(),
+    shelving: z.boolean().optional(),
+    kitchen: z.boolean().optional(),
+    seating: Side.optional(),
+  }),
   z.strictObject({ kind: z.literal("kitchen"), lamp: Lamp.optional(), shelving: z.boolean().optional() }),
   z.strictObject({
     kind: z.literal("library"),

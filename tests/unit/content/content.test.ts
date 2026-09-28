@@ -10,6 +10,7 @@ import {
   getSceneLayout,
   getSiteCopy,
 } from "@/content";
+import { kvaloya } from "@/content/projects/kvaloya";
 import { lyngen } from "@/content/projects/lyngen";
 import { reine } from "@/content/projects/reine";
 import { senja } from "@/content/projects/senja";
@@ -171,6 +172,17 @@ describe("createContent", () => {
     bad.house.volumes.find((v) => v.name === "lower")!.interior = { kind: "lounge", tv: "right", fireplace: true };
     expect(() => createContent([bad], { ...sceneLayout, houses: { senja: sceneLayout.houses.senja } })).toThrow(
       /volumes.lower.interior: has a fireplace and a TV, but a lounge turns to one or the other/,
+    );
+  });
+
+  test("a dining room with seating is wide enough for it and the table", () => {
+    const living = (p: Project) => p.house.volumes.find((v) => v.name === "living")!;
+    expect(living(kvaloya).interior).toMatchObject({ kind: "dining", kitchen: true, seating: "left" });
+    const narrow = structuredClone(kvaloya) as Project;
+    living(narrow).rect.x1 = 5.0;
+    narrow.house.openings.find((o) => o.name === "living-front")!.width = 4.0;
+    expect(() => createContent([narrow], { ...sceneLayout, houses: { kvaloya: sceneLayout.houses.kvaloya } })).toThrow(
+      /volumes.living.interior: is 5.60 m wide: a dining room with seating needs 7 m, a third for the seating and the rest for the table/,
     );
   });
 
