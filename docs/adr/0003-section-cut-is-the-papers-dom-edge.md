@@ -2,11 +2,13 @@
 
 Status: accepted (2026-09-24)
 
-ADR 0002 left one question open: where the ink section line meets the rendered snow. This answers it.
+Amended 2026-09-28: the edge remains the camera and header's DOM marker, but it is no longer painted as a hairline or snow-strata hatch. The matched snow surfaces meet seamlessly.
+
+ADR 0002 left one question open: where the below-grade page meets the rendered snow. This answers it.
 
 ## Decision
 
-The section line is not drawn in the Scene. It is the **top edge of the paper page** (the Depths), a DOM element that scrolls up over the Scene's stage: an ink hairline with the snow-strata hatch band in SVG right under it (`components/home/section-cut.tsx`). The Scene is keyed to the edge, not the other way round.
+The Section Cut is not drawn in the Scene. It is an invisible DOM marker at the **top edge of the below-grade page** (the Depths), which scrolls up over the Scene's stage (`components/home/section-cut.tsx`). The Scene is keyed to the edge, not the other way round.
 
 - **The stage** is a full-viewport sticky element under a clear header. It is held while the paper rises over it.
 - **The live Scene:** the stage is held until the line reaches the header's baseline and the paper covers it. Scroll progress, from the line at the stage's foot to the line at the header, drives the camera drop as a pure function (`lib/scene/cut.ts`). The camera descends from where it is to eye height over the snow or fjord, and turns to the overview's heading. Its pitch keeps the lowest point of the snow skyline, sampled from the terrain heightfield across the viewport, where it was until the rising line reaches it. From then on it holds it a few pixels above the line. When the paper covers the stage, the Scene stops rendering.

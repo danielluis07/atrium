@@ -49,24 +49,17 @@ test("the page below grade continues the foreground snow colour", async ({ page 
   expect(colours.footer).toBe(colours.snow);
 });
 
-test("the section line and its hatch run across the paper's top edge, at the stage's foot at rest", async ({
+test("the unpainted cut marker runs across the paper's top edge, at the stage's foot at rest", async ({
   page,
 }) => {
   await page.goto(HOME);
-  const { paper, line, hatch, stage, width } = await layout(page);
+  const { paper, line, stage, width } = await layout(page);
   expect(line.top).toBe(paper.top);
   expect(Math.abs(line.top - stage.bottom)).toBeLessThan(1);
   expect(line.width).toBe(width);
 
-  // an ink hairline, with the hatch band right under it
-  const { ink } = await colours(page);
-  await expect(sectionLine(page)).toHaveCSS("border-top-width", "1px");
-  await expect(sectionLine(page)).toHaveCSS("border-top-color", ink);
-  expect(Math.abs(hatch.top - (line.top + 1))).toBeLessThan(1);
-  expect(hatch.width).toBe(width);
-  expect(hatch.height).toBeGreaterThanOrEqual(8);
-  expect(hatch.height).toBeLessThanOrEqual(16);
-  await expect(page.locator("#snow-strata line")).toHaveCount(4);
+  await expect(sectionLine(page)).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator('[data-slot="section-hatch"]')).toHaveCount(0);
 });
 
 test("over the still, the stage holds until the line meets the still's snow line, then rides up with it", async ({

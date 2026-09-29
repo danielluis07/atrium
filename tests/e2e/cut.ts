@@ -7,7 +7,6 @@ export const cutLayout = (page: Page) =>
     return {
       paper: rect("paper"),
       line: rect("section-line"),
-      hatch: rect("section-hatch"),
       stage: rect("scene-stage"),
       baseline: document.querySelector("header")!.getBoundingClientRect().bottom,
       width: document.documentElement.clientWidth,

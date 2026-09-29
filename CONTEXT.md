@@ -69,7 +69,7 @@ The plain list of all Projects outside the Scene, set out like a schedule on a d
 _Avoid_: gallery, portfolio, grid
 
 **Section Cut**:
-The scroll transition out of the Scene: the camera drops toward the ground and the snow surface becomes a section line, with the Scene above it and the paper page below it, "below grade", divided into Depths.
+The scroll transition out of the Scene: the camera drops toward the ground and the shadowed foreground snow continues seamlessly into the page "below grade", divided into Depths.
 _Avoid_: Whiteout, fade, transition
 
 **Depth**:
