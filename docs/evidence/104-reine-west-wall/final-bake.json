@@ -1,0 +1,31 @@
+{
+ "mode": "final",
+ "res": 1024,
+ "plinth_res": 512,
+ "samples": 256,
+ "interior_res": 1024,
+ "texels_per_m": 23,
+ "texels_per_m_unseen": 6,
+ "unseen_m2": 338,
+ "tris": 13854,
+ "interiors": {
+  "interior": {
+   "texels_per_m": 83,
+   "tris": 3014
+  },
+  "interior:top": {
+   "texels_per_m": 61,
+   "tris": 1276
+  }
+ },
+ "build parts": 1.85,
+ "seen faces": 1.07,
+ "join + uv": 0.61,
+ "bake shell base 1024": 215.29,
+ "bake plinth base 512": 88.85,
+ "bake shell spill 1024": 149.01,
+ "bake plinth spill 512": 60.8,
+ "bake interior 1024": 845.2,
+ "bake interior:top 1024": 905.29,
+ "export": 0.45
+}

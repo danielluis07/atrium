@@ -28,7 +28,7 @@ export const PLINTH_BLEND = 9;
 const OVERLAP_BLEND = 3;
 /** How far under the plinth the terrain sits, so the plinth always wins the depth test. */
 export const TERRAIN_SINK = 0.15;
-/** How far a plinth that yields to an overlapping one drops: just under the terrain. */
+/** Clearance below the terrain and the winning plinth when another plinth yields. */
 const PLINTH_YIELD = 0.2;
 
 const smoothstep = (a: number, b: number, x: number) => {
@@ -60,20 +60,37 @@ const ownBlend = (d: number) => 1 - smoothstep(0, PLINTH_BLEND, d);
 
 /**
  * Where a vertex of plinth `index` goes, given its baked height `y`: kept in
- * the middle, bent onto the slope toward the edge, and onto the slope
- * wherever it runs into another plinth.
+ * the middle, bent onto the slope toward the edge and where neighbouring
+ * plinths trade ownership.
  */
 export function plinthHeight(rects: PlinthRect[], index: number, x: number, z: number, y: number): number {
   const own = edgeDistance(rects[index], x, z);
   let w = ownBlend(own);
+  let owner = index;
+  let deepest = own;
   for (const [i, other] of rects.entries()) {
     if (i === index) continue;
     const d = edgeDistance(other, x, z);
     // where both cover the point, the plinth nearer its own edge yields, or the two fight for the pixel
-    if (d > 0 && d > own) return slopeHeight(x, z) - PLINTH_YIELD;
-    w = Math.max(w, 1 - smoothstep(0, OVERLAP_BLEND, -d));
+    if (d > 0 && d > deepest) {
+      owner = i;
+      deepest = d;
+    }
+    // Blend where the two plinths trade places, not across the whole of
+    // the other's footprint. A deeper plinth keeps its baked ground and
+    // Site Works; otherwise a neighbour can drag them down to the slope
+    // while the House and its set-in lights stay at their authored height.
+    w = Math.max(w, 1 - smoothstep(0, OVERLAP_BLEND, own - d));
   }
-  return mix(y, slopeHeight(x, z), w);
+  const slope = slopeHeight(x, z);
+  if (owner !== index) {
+    // Fit the winner's lowest ground first, then stay just below it.
+    // The deepest plinth cannot yield, so this call never recurses again.
+    const winner = rects[owner];
+    const bottom = Math.min(winner.low, winner.bottom ?? winner.low);
+    return Math.min(slope, plinthHeight(rects, owner, x, z, bottom)) - PLINTH_YIELD;
+  }
+  return mix(y, slope, w);
 }
 
 /** The live terrain: the slope, sunk under every plinth that covers the point. */

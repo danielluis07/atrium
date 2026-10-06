@@ -1,0 +1,57 @@
+{
+  "baseline": "ce55c62",
+  "finalBake": "bun run houses:bake --mode final --force reine",
+  "rawBytes": 4525194,
+  "growth": 0,
+  "files": [
+    {
+      "file": "interior-top.ktx2",
+      "bytes": 832801,
+      "sha256": "1f2e46bc600d0e03b734b5eb22d8a4d9d293b7c16cc9a3a6d0a0acf7e38c95f9",
+      "baselineSha256": "1f2e46bc600d0e03b734b5eb22d8a4d9d293b7c16cc9a3a6d0a0acf7e38c95f9",
+      "growth": 0
+    },
+    {
+      "file": "interior.ktx2",
+      "bytes": 1020751,
+      "sha256": "7ab90ed0edbc8eae83ce1595d7f5c4d855ccb61daa442198da0e745624ffcc4c",
+      "baselineSha256": "7ab90ed0edbc8eae83ce1595d7f5c4d855ccb61daa442198da0e745624ffcc4c",
+      "growth": 0
+    },
+    {
+      "file": "lm-plinth-base.ktx2",
+      "bytes": 234826,
+      "sha256": "957ab6aedca5f56ebcc859893d3d5f4b810d2dea8c8f9e27e477377250ac9a4f",
+      "baselineSha256": "957ab6aedca5f56ebcc859893d3d5f4b810d2dea8c8f9e27e477377250ac9a4f",
+      "growth": 0
+    },
+    {
+      "file": "lm-plinth-spill.ktx2",
+      "bytes": 248391,
+      "sha256": "d8dfa6a6a866a8454c7801c369c9e4e508828c7c07939a9b44138647056e3d3d",
+      "baselineSha256": "d8dfa6a6a866a8454c7801c369c9e4e508828c7c07939a9b44138647056e3d3d",
+      "growth": 0
+    },
+    {
+      "file": "lm-shell-base.ktx2",
+      "bytes": 974915,
+      "sha256": "d4d2dc0467b06c3aa4187397ed4cfc955003b2107bcc3973df2663b9ea5efce0",
+      "baselineSha256": "d4d2dc0467b06c3aa4187397ed4cfc955003b2107bcc3973df2663b9ea5efce0",
+      "growth": 0
+    },
+    {
+      "file": "lm-shell-spill.ktx2",
+      "bytes": 911902,
+      "sha256": "abd871c99b79c67aa92771493da1ad5717bed6166904878efdde68df476c2014",
+      "baselineSha256": "abd871c99b79c67aa92771493da1ad5717bed6166904878efdde68df476c2014",
+      "growth": 0
+    },
+    {
+      "file": "reine.glb",
+      "bytes": 301608,
+      "sha256": "1582f048128284539c1f0dcd0195b61b9c7fcc12f4b6b7a4343fb133600b187d",
+      "baselineSha256": "1582f048128284539c1f0dcd0195b61b9c7fcc12f4b6b7a4343fb133600b187d",
+      "growth": 0
+    }
+  ]
+}
