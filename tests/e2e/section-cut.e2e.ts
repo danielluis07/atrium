@@ -62,6 +62,42 @@ test("the unpainted cut marker runs across the paper's top edge, at the stage's 
   await expect(page.locator('[data-slot="section-hatch"]')).toHaveCount(0);
 });
 
+test("the Grade Line's drifts rise above the marker across the page, in the paper's colour", async ({ page }) => {
+  await page.goto(HOME);
+  const grade = await page.evaluate(() => {
+    const svg = document.querySelector<SVGSVGElement>('[data-slot="grade-line"]')!;
+    const paper = document.querySelector<HTMLElement>('[data-slot="paper"]')!;
+    return {
+      box: svg.getBoundingClientRect().toJSON(),
+      fill: getComputedStyle(svg).fill,
+      paper: getComputedStyle(paper).backgroundColor,
+      desktop: matchMedia("(width >= 48rem)").matches,
+    };
+  });
+  const { line, width } = await layout(page);
+  expect(Math.abs(grade.box.bottom - line.top)).toBeLessThan(1);
+  expect(grade.box.width).toBe(width);
+  expect(grade.box.height).toBe(grade.desktop ? 48 : 28);
+  expect(grade.fill).toBe(grade.paper);
+});
+
+test("a band of plain snow lies between the Grade Line and the first Depth", async ({ page }) => {
+  await page.goto(HOME);
+  const { band, depth, viewport } = await page.evaluate(() => ({
+    band: document.querySelector('[data-slot="grade-band"]')!.getBoundingClientRect().toJSON(),
+    depth: document.getElementById("projects")!.getBoundingClientRect().toJSON(),
+    viewport: window.innerHeight,
+  }));
+  const { line } = await layout(page);
+  expect(Math.abs(band.top - line.top)).toBeLessThan(1);
+  expect(Math.abs(depth.top - band.bottom)).toBeLessThan(1);
+  expect(band.height).toBeGreaterThan(viewport * 0.4);
+
+  // the readout stays at grade through the band, until the first Depth reaches the header
+  await page.evaluate((y) => window.scrollBy(0, y), Math.round(band.top - 56 + band.height / 2));
+  await expect(page.locator('[data-slot="depth-readout"]')).toHaveText("±0.00");
+});
+
 test("over the still, the stage holds until the line meets the still's snow line, then rides up with it", async ({
   page,
 }) => {

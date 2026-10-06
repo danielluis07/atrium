@@ -120,6 +120,14 @@
     (1 - var(--still-snow-line)) * max(var(--stage-height), 100cqw / var(--still-aspect))
   );
   --cut: calc(var(--still-snow) - var(--snow-gap));
+  /* The Grade Line's drifts above the troughs, and the plain snow under it before the first Depth (ADR 0009). */
+  --grade-line: 1.75rem;
+  --grade-band: 50svh;
+}
+@media (width >= 48rem) {
+  [data-slot="section-cut"] {
+    --grade-line: 3rem;
+  }
 }
 [data-slot="section-cut"]:has([data-scene-ready="true"]) {
   --cut: calc(var(--stage-height) - var(--header-height));
