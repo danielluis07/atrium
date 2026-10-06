@@ -14,6 +14,7 @@ import {
 import { preload } from "react-dom";
 
 import { ProjectPanel } from "@/components/home/project-panel";
+import { Threshold, useThreshold } from "@/components/home/threshold";
 import { useSelection } from "@/components/scene/use-selection";
 import type { SceneLayout, SceneProject } from "@/content/schema";
 import { sceneDownloads, type LivePath } from "@/lib/scene/assets";
@@ -62,6 +63,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const cut = useRef<Cut>(REST);
   const [covered, setCovered] = useState(false);
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [stepped, setStepped] = useState<number>();
   const [store] = useState(createSelectionStore);
   const selected = useSelection(store, (s) => s.selected);
@@ -84,11 +86,16 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
   const cursor = useSelection(store, (s) => sceneCursor(s, ladder === "desktop"));
 
   const downloading = live?.path ?? decision?.preload;
-  if (downloading) {
-    for (const url of sceneDownloads(projects, downloading)) {
-      preload(url, { as: "fetch", crossOrigin: "anonymous" });
-    }
+  const downloads = downloading ? sceneDownloads(projects, downloading) : [];
+  for (const url of downloads) {
+    preload(url, { as: "fetch", crossOrigin: "anonymous" });
   }
+  const progress = useThreshold({
+    // a Scene that failed leaves the still, which has nothing to wait for
+    path: choice && (choice.path === "still" || failed ? "still" : "live"),
+    ready,
+    downloads,
+  });
 
   useEffect(() => {
     const stage = ref.current;
@@ -192,7 +199,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
             </div>
           ))}
         {live && rung && (
-          <StillOnError>
+          <StillOnError onError={() => setFailed(true)}>
             <Scene
               layout={layout}
               projects={projects}
@@ -208,6 +215,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
           </StillOnError>
         )}
       </div>
+      <Threshold progress={progress} />
       {live && (
         <>
           {/* beside the listbox, not in it: the non-modal Panel is owned (`aria-owns`) and tabbed to where it renders */}
@@ -236,7 +244,7 @@ function sceneCursor({ dragging, hovered, selected }: Selection, orbit: boolean)
 }
 
 /** A Scene that fails leaves the still in place rather than taking the page down with it. */
-class StillOnError extends Component<{ children: ReactNode }, { failed: boolean }> {
+class StillOnError extends Component<{ children: ReactNode; onError: () => void }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -245,6 +253,7 @@ class StillOnError extends Component<{ children: ReactNode }, { failed: boolean 
 
   componentDidCatch(error: unknown) {
     console.warn("The live Scene failed; showing the still.", error);
+    this.props.onError();
   }
 
   render() {
