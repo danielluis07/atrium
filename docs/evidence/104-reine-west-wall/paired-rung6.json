@@ -1,0 +1,368 @@
+{
+  "gpu": "ANGLE (AMD, AMD Radeon(TM) RX Vega 10 Graphics (0x000015D8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": [
+    1600,
+    900
+  ],
+  "method": "One Scene load; original and corrected geometry fitted from authored snapshots. Two alternating ABBA frame blocks (7s each), ABBA per-draw windows (6s each), 1s settling after every switch; no bake running.",
+  "rows": [
+    {
+      "camera": "overview",
+      "rung": "6",
+      "rungAfter": "6",
+      "windows": [
+        {
+          "mode": "before",
+          "frame": {
+            "n": 421,
+            "p50": 8.83,
+            "p90": 9.45,
+            "p99": 10.28
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 421,
+            "p50": 8.94,
+            "p90": 9.51,
+            "p99": 9.95
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 411,
+            "p50": 10.41,
+            "p90": 12.95,
+            "p99": 14.07
+          }
+        },
+        {
+          "mode": "before",
+          "frame": {
+            "n": 421,
+            "p50": 8.85,
+            "p90": 9.49,
+            "p99": 10.09
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 421,
+            "p50": 8.9,
+            "p90": 9.44,
+            "p99": 10.11
+          }
+        },
+        {
+          "mode": "before",
+          "frame": {
+            "n": 410,
+            "p50": 9.12,
+            "p90": 12.15,
+            "p99": 16.42
+          }
+        },
+        {
+          "mode": "before",
+          "frame": {
+            "n": 415,
+            "p50": 9.77,
+            "p90": 12.34,
+            "p99": 13.85
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 411,
+            "p50": 9.6,
+            "p90": 12.59,
+            "p99": 15.39
+          }
+        }
+      ],
+      "frame": {
+        "before": {
+          "n": 1667,
+          "p50": 9.07,
+          "p90": 10.75,
+          "p99": 16.08
+        },
+        "after": {
+          "n": 1664,
+          "p50": 9.28,
+          "p90": 12.06,
+          "p99": 14.13
+        }
+      },
+      "draws": [
+        {
+          "mode": "before",
+          "count": 308,
+          "parts": {
+            "clears": 0.124,
+            "sky": 0.58,
+            "mountains": 1.309,
+            "Interiors": 0.218,
+            "glazing": 0.103,
+            "plinths": 2.318,
+            "House shells": 0.706,
+            "site works": 0.369,
+            "terrain snow": 3.76,
+            "water + small standard": 0.538,
+            "pines": 0.338,
+            "House lights": 0.111,
+            "snowfall": 0.183,
+            "MSAA resolve": 2.041,
+            "tone map + composite": 0.835
+          }
+        },
+        {
+          "mode": "after",
+          "count": 309,
+          "parts": {
+            "clears": 0.106,
+            "sky": 0.578,
+            "mountains": 1.321,
+            "Interiors": 0.214,
+            "glazing": 0.103,
+            "plinths": 2.386,
+            "House shells": 0.708,
+            "site works": 0.373,
+            "terrain snow": 3.853,
+            "water + small standard": 0.551,
+            "pines": 0.348,
+            "House lights": 0.135,
+            "snowfall": 0.183,
+            "MSAA resolve": 2.065,
+            "tone map + composite": 0.847
+          }
+        },
+        {
+          "mode": "after",
+          "count": 348,
+          "parts": {
+            "clears": 0.092,
+            "sky": 0.522,
+            "mountains": 1.147,
+            "Interiors": 0.192,
+            "glazing": 0.091,
+            "plinths": 2.066,
+            "House shells": 0.628,
+            "site works": 0.324,
+            "terrain snow": 3.394,
+            "water + small standard": 0.521,
+            "pines": 0.303,
+            "House lights": 0.102,
+            "snowfall": 0.165,
+            "MSAA resolve": 1.956,
+            "tone map + composite": 0.76
+          }
+        },
+        {
+          "mode": "before",
+          "count": 348,
+          "parts": {
+            "clears": 0.093,
+            "sky": 0.516,
+            "mountains": 1.136,
+            "Interiors": 0.193,
+            "glazing": 0.091,
+            "plinths": 2.052,
+            "House shells": 0.635,
+            "site works": 0.331,
+            "terrain snow": 3.373,
+            "water + small standard": 0.522,
+            "pines": 0.299,
+            "House lights": 0.099,
+            "snowfall": 0.162,
+            "MSAA resolve": 1.936,
+            "tone map + composite": 0.711
+          }
+        }
+      ]
+    },
+    {
+      "camera": "Reine",
+      "rung": "6",
+      "rungAfter": "6",
+      "windows": [
+        {
+          "mode": "before",
+          "frame": {
+            "n": 421,
+            "p50": 7.74,
+            "p90": 8.52,
+            "p99": 9.04
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 421,
+            "p50": 7.39,
+            "p90": 7.99,
+            "p99": 8.56
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 422,
+            "p50": 7.41,
+            "p90": 7.96,
+            "p99": 8.46
+          }
+        },
+        {
+          "mode": "before",
+          "frame": {
+            "n": 421,
+            "p50": 7.36,
+            "p90": 7.85,
+            "p99": 8.42
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 421,
+            "p50": 7.52,
+            "p90": 8.44,
+            "p99": 9.12
+          }
+        },
+        {
+          "mode": "before",
+          "frame": {
+            "n": 421,
+            "p50": 7.38,
+            "p90": 7.94,
+            "p99": 8.48
+          }
+        },
+        {
+          "mode": "before",
+          "frame": {
+            "n": 421,
+            "p50": 7.4,
+            "p90": 7.91,
+            "p99": 8.61
+          }
+        },
+        {
+          "mode": "after",
+          "frame": {
+            "n": 419,
+            "p50": 7.82,
+            "p90": 9.97,
+            "p99": 12.65
+          }
+        }
+      ],
+      "frame": {
+        "before": {
+          "n": 1684,
+          "p50": 7.45,
+          "p90": 8.11,
+          "p99": 8.86
+        },
+        "after": {
+          "n": 1683,
+          "p50": 7.48,
+          "p90": 8.47,
+          "p99": 11.07
+        }
+      },
+      "draws": [
+        {
+          "mode": "before",
+          "count": 361,
+          "parts": {
+            "clears": 0.049,
+            "sky": 0.494,
+            "mountains": 0.508,
+            "plinths": 1.423,
+            "Interiors": 0.176,
+            "glazing": 0.051,
+            "House shells": 1.109,
+            "site works": 0.116,
+            "terrain snow": 1.515,
+            "water + small standard": 0.203,
+            "pines": 0.097,
+            "House lights": 0.112,
+            "snowfall": 0.046,
+            "MSAA resolve": 1.697,
+            "tone map + composite": 0.36
+          }
+        },
+        {
+          "mode": "after",
+          "count": 361,
+          "parts": {
+            "clears": 0.051,
+            "sky": 0.509,
+            "mountains": 0.508,
+            "plinths": 1.466,
+            "Interiors": 0.178,
+            "glazing": 0.047,
+            "House shells": 1.111,
+            "site works": 0.121,
+            "terrain snow": 1.509,
+            "water + small standard": 0.211,
+            "pines": 0.096,
+            "House lights": 0.112,
+            "snowfall": 0.045,
+            "MSAA resolve": 1.702,
+            "tone map + composite": 0.367
+          }
+        },
+        {
+          "mode": "after",
+          "count": 357,
+          "parts": {
+            "clears": 0.067,
+            "sky": 0.487,
+            "mountains": 0.529,
+            "plinths": 1.552,
+            "Interiors": 0.16,
+            "glazing": 0.046,
+            "House shells": 1.133,
+            "site works": 0.131,
+            "terrain snow": 1.532,
+            "water + small standard": 0.202,
+            "pines": 0.115,
+            "House lights": 0.106,
+            "snowfall": 0.065,
+            "MSAA resolve": 1.757,
+            "tone map + composite": 0.47
+          }
+        },
+        {
+          "mode": "before",
+          "count": 361,
+          "parts": {
+            "clears": 0.049,
+            "sky": 0.445,
+            "mountains": 0.492,
+            "plinths": 1.431,
+            "Interiors": 0.181,
+            "glazing": 0.043,
+            "House shells": 1.09,
+            "site works": 0.117,
+            "terrain snow": 1.491,
+            "water + small standard": 0.208,
+            "pines": 0.092,
+            "House lights": 0.11,
+            "snowfall": 0.05,
+            "MSAA resolve": 1.714,
+            "tone map + composite": 0.377
+          }
+        }
+      ]
+    }
+  ]
+}

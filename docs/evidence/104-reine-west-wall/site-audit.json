@@ -1,0 +1,434 @@
+[
+  {
+    "slug": "lyngen",
+    "piece": "wall:front:0",
+    "vertices": 62,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cap:front:0",
+    "vertices": 162,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "wall:front:1",
+    "vertices": 81,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cap:front:1",
+    "vertices": 168,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "wall:west:0",
+    "vertices": 40,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cap:west:0",
+    "vertices": 153,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "wall:divider:0",
+    "vertices": 32,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cap:divider:0",
+    "vertices": 110,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "wall:east:0",
+    "vertices": 40,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cap:east:0",
+    "vertices": 145,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "tread:terrace-steps:0",
+    "vertices": 8,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "tread:terrace-steps:1",
+    "vertices": 9,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "tread:terrace-steps:2",
+    "vertices": 10,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cheek:terrace-steps:0",
+    "vertices": 42,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "cheek:terrace-steps:1",
+    "vertices": 44,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "path:garage-path:0",
+    "vertices": 7,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "path:garage-path:1",
+    "vertices": 8,
+    "maxBeforeOffset": 0.0391,
+    "maxAfterOffset": 0.0391,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "path:garage-path:2",
+    "vertices": 13,
+    "maxBeforeOffset": 0.0474,
+    "maxAfterOffset": 0.0474,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "path:garage-path:3",
+    "vertices": 8,
+    "maxBeforeOffset": 0.0484,
+    "maxAfterOffset": 0.0484,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "path:garage-path:4",
+    "vertices": 9,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "apron:garage",
+    "vertices": 4,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "lyngen",
+    "piece": "terrace",
+    "vertices": 9,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "wall:terrace-east:0",
+    "vertices": 33,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "cap:terrace-east:0",
+    "vertices": 120,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:0",
+    "vertices": 9,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:1",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:2",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:3",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:4",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:5",
+    "vertices": 9,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:6",
+    "vertices": 9,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:7",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:8",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:9",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:10",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:11",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:12",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:13",
+    "vertices": 12,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:14",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "tread:grade-steps:15",
+    "vertices": 11,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "cheek:grade-steps:0",
+    "vertices": 37,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "cheek:grade-steps:1",
+    "vertices": 37,
+    "maxBeforeOffset": 0.0093,
+    "maxAfterOffset": 0.0093,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "piece": "terrace",
+    "vertices": 4,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "kvaloya",
+    "piece": "wall:east:0",
+    "vertices": 33,
+    "maxBeforeOffset": 0.0557,
+    "maxAfterOffset": 0.0557,
+    "maxChange": 0
+  },
+  {
+    "slug": "kvaloya",
+    "piece": "cap:east:0",
+    "vertices": 127,
+    "maxBeforeOffset": 0.0557,
+    "maxAfterOffset": 0.0557,
+    "maxChange": 0
+  },
+  {
+    "slug": "kvaloya",
+    "piece": "terrace",
+    "vertices": 72,
+    "maxBeforeOffset": 0,
+    "maxAfterOffset": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "reine",
+    "piece": "wall:west:0",
+    "vertices": 32,
+    "maxBeforeOffset": 2.2765,
+    "maxAfterOffset": 0.0131,
+    "maxChange": 2.2634
+  },
+  {
+    "slug": "reine",
+    "piece": "cap:west:0",
+    "vertices": 115,
+    "maxBeforeOffset": 2.2765,
+    "maxAfterOffset": 0.0131,
+    "maxChange": 2.2634
+  },
+  {
+    "slug": "reine",
+    "piece": "wall:west:1",
+    "vertices": 30,
+    "maxBeforeOffset": 1.2586,
+    "maxAfterOffset": 0,
+    "maxChange": 1.2586
+  },
+  {
+    "slug": "reine",
+    "piece": "cap:west:1",
+    "vertices": 101,
+    "maxBeforeOffset": 1.2586,
+    "maxAfterOffset": 0,
+    "maxChange": 1.2586
+  },
+  {
+    "slug": "reine",
+    "piece": "path:entry-path:0",
+    "vertices": 7,
+    "maxBeforeOffset": 1.4287,
+    "maxAfterOffset": 0,
+    "maxChange": 1.4287
+  },
+  {
+    "slug": "reine",
+    "piece": "path:entry-path:1",
+    "vertices": 8,
+    "maxBeforeOffset": 1.767,
+    "maxAfterOffset": 0,
+    "maxChange": 1.767
+  },
+  {
+    "slug": "reine",
+    "piece": "path:entry-path:2",
+    "vertices": 7,
+    "maxBeforeOffset": 1.7523,
+    "maxAfterOffset": 0,
+    "maxChange": 1.7523
+  },
+  {
+    "slug": "reine",
+    "piece": "terrace",
+    "vertices": 22,
+    "maxBeforeOffset": 1.0363,
+    "maxAfterOffset": 0,
+    "maxChange": 1.0363
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "lyngen",
+    "vertices": 2833,
+    "changed": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "senja",
+    "vertices": 2281,
+    "changed": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "kvaloya",
+    "vertices": 1069,
+    "changed": 0,
+    "maxChange": 0
+  },
+  {
+    "slug": "reine",
+    "vertices": 1433,
+    "changed": 1166,
+    "maxChange": 2.308010157771938
+  }
+]

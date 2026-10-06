@@ -116,6 +116,38 @@ describe("plinths on the slope", () => {
     expect(overlaps).toBeGreaterThan(0);
   });
 
+  test("a neighbour's outer band cannot pull down the deeper plinth's Site Works", () => {
+    const near: PlinthRect[] = [
+      { origin: [0, 0], rotationY: 0, min: [-20, -20], max: [20, 20], low: 0 },
+      { origin: [28, 0], rotationY: 0, min: [-20, -20], max: [20, 20], low: 7.5 },
+    ];
+    // The upper House's wall is 10 m inside its plinth, but overlaps
+    // the lower House's outermost 2 m. Its cap and set-in lights must
+    // retain the same datum, rather than its wall moving to the slope.
+    for (const x of [17, 18, 19, 20, 21, 22]) {
+      expect(plinthHeight(near, 1, x, 0, 7.5)).toBe(7.5);
+      expect(plinthHeight(near, 1, x, 0, 7.5 + 0.53)).toBe(7.5 + 0.53);
+      expect(terrainHeight(near, x, 0)).toBeLessThan(7.5);
+    }
+  });
+
+  test("overlapping plinths meet the slope smoothly where ownership changes", () => {
+    const near: PlinthRect[] = [
+      { origin: [0, 0], rotationY: 0, min: [-20, -20], max: [20, 20], low: 0 },
+      { origin: [28, 0], rotationY: 0, min: [-20, -20], max: [20, 20], low: 7.5 },
+    ];
+    // At x=14 both are 6 m inside their edge. The winner on either
+    // side meets the slope, and the losing plinth stays underneath it.
+    for (const [x, winner] of [[13.999, 0], [14, 0], [14.001, 1]]) {
+      expect(plinthHeight(near, winner, x, 0, near[winner].low)).toBeCloseTo(slopeHeight(x, 0), 4);
+    }
+    // The hidden surface follows that seam too, rather than dropping
+    // abruptly to the winner's floor when the slope is above it.
+    for (const [x, loser] of [[13.999, 1], [14.001, 0]]) {
+      expect(plinthHeight(near, loser, x, 0, near[loser].low)).toBeCloseTo(slopeHeight(x, 0) - 0.2, 4);
+    }
+  });
+
   test("the terrain is the plain slope away from the plinths", () => {
     for (const [x, z] of grid()) {
       if (rects.every((r) => edgeDistance(r, x, z) <= 0)) expect(terrainHeight(rects, x, z)).toBe(slopeHeight(x, z));
