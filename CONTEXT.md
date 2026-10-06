@@ -20,6 +20,10 @@ _Avoid_: work, case study, build, property
 
 ### Site
 
+**Threshold**:
+The screen a visitor sees while the live Scene gets ready: the Atrium Mark and wordmark in the centre over the dusk sky, a one-line description of the studio, snow falling slowly and a scale bar filling with the load. It clears once the Scene is ready, and a visitor sees it once per visit. Visitors shown the still of the Scene have nothing to wait for and never see it.
+_Avoid_: loader, loading screen, splash, intro
+
 **Scene**:
 The interactive 3D landscape at blue hour (dusk) where the studio's Houses stand in the snow. It is the hero of the home page.
 _Avoid_: world, canvas, 3D view
@@ -69,8 +73,12 @@ The plain list of all Projects outside the Scene, set out like a schedule on a d
 _Avoid_: gallery, portfolio, grid
 
 **Section Cut**:
-The scroll transition out of the Scene: the camera drops toward the ground and the shadowed foreground snow continues seamlessly into the page "below grade", divided into Depths.
+The scroll transition out of the Scene: the camera drops toward the ground and the page "below grade", in the shadowed foreground snow's colour, rises over the Scene behind its Grade Line, divided into Depths.
 _Avoid_: Whiteout, fade, transition
+
+**Grade Line**:
+The undulating top of the below-grade page, drawn as snow drifts in section. It rises with the Section Cut, its drifts standing dark against the Scene above them, and a band of plain below-grade snow lies between it and the first Depth.
+_Avoid_: seam, edge, wave, section line
 
 **Depth**:
 A home page section below the Section Cut, marked with how far below grade it sits (e.g. −1.00 Projects, −2.00 Studio), like a level mark on a section drawing.

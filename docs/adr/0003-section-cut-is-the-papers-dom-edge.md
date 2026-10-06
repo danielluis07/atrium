@@ -4,6 +4,8 @@ Status: accepted (2026-09-24)
 
 Amended 2026-09-28: the edge remains the camera and header's DOM marker, but it is no longer painted as a hairline or snow-strata hatch. The matched snow surfaces meet seamlessly.
 
+Amended 2026-10-06: the seamless edge is superseded by the Grade Line (ADR 0009). The edge is still the DOM marker the camera and header follow.
+
 ADR 0002 left one question open: where the below-grade page meets the rendered snow. This answers it.
 
 ## Decision
