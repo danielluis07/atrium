@@ -3,9 +3,10 @@ import { groundHeight, WATER_LEVEL } from "@/lib/scene/terrain";
 
 /**
  * The Section Cut (ADR 0003): the paper page scrolls up over the pinned
- * Scene, and its top edge is the section line. The camera drops toward the
- * snow as the line rises, keyed so the rendered snow skyline sits just above
- * the line; by the time the paper covers the stage the camera is at grade.
+ * Scene, and the section line is its top edge's lowest points, the Grade
+ * Line's troughs (ADR 0009). The camera drops toward the snow as the line
+ * rises, keyed so the rendered snow skyline sits just above the troughs; by
+ * the time the paper covers the stage the camera is at grade.
  * Everything here is in the layout frame (x, y, z up; metres) and pure.
  */
 
@@ -31,8 +32,54 @@ export type Cut = {
 /** The cut at rest: the line at the stage's foot. */
 export const REST: Cut = { progress: 0, line: -1, gap: 0 };
 
-/** The sliver of snow kept above the section line, CSS pixels, for the live Scene and the still alike. */
+/**
+ * The sliver of snow kept above the section line, CSS pixels, for the live
+ * Scene and the still alike. The line is the Grade Line's troughs, so the
+ * drifts above them stand against the lit snow, never against sky.
+ */
 export const SNOW_GAP = 6;
+
+/**
+ * The Grade Line (ADR 0009): the drifts along the paper's top edge, as the
+ * turning points of their profile, `[x, y]` in a `width` × `foot` box with
+ * y down. A drift rises gently on the windward (left) side and falls
+ * steeply to the lee, and every trough touches the foot, where the section
+ * line is. The box is stretched to the page's width and the Grade Line's
+ * height (`--grade-line`, `app/globals.css`).
+ */
+const DRIFTS: readonly (readonly [x: number, y: number])[] = [
+  [0, 36],
+  [120, 48],
+  [360, 8],
+  [450, 48],
+  [570, 28],
+  [625, 48],
+  [870, 2],
+  [965, 48],
+  [1120, 20],
+  [1200, 42],
+];
+
+export const GRADE_LINE = {
+  width: 1200,
+  foot: 48,
+  drifts: DRIFTS,
+  /**
+   * The profile as an SVG path: soft curves level at every turn, closed
+   * below the foot (drawn with `overflow: visible`) so no seam can open
+   * between it and the paper.
+   */
+  path: [
+    `M${DRIFTS[0][0]} ${DRIFTS[0][1]}`,
+    ...DRIFTS.slice(1).map(([x, y], i) => {
+      const [px, py] = DRIFTS[i];
+      const half = (x - px) / 2;
+      return `C${px + half} ${py} ${x - half} ${y} ${x} ${y}`;
+    }),
+    "V60H0Z",
+  ].join(""),
+};
+
 /**
  * The committed still (`public/scene/still.avif`): its aspect, and where its
  * snow line sits as a fraction of its height from the top. The stage holds

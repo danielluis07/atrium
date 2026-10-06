@@ -14,7 +14,7 @@ import {
   type CameraPose,
   type Rig,
 } from "@/lib/scene/camera";
-import { gradePoint, isCovered, measureCut, REST, skylineHeight, SNOW_GAP, type Cut } from "@/lib/scene/cut";
+import { GRADE_LINE, gradePoint, isCovered, measureCut, REST, skylineHeight, SNOW_GAP, type Cut } from "@/lib/scene/cut";
 import { groundHeight, WATER_LEVEL } from "@/lib/scene/terrain";
 
 const overview = sceneLayout.overview;
@@ -81,6 +81,37 @@ describe("measuring the cut", () => {
   });
 });
 
+describe("the Grade Line", () => {
+  const ys = GRADE_LINE.drifts.map(([, y]) => y);
+  const troughs = GRADE_LINE.drifts.filter(([, y], i) => i > 0 && i < ys.length - 1 && y > ys[i - 1] && y > ys[i + 1]);
+
+  test("drifts across the whole width, never below its foot", () => {
+    expect(GRADE_LINE.drifts[0][0]).toBe(0);
+    expect(GRADE_LINE.drifts.at(-1)![0]).toBe(GRADE_LINE.width);
+    for (let i = 1; i < GRADE_LINE.drifts.length; i++)
+      expect(GRADE_LINE.drifts[i][0]).toBeGreaterThan(GRADE_LINE.drifts[i - 1][0]);
+    for (const y of ys) expect(y).toBeLessThanOrEqual(GRADE_LINE.foot);
+  });
+
+  test("has every trough on its foot, where the section line keys the camera", () => {
+    expect(troughs.length).toBeGreaterThanOrEqual(3);
+    for (const [, y] of troughs) expect(y).toBe(GRADE_LINE.foot);
+  });
+
+  test("rises to irregular crests, the highest close to its full height", () => {
+    const crests = ys.filter((y, i) => i > 0 && i < ys.length - 1 && y < ys[i - 1] && y < ys[i + 1]);
+    expect(new Set(crests).size).toBe(crests.length);
+    expect(Math.min(...crests)).toBeLessThan(GRADE_LINE.foot * 0.1);
+  });
+
+  test("is one closed path that reaches below its foot, so no seam opens onto the paper", () => {
+    expect(GRADE_LINE.path).toStartWith("M");
+    expect(GRADE_LINE.path).toEndWith("Z");
+    expect(GRADE_LINE.path.match(/M/g)).toHaveLength(1);
+    expect(Number(GRADE_LINE.path.match(/V(\d+)/)![1])).toBeGreaterThan(GRADE_LINE.foot);
+  });
+});
+
 describe("the drop", () => {
   const progressions = Array.from({ length: 41 }, (_, i) => i / 40);
 
@@ -98,7 +129,7 @@ describe("the drop", () => {
     expect(up.reverse()).toEqual(down);
   });
 
-  test("keeps the snow's skyline where it was until the line reaches it, then just above the line", () => {
+  test("keeps the snow's skyline where it was until the Grade Line's troughs reach it, then just above them", () => {
     for (const aspect of ASPECTS) {
       const rest = skylineHeight(overview as CameraPose, lens(aspect));
       let met = false;
