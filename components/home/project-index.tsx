@@ -20,11 +20,11 @@ export function ProjectIndex() {
         <div
           aria-hidden="true"
           className={cn(labelClass, "hidden grid-cols-10 gap-x-(--gutter) pb-3 md:grid")}>
-          <span className="col-span-4">Project</span>
-          <span className="col-span-2">Location</span>
-          <span>Elevation</span>
-          <span>Year</span>
-          <span>Area</span>
+          <span className="col-span-4">Projeto</span>
+          <span className="col-span-2">Localização</span>
+          <span>Altitude</span>
+          <span>Ano</span>
+          <span>Área</span>
         </div>
         <ol className="border-t">
           {projects.map((p) => (

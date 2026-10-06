@@ -31,7 +31,7 @@ const liveScene = (page: Page) => page.locator('[data-slot="live-scene"]');
 test("with ?scene=still the stage shows only the still", async ({ page }) => {
   await page.goto(HOME);
   await expect(liveScene(page)).toHaveAttribute("data-scene-path", "still");
-  await expect(stage(page).getByRole("img", { name: /Four concrete houses/ })).toBeVisible();
+  await expect(stage(page).getByRole("img", { name: /Quatro casas de concreto/ })).toBeVisible();
   await expect(stage(page).locator("canvas")).toHaveCount(0);
 });
 
@@ -55,7 +55,7 @@ async function pretendDiscreteGpu(page: Page) {
 
 async function expectOnlyTheStill(page: Page) {
   await expect(liveScene(page)).toHaveAttribute("data-scene-path", "still");
-  await expect(stage(page).getByRole("img", { name: /Four concrete houses/ })).toBeVisible();
+  await expect(stage(page).getByRole("img", { name: /Quatro casas de concreto/ })).toBeVisible();
   await expect(stage(page).locator("canvas")).toHaveCount(0);
 }
 
@@ -156,9 +156,9 @@ test.describe("the Lean Scene", () => {
     await page.goto("/?scene=lean");
     await expect(liveScene(page)).toHaveAttribute("data-scene-ready", "true", { timeout: 100_000 });
 
-    const scene = page.getByRole("listbox", { name: "Projects in the Scene" });
+    const scene = page.getByRole("listbox", { name: "Projetos na Cena" });
     const options = scene.getByRole("option");
-    await slow(options).toHaveText(["Lyngen House", "Senja House", "Kvaløya House", "Reine House"]);
+    await slow(options).toHaveText(["Casa Lyngen", "Casa Senja", "Casa Kvaløya", "Casa Reine"]);
     await slow(scene.getByRole("option", { selected: true })).toHaveCount(0);
     const status = stage(page).getByRole("status");
     await slow(status).toHaveText("");
@@ -167,25 +167,25 @@ test.describe("the Lean Scene", () => {
     const activeOption = () =>
       scene.evaluate((el) => document.getElementById(el.getAttribute("aria-activedescendant")!)?.textContent);
     await expectReachableByTab(page, scene);
-    await slow.poll(activeOption).toBe("Lyngen House");
+    await slow.poll(activeOption).toBe("Casa Lyngen");
     await page.keyboard.press("ArrowDown");
-    await slow.poll(activeOption).toBe("Senja House");
+    await slow.poll(activeOption).toBe("Casa Senja");
     await page.keyboard.press("End");
     await page.keyboard.press("ArrowDown");
-    await slow.poll(activeOption).toBe("Lyngen House");
+    await slow.poll(activeOption).toBe("Casa Lyngen");
     await page.keyboard.press("ArrowUp");
-    await slow.poll(activeOption).toBe("Reine House");
+    await slow.poll(activeOption).toBe("Casa Reine");
 
     // Enter opens the Panel, and focus moves into it
     const panel = page.locator('[data-slot="project-panel"]');
     await page.keyboard.press("Enter");
     await slow(panel).toBeVisible();
-    await slow(panel.getByRole("heading", { name: "Reine House" })).toBeVisible();
+    await slow(panel.getByRole("heading", { name: "Casa Reine" })).toBeVisible();
     await slow.poll(() => panel.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-    await slow(scene.getByRole("option", { name: "Reine House", selected: true })).toHaveCount(1);
+    await slow(scene.getByRole("option", { name: "Casa Reine", selected: true })).toHaveCount(1);
     // the listbox holds only its options
     await slow(scene.getByRole("dialog")).toHaveCount(0);
-    await slow(status).toHaveText("Reine House is open.");
+    await slow(status).toHaveText("Casa Reine está aberta.");
 
     // Esc closes it and hands focus back to the Scene, on the same House
     await page.keyboard.press("Escape");
@@ -193,13 +193,13 @@ test.describe("the Lean Scene", () => {
     await slow(scene).toBeFocused();
     await slow(scene.getByRole("option", { selected: true })).toHaveCount(0);
     await slow(status).toHaveText("");
-    await slow.poll(activeOption).toBe("Reine House");
+    await slow.poll(activeOption).toBe("Casa Reine");
 
     // Space selects too
     await page.keyboard.press("Home");
     await page.keyboard.press(" ");
-    await slow(panel.getByRole("heading", { name: "Lyngen House" })).toBeVisible();
-    await slow(status).toHaveText("Lyngen House is open.");
+    await slow(panel.getByRole("heading", { name: "Casa Lyngen" })).toBeVisible();
+    await slow(status).toHaveText("Casa Lyngen está aberta.");
   });
 
   test("the wheel over the Scene scrolls the page and never zooms", async ({ page }) => {
@@ -273,7 +273,7 @@ test.describe("the mobile Scene", () => {
     await page.touchscreen.tap(box.x + x, box.y + y);
 
     const panel = page.locator('[data-slot="project-panel"]');
-    await slow(panel.getByRole("heading", { name: "Senja House" })).toBeVisible();
+    await slow(panel.getByRole("heading", { name: "Casa Senja" })).toBeVisible();
     await expect(panel).toHaveAttribute("data-side", "bottom");
     const sheet = (await panel.boundingBox())!;
     const viewport = page.viewportSize()!;

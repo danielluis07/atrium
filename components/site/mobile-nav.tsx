@@ -33,9 +33,9 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="right" className="w-full bg-card">
         <SheetHeader className="h-(--header-height) justify-center px-(--page-margin) py-0">
-          <SheetTitle className={labelClass}>Index</SheetTitle>
+          <SheetTitle className={labelClass}>Índice</SheetTitle>
         </SheetHeader>
-        <nav aria-label="Site" className="border-t px-(--page-margin)">
+        <nav aria-label="Principal" className="border-t px-(--page-margin)">
           <ul>
             {depths.map((d) => (
               <li key={d.id} className="border-b">

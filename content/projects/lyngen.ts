@@ -1,35 +1,35 @@
 import type { Project } from "@/content/schema";
 
-/** Lyngen House: the reference House, translated from the prototype massing. */
+/** Casa Lyngen: the reference House, translated from the prototype massing. */
 export const lyngen = {
-  name: "Lyngen House",
+  name: "Casa Lyngen",
   slug: "lyngen",
   location: "Lyngen, Troms",
   elevation: 40,
   year: 2021,
   floorArea: 320,
-  lede: "A broad concrete house that rises from a low garage wing to two rooms stacked beside a stone chimney.",
+  lede: "Uma ampla casa de concreto que sobe de uma ala baixa de garagem até dois ambientes empilhados ao lado de uma chaminé de pedra.",
   writeUp: {
     site: [
-      "The house occupies a shelf above the fjord. A stone path links the garage apron to three lit steps at the main terrace, where low walls hold the snow back from the glass.",
+      "A casa ocupa um patamar acima do fiorde. Um caminho de pedra liga o pátio da garagem a três degraus iluminados no terraço principal, onde muros baixos seguram a neve longe do vidro.",
     ],
     light: [
-      "The fireplace lounge and curtained loft share the tall front elevation. At the far end, an upper library opens behind a recessed terrace and returns along the side wall to face the water.",
+      "A sala da lareira e o mezanino com cortinas dividem a alta fachada frontal. Na extremidade oposta, uma biblioteca superior se abre atrás de um terraço recuado e retorna pela parede lateral para encarar a água.",
     ],
     material: [
-      "Board-formed concrete makes the three wings. The chimney is rough stone; dark metal trims the roof slabs, with timber beneath the main roof and the lounge canopy.",
+      "O concreto aparente de fôrma de tábuas forma as três alas. A chaminé é de pedra bruta; metal escuro arremata as lajes da cobertura, com madeira sob a cobertura principal e a marquise da sala.",
     ],
   },
   images: {
-    hero: { src: "/projects/lyngen/hero.avif", alt: "Lyngen House rising from its garage wing beside a tall stone chimney." },
-    site: { src: "/projects/lyngen/site.avif", alt: "Lyngen House on a snow shelf with a walled terrace facing the fjord." },
-    light: { src: "/projects/lyngen/light.avif", alt: "Warm light behind the lounge and upper library glazing at Lyngen House." },
+    hero: { src: "/projects/lyngen/hero.avif", alt: "A Casa Lyngen se erguendo de sua ala de garagem, ao lado de uma alta chaminé de pedra." },
+    site: { src: "/projects/lyngen/site.avif", alt: "A Casa Lyngen num patamar de neve, com um terraço murado voltado para o fiorde." },
+    light: { src: "/projects/lyngen/light.avif", alt: "Luz quente atrás do vidro da sala e da biblioteca superior da Casa Lyngen." },
     interior: {
       src: "/projects/lyngen/interior.avif",
-      alt: "The fireplace lounge at Lyngen House looking through four glass panels toward the fjord.",
+      alt: "A sala da lareira da Casa Lyngen, olhando por quatro painéis de vidro em direção ao fiorde.",
       glazingFace: "living-front",
     },
-    material: { src: "/projects/lyngen/material.avif", alt: "Snow-capped concrete roof slabs meeting the stone chimney and timber soffit." },
+    material: { src: "/projects/lyngen/material.avif", alt: "Lajes de cobertura de concreto cobertas de neve encontrando a chaminé de pedra e o forro de madeira." },
   },
   camera: {
     azimuth: -25,

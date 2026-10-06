@@ -1,35 +1,35 @@
 import type { Project } from "@/content/schema";
 
-/** Senja House: a lower room beneath a long bar set across the slope. */
+/** Casa Senja: a lower room beneath a long bar set across the slope. */
 export const senja = {
-  name: "Senja House",
+  name: "Casa Senja",
   slug: "senja",
   location: "Senja, Troms",
   elevation: 25,
   year: 2018,
   floorArea: 220,
-  lede: "A concrete bar crosses the slope and projects four metres beyond a lower room cut into the snow.",
+  lede: "Uma barra de concreto atravessa a encosta e avança quatro metros além de um ambiente inferior escavado na neve.",
   writeUp: {
     site: [
-      "The lower lounge sits against the hill, with a paved terrace kept clear beneath the bar. A stone wall holds the upper grade; beyond its end, a lit stair of sixteen risers descends through the snow to the terrace.",
+      "A sala inferior fica encostada no morro, com um terraço pavimentado livre sob a barra. Um muro de pedra segura o terreno superior; além de sua extremidade, uma escada iluminada de dezesseis degraus desce pela neve até o terraço.",
     ],
     light: [
-      "One wide window closes the bedroom at the end of the bar. Below it, glass is confined to half of the lounge front, gathering the warm light beneath the cantilever while the rest of the room stays enclosed.",
+      "Uma janela larga fecha o quarto na ponta da barra. Abaixo dela, o vidro se limita à metade da fachada da sala, reunindo a luz quente sob o balanço enquanto o resto do ambiente permanece fechado.",
     ],
     material: [
-      "The bar and lower room are board-formed concrete. A dry-laid stone wall continues from the cut into the slope, with timber beneath the roof and two lower ledges.",
+      "A barra e o ambiente inferior são de concreto aparente de fôrma de tábuas. Um muro de pedra seca continua a partir do corte na encosta, com madeira sob a cobertura e sob dois patamares inferiores.",
     ],
   },
   images: {
-    hero: { src: "/projects/senja/hero.avif", alt: "Senja House crossing the slope above a lower room cut into the snow." },
-    site: { src: "/projects/senja/site.avif", alt: "The stone retaining wall and long stair descending beside Senja House." },
-    light: { src: "/projects/senja/light.avif", alt: "The lower lounge glowing beneath Senja House's concrete cantilever." },
+    hero: { src: "/projects/senja/hero.avif", alt: "A Casa Senja atravessando a encosta, acima de um ambiente inferior escavado na neve." },
+    site: { src: "/projects/senja/site.avif", alt: "O muro de contenção de pedra e a longa escada descendo ao lado da Casa Senja." },
+    light: { src: "/projects/senja/light.avif", alt: "A sala inferior iluminada sob o balanço de concreto da Casa Senja." },
     interior: {
       src: "/projects/senja/interior.avif",
-      alt: "The bedroom at Senja House looking through its three-panel end window toward the fjord.",
+      alt: "O quarto da Casa Senja, olhando pela janela de três painéis da extremidade em direção ao fiorde.",
       glazingFace: "bar-end",
     },
-    material: { src: "/projects/senja/material.avif", alt: "The dry-laid stone wall meeting Senja House's board-formed concrete bar." },
+    material: { src: "/projects/senja/material.avif", alt: "O muro de pedra seca encontrando a barra de concreto aparente da Casa Senja." },
   },
   camera: {
     azimuth: 35,

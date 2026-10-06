@@ -161,7 +161,7 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
         ref={ref}
         tabIndex={live ? (ready ? 0 : -1) : undefined}
         role={live ? "listbox" : undefined}
-        aria-label={live ? "Projects in the Scene" : undefined}
+        aria-label={live ? "Projetos na Cena" : undefined}
         aria-describedby={live ? `${id}-keys` : undefined}
         aria-activedescendant={live ? optionId(projects[active].slug) : undefined}
         aria-hidden={live ? undefined : "true"}
@@ -221,11 +221,11 @@ export function LiveScene({ layout, projects }: { layout: SceneLayout; projects:
           {/* beside the listbox, not in it: the non-modal Panel is owned (`aria-owns`) and tabbed to where it renders */}
           <ProjectPanel store={store} projects={projects} scene={ref} side={ladder === "mobile" ? "bottom" : "right"} />
           <p id={`${id}-keys`} hidden>
-            Up and down arrows move between the Houses, and Enter opens one.
-            {ladder === "desktop" && " At an open House, left and right arrows turn around it."}
+            As setas para cima e para baixo alternam entre as casas, e Enter abre uma.
+            {ladder === "desktop" && " Numa casa aberta, as setas para a esquerda e para a direita giram em torno dela."}
           </p>
           <p role="status" className="sr-only">
-            {open && `${open.name} is open.`}
+            {open && `${open.name} está aberta.`}
           </p>
         </>
       )}

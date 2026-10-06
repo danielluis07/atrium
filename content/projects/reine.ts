@@ -1,35 +1,35 @@
 import type { Project } from "@/content/schema";
 
-/** Reine House: three shifted Levels beside a full-height stone wall. */
+/** Casa Reine: three shifted Levels beside a full-height stone wall. */
 export const reine = {
-  name: "Reine House",
+  name: "Casa Reine",
   slug: "reine",
   location: "Reine, Nordland",
   elevation: 12,
   year: 2025,
   floorArea: 235,
-  lede: "Three concrete floors shift across a narrow plot, making a terrace from each roof below.",
+  lede: "Três pavimentos de concreto se deslocam num terreno estreito, formando um terraço com cada cobertura abaixo.",
   writeUp: {
     site: [
-      "The narrow plot keeps the house to a compact stack. A stone wall runs the full height and extends into the snow; the entry path passes through a gap in its lower end before turning beneath the first overhang.",
+      "O terreno estreito mantém a casa numa pilha compacta. Um muro de pedra corre por toda a altura e se estende para dentro da neve; o caminho de entrada passa por uma abertura em sua extremidade inferior antes de virar sob o primeiro balanço.",
     ],
     light: [
-      "Clear glass wraps the kitchen on the middle floor and the bedroom above it. The lower balcony shelters two chairs beneath the bedroom, while the upper terrace sits under a timber pergola with a fire bowl and a view along the water.",
+      "O vidro transparente envolve a cozinha no pavimento intermediário e o quarto acima dela. A varanda inferior abriga duas cadeiras sob o quarto, enquanto o terraço superior fica sob uma pérgola de madeira, com um braseiro e vista ao longo da água.",
     ],
     material: [
-      "Board-formed concrete defines the shifted floors. The stone wall braces the stack, while glass balustrades and a timber pergola keep the two terraces open to the view.",
+      "O concreto aparente de fôrma de tábuas define os pavimentos deslocados. O muro de pedra contraventa a pilha, enquanto guarda-corpos de vidro e uma pérgola de madeira mantêm os dois terraços abertos para a vista.",
     ],
   },
   images: {
-    hero: { src: "/projects/reine/hero.avif", alt: "The three shifted floors of Reine House lit above the snow." },
-    site: { src: "/projects/reine/site.avif", alt: "Reine House rising beside a full-height stone wall near the water." },
-    light: { src: "/projects/reine/light.avif", alt: "Warm kitchen and bedroom glazing opening onto Reine House's two terraces." },
+    hero: { src: "/projects/reine/hero.avif", alt: "Os três pavimentos deslocados da Casa Reine, iluminados acima da neve." },
+    site: { src: "/projects/reine/site.avif", alt: "A Casa Reine se erguendo ao lado de um muro de pedra de altura total, perto da água." },
+    light: { src: "/projects/reine/light.avif", alt: "O vidro quente da cozinha e do quarto abrindo para os dois terraços da Casa Reine." },
     interior: {
       src: "/projects/reine/interior.avif",
-      alt: "The kitchen at Reine House looking through five glass panels toward the water.",
+      alt: "A cozinha da Casa Reine, olhando por cinco painéis de vidro em direção à água.",
       glazingFace: "living-front",
     },
-    material: { src: "/projects/reine/material.avif", alt: "The stone wall beside offset concrete slabs, glass rails and a timber pergola." },
+    material: { src: "/projects/reine/material.avif", alt: "O muro de pedra ao lado de lajes de concreto deslocadas, guarda-corpos de vidro e uma pérgola de madeira." },
   },
   camera: {
     azimuth: 20,

@@ -52,7 +52,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
     <main className="page-frame flex-1">
       <header data-slot="title-block" className="page-grid gap-y-8 pt-16 pb-12 md:pt-24 md:pb-16">
         <RailLabel className="md:pt-4">
-          Project {formatIndex(number)} / {formatIndex(projects.length)}
+          Projeto {formatIndex(number)} / {formatIndex(projects.length)}
         </RailLabel>
         <div className="col-span-12 md:col-span-6 md:col-start-3">
           <h1 className="text-display">{project.name}</h1>
@@ -63,10 +63,10 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
         <DataBlock
           className="col-span-12 self-end md:col-span-3 md:col-start-10"
           items={[
-            { label: "Location", value: project.location },
-            { label: "Elevation", value: formatElevation(project.elevation) },
-            { label: "Year", value: project.year },
-            { label: "Area", value: formatArea(project.floorArea) },
+            { label: "Localização", value: project.location },
+            { label: "Altitude", value: formatElevation(project.elevation) },
+            { label: "Ano", value: project.year },
+            { label: "Área", value: formatArea(project.floorArea) },
           ]}
         />
       </header>
@@ -83,10 +83,10 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
       </figure>
 
       <div className="space-y-20 py-20 md:space-y-32 md:py-32">
-        <Part n={1} title="Site" paragraphs={writeUp.site}>
+        <Part n={1} title="Terreno" paragraphs={writeUp.site}>
           <Figure image={images.site} className="md:col-span-10 md:col-start-3 md:aspect-16/9" />
         </Part>
-        <Part n={2} title="Light" paragraphs={writeUp.light} side="right">
+        <Part n={2} title="Luz" paragraphs={writeUp.light} side="right">
           <Figure image={images.light} className="md:col-span-6 md:col-start-3 md:row-start-1" />
           <Figure image={images.interior} className="md:col-span-8 md:col-start-5 md:aspect-16/9" />
         </Part>
@@ -96,7 +96,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
         <Drawings project={project} />
       </div>
 
-      <nav aria-label="Next project" className="page-grid border-t">
+      <nav aria-label="Próximo projeto" className="page-grid border-t">
         <Link
           href={`/projects/${next.slug}`}
           className={cn(
@@ -105,7 +105,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[slug
             "focus-visible:outline-offset-0",
           )}>
           <span className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            <span className={labelClass}>Next project:</span>{" "}
+            <span className={labelClass}>Próximo projeto:</span>{" "}
             <span className={cn(sectionHeadClass, "transition-colors duration-200 group-hover:text-muted-foreground")}>
               {next.name}
             </span>
@@ -179,21 +179,21 @@ function Drawings({ project }: { project: Project }) {
   const drawings = [
     {
       slot: "plan",
-      caption: "Plan at ±0.00",
-      label: `Massing plan of ${project.name}, cut at the entrance Level`,
+      caption: "Planta em ±0.00",
+      label: `Planta de volumetria da ${project.name}, cortada no nível de entrada`,
       svg: planSvg(project.house),
     },
     {
       slot: "section",
-      caption: "Section A–A",
-      label: `Section through ${project.name}, marking each Level`,
+      caption: "Corte A–A",
+      label: `Corte pela ${project.name}, indicando cada nível`,
       svg: sectionSvg(project.house),
     },
   ];
   return (
     <section aria-labelledby="drawings" className="page-grid gap-y-8 md:gap-y-16">
       <h2 id="drawings" className={cn(labelClass, "col-span-12 md:col-span-2 md:row-start-1 md:pt-1.5")}>
-        {formatIndex(4)} Drawings
+        {formatIndex(4)} Desenhos
       </h2>
       {drawings.map(({ slot, caption, label, svg }, i) => (
         <figure

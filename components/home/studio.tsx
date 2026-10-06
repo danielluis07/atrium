@@ -18,9 +18,9 @@ export function Studio() {
       <DataBlock
         className="col-span-12 self-start md:col-span-3 md:col-start-10"
         items={[
-          { label: "Founded", value: studio.founded },
-          { label: "Based", value: studio.location },
-          { label: "Projects", value: getProjects().length },
+          { label: "Fundação", value: studio.founded },
+          { label: "Sede", value: studio.location },
+          { label: "Projetos", value: getProjects().length },
         ]}
       />
     </Depth>
