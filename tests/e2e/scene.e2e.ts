@@ -16,6 +16,15 @@ test.use({ launchOptions: { args: ["--enable-unsafe-swiftshader"] } });
 // classification then runs past its timeout and falls back to Lean
 test.describe.configure({ mode: "default" });
 
+// the Scene as a returning visitor sees it, with the Threshold already seen (`threshold.e2e.ts` covers that)
+test.beforeEach(({ page }) =>
+  page.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem("atrium:threshold-seen", "1");
+    } catch {}
+  }),
+);
+
 const stage = (page: Page) => page.locator('[data-slot="scene-stage"]');
 const liveScene = (page: Page) => page.locator('[data-slot="live-scene"]');
 

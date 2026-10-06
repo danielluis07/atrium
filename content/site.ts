@@ -7,6 +7,8 @@ export const studio = {
   location: "Tromsø, Norway",
   email: "studio@atrium.example",
   founded: 2014,
+  /** The one-line description: the site's meta description and the Threshold's line. */
+  description: "Atrium is an architecture studio in Tromsø, Norway, designing houses for Arctic sites.",
   /** The Studio Depth's display statement, and the home page description. */
   statement:
     "Atrium designs houses around northern ground, winter light and the weather coming off the sea.",

@@ -178,6 +178,80 @@
   }
 }
 
+/*
+ * The Threshold (`components/home/threshold.tsx`). The inline script in the
+ * root layout raises it before first paint (`data-threshold="up"`), with the
+ * header hidden under it; the live Scene fades it (`"clearing"`) as the
+ * header comes back, or drops it at once.
+ */
+[data-slot="threshold"] {
+  display: none;
+}
+:root[data-threshold] [data-slot="threshold"] {
+  display: flex;
+  transition: opacity 300ms ease-in-out;
+}
+:root[data-threshold="clearing"] [data-slot="threshold"] {
+  opacity: 0;
+  pointer-events: none;
+}
+:root[data-threshold] [data-slot="site-header"] {
+  transition:
+    opacity 300ms ease-in-out,
+    visibility 300ms;
+}
+/* only while the Threshold is on the page: leaving home mid-load brings the header back */
+:root[data-threshold="up"]:has([data-slot="threshold"]) [data-slot="site-header"] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/*
+ * Slow snow: two layers of scattered flakes on odd, unrelated tile sizes, so
+ * the repeat doesn't read as a grid, each drifting down one tile and looping.
+ */
+.threshold-snow::before,
+.threshold-snow::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--tile-h)) 0 0;
+  background-image:
+    radial-gradient(circle at 12% 18%, oklch(0.975 0.004 240 / 0.7) 1px, transparent 1.5px),
+    radial-gradient(circle at 63% 7%, oklch(0.975 0.004 240 / 0.45) 0.75px, transparent 1.25px),
+    radial-gradient(circle at 38% 41%, oklch(0.975 0.004 240 / 0.6) 1.25px, transparent 1.75px),
+    radial-gradient(circle at 87% 33%, oklch(0.975 0.004 240 / 0.4) 0.75px, transparent 1.25px),
+    radial-gradient(circle at 24% 72%, oklch(0.975 0.004 240 / 0.5) 1px, transparent 1.5px),
+    radial-gradient(circle at 71% 64%, oklch(0.975 0.004 240 / 0.65) 1px, transparent 1.5px),
+    radial-gradient(circle at 52% 89%, oklch(0.975 0.004 240 / 0.35) 0.75px, transparent 1.25px),
+    radial-gradient(circle at 93% 81%, oklch(0.975 0.004 240 / 0.55) 1.25px, transparent 1.75px);
+  background-size: var(--tile-w) var(--tile-h);
+  animation: threshold-snow var(--fall) linear infinite;
+  will-change: transform;
+}
+.threshold-snow::before {
+  --tile-w: 347px;
+  --tile-h: 263px;
+  --fall: 31s;
+}
+.threshold-snow::after {
+  --tile-w: 521px;
+  --tile-h: 409px;
+  --fall: 53s;
+  opacity: 0.55;
+  background-position: 131px 57px;
+}
+@keyframes threshold-snow {
+  to {
+    transform: translateY(var(--tile-h));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .threshold-snow::before,
+  .threshold-snow::after {
+    animation: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;
