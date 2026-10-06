@@ -4,6 +4,8 @@ Status: accepted (2026-09-23)
 
 Amended 2026-09-28: the DOM cut remains, but its visible hairline and snow-strata hatch were removed. The Scene's shadowed foreground snow and the below-grade page now share one colour and meet without a painted seam.
 
+Amended 2026-10-06: the seamless meeting is superseded by the Grade Line (ADR 0009).
+
 The hero was going to hand off to the paper site through a **Whiteout**: fog thickening until the frame became the exact paper color. We replaced it with a **Section Cut**. The camera drops toward the ground, and the shadowed foreground snow continues into the site "below grade", where its sections are **Depths** (−1.00 Projects … −4.00 Contact).
 
 ## Why

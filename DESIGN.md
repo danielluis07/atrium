@@ -37,10 +37,10 @@ Houses are **assembled from shared parts** (volume, stone mass, slab, opening, b
   - **Site Works:** designed, like the House, for its arc; at the overview they only need to read as a silhouette. Every piece is modelled with real thickness, its snow modelled too (caps on its tops, drifts against it, the lip and berms of a path), and baked with the House. No decals, painted paths, billboards, leafy planting, alpha-tested cards or anything animated. Lights are set into walls and steps, never on posts or bollards. Framing pines stand where the arc needs them and never cover a House from an arc camera or the overview (`docs/adr/0006-houses-stand-in-built-site-works.md`).
 - **Hover:** the House's windows brighten and a small mono label with the Project name appears in the Scene. The cursor changes to a pointer.
 - **Select:** the camera flies to the House's hero angle (about 1.5s, ease-in-out), the other Houses dim, and the **Project Panel** slides in from the right. Clicking another House flies straight to it. Esc or a click on empty snow closes the panel and flies the camera back.
-- **Section Cut:** scrolling past the hero drops the camera toward the ground, and the shadowed foreground snow continues into the below-grade page at the same colour, giving the sensation of passing beneath the ice. The meeting edge is seamless: no hairline or strata hatch is painted across it. It is a cut, not a fade. If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). An invisible marker at the below-grade page's top edge keys the camera and header to the cut. See `docs/adr/0002-section-cut-replaces-whiteout.md` and `docs/adr/0003-section-cut-is-the-papers-dom-edge.md`.
+- **Section Cut:** scrolling past the hero drops the camera toward the ground, and the below-grade page, in the shadowed foreground snow's colour, rises over the Scene behind its **Grade Line**: a static, soft, irregular drift profile (about 48px tall on desktop, 28px on mobile). The camera holds the rendered snow skyline at the Grade Line's troughs, so its drifts stand dark against the Scene for the whole scroll, giving the sensation of going underground. It is a silhouette, never a hairline or strata hatch, and a cut, not a fade. A band of plain below-grade snow, about 50svh deep, lies between the Grade Line and the first Depth (`docs/adr/0009-the-grade-line-rises-over-the-scene.md`). If a House is selected, scrolling closes the Project Panel and its fly-back folds into the drop (one camera move, not two). An invisible marker at the Grade Line's troughs keys the camera and header to the cut. See `docs/adr/0002-section-cut-replaces-whiteout.md` and `docs/adr/0003-section-cut-is-the-papers-dom-edge.md`.
 - **Degradation:**
   - Touch-primary devices (`(pointer: coarse)` without `(hover: hover)`) get a lighter live Scene, the mobile Scene: fewer snow particles, no real-time shadows, reduced camera motion. Touch has no orbit: a selected House holds its hero angle, and swipes always scroll. The choice follows input, not GPU power, so a mouse on a weak laptop still gets orbit.
-  - `prefers-reduced-motion`, no WebGL, a software renderer (SwiftShader, llvmpipe, or `failIfMajorPerformanceCaveat` failing) or a `detect-gpu` tier 0 gets a pre-rendered still of the Scene, cropped so its foreground snow meets the same invisible cut marker (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
+  - `prefers-reduced-motion`, no WebGL, a software renderer (SwiftShader, llvmpipe, or `failIfMajorPerformanceCaveat` failing) or a `detect-gpu` tier 0 gets a pre-rendered still of the Scene, cropped so its foreground snow meets the same Grade Line (a static cut, no camera move). Mobile gets the real camera drop, only shorter.
   - The **Project Index** is always there, so no Project depends on 3D to be reached.
 - **Render tiers:** the desktop Scene runs on a ladder of rungs, cheapest visual loss first:
   1. *Target* at DPR 2 (MSAA 4x + SMAA + N8AO + bloom)
@@ -111,7 +111,7 @@ shadcn `base-nova` (Base UI primitives) is the base for all UI. Add components w
 
 - **Radius 0.** Set `--radius: 0`. Every corner is sharp.
 - **Hairlines, no shadows.** Separate surfaces with 1px `--border` and whitespace, never with drop shadows.
-- **A visible grid.** A 12-column layout with generous gutters. Columns 1–2 are the **margin rail** for mono labels (Depth markers, data labels, figure numbers). Content sits in columns 3–12: running text in columns 3–8 (about 65ch), with data or images beside it in 9–12. Three faint full-height hairline guides mark the page edges and the rail edge, like the frame of a drawing sheet. On mobile the rail folds into a label above each block, and only the page-edge guides remain.
+- **A visible grid.** A 12-column layout with generous gutters. Columns 1–2 are the **margin rail** for mono labels (Depth markers, data labels, figure numbers). Content sits in columns 3–12: running text in columns 3–8 (about 65ch), with data or images beside it in 9–12. On paper pages (Project pages, 404), three faint full-height hairline guides mark the page edges and the rail edge, like the frame of a drawing sheet; on mobile only the page-edge guides remain. The home Depths have no guides. On mobile the rail folds into a label above each block.
 - **Buttons:** ink fill with paper text for primary, a hairline outline for secondary. No gradients.
 - **Icons:** lucide at a 1.5px stroke, used sparingly.
 
@@ -136,13 +136,23 @@ Routes: `/`, `/projects/[slug]` and a styled 404. Nothing else: no `/projects` p
 
 ### Home (`/`)
 
-The Scene is at grade (`±0.00`). Below the **Section Cut**, each section is a **Depth**, labelled in the margin rail as `▽ −1.00 · PROJECTS`. The labels are the only depth effect: no parallax earth layers, and no darkening as you go deeper.
+The Scene is at grade (`±0.00`). Below the **Section Cut**, each section is a **Depth**, labelled in the margin rail as `▽ −1.00 · PROJECTS`. The labels, the Grade Line and the plain band of snow above the first Depth are the only depth effects: no parallax earth layers, and no darkening as you go deeper. Depths are separated by whitespace, not by hairlines, with generous space between Depths and between the blocks inside them. The Project Index rows and data blocks keep their hairlines.
 
-1. **Scene** (`±0.00`), then the **Section Cut**.
+1. **Threshold**, on the live path only, then the **Scene** (`±0.00`), then the **Section Cut**.
 2. **Project Index** (`−1.00`): a schedule, one hairline-separated row per Project: the name in Newsreader, then location, elevation, year and m² in mono columns. A small thumbnail (a crop of the Project's hero image) appears on row hover. On mobile the rows stack: the name, then one mono line of data.
 3. **Studio** (`−2.00`): one Newsreader statement (the display moment), 2–3 short paragraphs in columns 3–8, and a mono data block in 9–12 (Founded, Based: Tromsø, Norway, Projects: 4). No image.
 4. **Approach** (`−3.00`): three rows, Site, Light and Material. Each has its rail label (`01 SITE`), a short Newsreader head, a paragraph, and a detail crop from a Project image on the right (the snow plinth, a glowing window, board-formed concrete).
 5. **Contact** (`−4.00`): one Newsreader line, the email as the primary `mailto:` link, and `Tromsø, Norway` in a data block. No form and no map. The footer follows.
+
+### Threshold
+
+The screen shown over the stage while the live Scene gets ready (`CONTEXT.md`):
+
+- An opaque surface in the zenith sky colour, `oklch(0.26 0.06 262)`, with the header hidden under it.
+- In the centre: the Atrium Mark and the wordmark, then the one-line description ("Atrium is an architecture studio in Tromsø, Norway, designing houses for Arctic sites."), then a mono readout (`LOADING SCENE · 64%`) on a hairline scale bar that fills with the real GLB and KTX2 download progress.
+- Slow CSS snowfall behind it.
+- It clears with a 200–400ms fade on the Scene's first rendered frame, after at least 800ms on screen. If the visitor scrolls first, it clears at once and the still is the loading state. Scroll is never locked.
+- It shows once per visit (`sessionStorage`, read in try/catch). The still path (reduced motion, no WebGL, weak GPU) never shows it.
 
 ### Project page (`/projects/[slug]`)
 
