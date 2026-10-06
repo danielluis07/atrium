@@ -17,7 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // the Threshold's script sets `data-threshold` on <html> before hydration
     <html
-      lang="en"
+      lang="pt-BR"
       suppressHydrationWarning
       className={cn(
         "h-full antialiased font-sans",

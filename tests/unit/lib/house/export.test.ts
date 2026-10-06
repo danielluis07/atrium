@@ -136,7 +136,7 @@ describe("the export command", () => {
     const code = runExport({ records: [withBadOpening()], layout: lyngenOnly, outDir }, (l) => lines.push(l));
     expect(code).toBe(1);
     expect(existsSync(outDir)).toBe(false);
-    expect(lines.join("\n")).toMatch(/Lyngen House:\n {2}opening garage: runs/);
+    expect(lines.join("\n")).toMatch(/Casa Lyngen:\n {2}opening garage: runs/);
   });
 
   test("exits non-zero for an unknown slug", () => {

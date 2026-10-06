@@ -28,7 +28,7 @@ export const CameraBlock = z.object({
 });
 
 export const Project = z.object({
-  name: z.string().regex(/ House$/, "a Project is named “<Place> House”"),
+  name: z.string().regex(/^Casa /, "a Project is named “Casa <Place>”"),
   slug: z.string().regex(/^[a-z0-9-]+$/),
   /** Place and county, `Lyngen, Troms`. */
   location: z.string().regex(/^[^,]+, [^,]+$/, "write the location as “Place, County”"),

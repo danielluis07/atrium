@@ -32,13 +32,13 @@ export function Threshold({ progress }: { progress: number }) {
         <p className="mt-6 text-sm leading-relaxed text-primary-foreground/70">{studio.description}</p>
         <div
           role="progressbar"
-          aria-label="Loading the Scene"
+          aria-label="Carregando a Cena"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={percent}
           className="mt-10 w-48">
           <p className="font-mono text-[0.6875rem] leading-4 tracking-[0.12em] text-primary-foreground/70 uppercase tabular-nums">
-            Loading scene · {percent}%
+            Carregando a cena · {percent}%
           </p>
           <div className="mt-2 h-px bg-primary-foreground/20">
             <div

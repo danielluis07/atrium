@@ -20,7 +20,7 @@ export function SiteHeader() {
       <div className="page-frame flex h-(--header-height) items-center justify-between">
         <Wordmark />
         <div className="flex items-center gap-4 md:gap-8">
-          <nav aria-label="Site" className="hidden md:block">
+          <nav aria-label="Principal" className="hidden md:block">
             <ul className="flex gap-8">
               {depths.map((d) => (
                 <li key={d.id}>

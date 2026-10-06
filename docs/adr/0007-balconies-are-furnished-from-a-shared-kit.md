@@ -1,6 +1,6 @@
 # Balconies are furnished from a shared kit
 
-Status: accepted (2026-09-28), with Reine House's balconies ([#100](https://github.com/danielluis07/atrium/issues/100)).
+Status: accepted (2026-09-28), with Casa Reine's balconies ([#100](https://github.com/danielluis07/atrium/issues/100)).
 
 ADR 0004 left exterior props (terrace furniture, lanterns, woodpiles) for later, and ADR 0006 built the ground around each House but nothing on its balconies. Reine's two balconies were bare slabs under snow: the lower one under the top floor's overhang, reached by no door, and the upper one beside the bedroom, open to the sky. This ADR records that they now get **Balcony Furniture** (`CONTEXT.md`), a door and a pergola, and how that differs from Site Works.
 

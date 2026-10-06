@@ -162,7 +162,7 @@ Paper from the top, like unfolding the Project Panel into the full sheet:
 2. The hero image.
 3. The write-up in three parts, **Site, Light, Material** (mirroring Approach), alternating with images: Site with the wide image, Light with the exterior glow and then the interior view out, Material with the close-up.
 4. **Drawings:** a plan and a section of the House, drawn as SVG from its House data.
-5. A next-Project row ("Next project: Senja House →", wrapping around), then the footer.
+5. A next-Project row ("Próximo projeto: Casa Senja →", wrapping around), then the footer.
 
 ### 404
 
@@ -184,7 +184,7 @@ Slow and heavy, like moving a heavy object.
 
 ## Voice and naming
 
-- The four Projects are **Lyngen House, Senja House, Kvaløya House and Reine House**, named after real places in Troms and Nordland. Location is written as place and county (`Lyngen, Troms`). Elevation is a plausible rounded value for that place (`+40 m`), not a surveyed point. There are no coordinates anywhere on the site, for Projects or the studio.
+- The four Projects are **Casa Lyngen, Casa Senja, Casa Kvaløya and Casa Reine**, named after real places in Troms and Nordland. Location is written as place and county (`Lyngen, Troms`). Elevation is a plausible rounded value for that place (`+40 m`), not a surveyed point. There are no coordinates anywhere on the site, for Projects or the studio.
 - Copy is short, declarative and understated. Say what the building does with site, light and material. No marketing adjectives ("stunning", "luxurious", "breathtaking").
 - English throughout.
 - Fictional facts only need to agree with each other: the studio was founded in 2014, Projects were completed between 2017 and 2025, and floor areas run 140–320 m².
@@ -198,7 +198,7 @@ All copy and Project data is local TypeScript, with no MDX and no CMS.
 - **`content/site.ts`** holds everything else: the Studio statement, paragraphs and data block, the three Approach rows, the Contact line, the 404 line and the footer line.
 - **Drafting:** an agent drafts all copy to the voice rules above. The human runs the `humanizer` skill over it and reviews it before it ships. There are no automated copy tests.
 - **Order:** a Project's House record comes first, then its write-up is drafted from it (the copy must match the massing), then its images are made from the baked House. Studio, Approach, Contact, 404 and footer copy have no dependency.
-- **Metadata:** titles are `Lyngen House — Atrium`, and descriptions come from the lede. A Project's OG image is its hero image. The home page's description comes from the Studio statement, and its OG image is the pre-rendered Scene still.
+- **Metadata:** titles are `Casa Lyngen — Atrium`, and descriptions come from the lede. A Project's OG image is its hero image. The home page's description comes from the Studio statement, and its OG image is the pre-rendered Scene still.
 
 ### Images
 

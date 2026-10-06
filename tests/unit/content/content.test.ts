@@ -25,10 +25,10 @@ describe("the site's Content", () => {
 
   test("every record parses", () => {
     expect(getProjects().map((p) => [p.name, p.location])).toEqual([
-      ["Lyngen House", "Lyngen, Troms"],
-      ["Senja House", "Senja, Troms"],
-      ["Kvaløya House", "Kvaløya, Troms"],
-      ["Reine House", "Reine, Nordland"],
+      ["Casa Lyngen", "Lyngen, Troms"],
+      ["Casa Senja", "Senja, Troms"],
+      ["Casa Kvaløya", "Kvaløya, Troms"],
+      ["Casa Reine", "Reine, Nordland"],
     ]);
   });
 
@@ -87,7 +87,7 @@ describe("the site's Content", () => {
 const copy = (slug: string, name: string) => ({ ...structuredClone(lyngen), slug, name });
 
 describe("createContent", () => {
-  const records = [copy("senja", "Senja House"), lyngen, copy("reine", "Reine House")];
+  const records = [copy("senja", "Casa Senja"), lyngen, copy("reine", "Casa Reine")];
   const layout = {
     ...sceneLayout,
     houses: {
@@ -111,18 +111,18 @@ describe("createContent", () => {
   });
 
   test("refuses a record whose House is invalid, naming the Project and the part", () => {
-    const bad = copy("senja", "Senja House");
+    const bad = copy("senja", "Casa Senja");
     bad.house.openings[0].width = 20;
-    expect(() => createContent([bad, lyngen], layout)).toThrow(/Senja House:\n {2}opening garage: runs/);
+    expect(() => createContent([bad, lyngen], layout)).toThrow(/Casa Senja:\n {2}opening garage: runs/);
   });
 
   test("refuses a record with a bad shape, naming the field", () => {
-    const bad = { ...copy("senja", "Senja House"), year: 2031 };
-    expect(() => createContent([bad], layout)).toThrow(/Senja House:\n {2}year:/);
+    const bad = { ...copy("senja", "Casa Senja"), year: 2031 };
+    expect(() => createContent([bad], layout)).toThrow(/Casa Senja:\n {2}year:/);
   });
 
   test("refuses an interior image that doesn't look out through a Glazing Face", () => {
-    const bad = copy("senja", "Senja House");
+    const bad = copy("senja", "Casa Senja");
     bad.images.interior.glazingFace = "garage";
     expect(() => createContent([bad], layout)).toThrow(/images.interior: looks out through garage/);
   });

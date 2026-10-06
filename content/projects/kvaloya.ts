@@ -1,35 +1,35 @@
 import type { Project } from "@/content/schema";
 
-/** Kvaløya House: three volumes around a stone hearth beneath one roof. */
+/** Casa Kvaløya: three volumes around a stone hearth beneath one roof. */
 export const kvaloya = {
-  name: "Kvaløya House",
+  name: "Casa Kvaløya",
   slug: "kvaloya",
   location: "Kvaløya, Troms",
   elevation: 15,
   year: 2023,
   floorArea: 160,
-  lede: "Three single-storey wings turn around a stone hearth beneath one broad roof.",
+  lede: "Três alas térreas giram em torno de uma lareira de pedra sob uma ampla cobertura.",
   writeUp: {
     site: [
-      "The house stands on a paved platform near the water. Its three wings leave one corner open as a sheltered court, while a passage through the studio carries the approach from the slope to the view.",
+      "A casa se assenta sobre uma plataforma pavimentada, perto da água. Suas três alas deixam um canto aberto como pátio abrigado, enquanto uma passagem pelo ateliê conduz o acesso da encosta até a vista.",
     ],
     light: [
-      "Glazing wraps the dining room on two sides, with the table facing the fjord and a small sitting area beside the court. The roof reaches beyond every wall, so low winter sun can pass beneath its edge.",
+      "O vidro envolve a sala de jantar em dois lados, com a mesa voltada para o fiorde e uma pequena área de estar junto ao pátio. A cobertura avança além de todas as paredes, de modo que o sol baixo do inverno passa por baixo de sua borda.",
     ],
     material: [
-      "Board-formed concrete encloses the three wings. A square stone hearth rises through the centre, and the concrete roof is lined with timber beneath a dark metal edge.",
+      "O concreto aparente de fôrma de tábuas envolve as três alas. Uma lareira quadrada de pedra sobe pelo centro, e a cobertura de concreto é forrada de madeira sob uma borda de metal escuro.",
     ],
   },
   images: {
-    hero: { src: "/projects/kvaloya/hero.avif", alt: "Kvaløya House held low beneath a broad square roof in the snow." },
-    site: { src: "/projects/kvaloya/site.avif", alt: "The paved court and covered passage at Kvaløya House beside the sound." },
-    light: { src: "/projects/kvaloya/light.avif", alt: "The glazed dining room lighting the sheltered court at Kvaløya House." },
+    hero: { src: "/projects/kvaloya/hero.avif", alt: "A Casa Kvaløya, baixa sob uma ampla cobertura quadrada, na neve." },
+    site: { src: "/projects/kvaloya/site.avif", alt: "O pátio pavimentado e a passagem coberta da Casa Kvaløya, junto ao estreito." },
+    light: { src: "/projects/kvaloya/light.avif", alt: "A sala de jantar envidraçada iluminando o pátio abrigado da Casa Kvaløya." },
     interior: {
       src: "/projects/kvaloya/interior.avif",
-      alt: "The dining room at Kvaløya House looking through five glass panels toward the fjord.",
+      alt: "A sala de jantar da Casa Kvaløya, olhando por cinco painéis de vidro em direção ao fiorde.",
       glazingFace: "living-front",
     },
-    material: { src: "/projects/kvaloya/material.avif", alt: "The square stone hearth rising through Kvaløya House's snow-capped roof." },
+    material: { src: "/projects/kvaloya/material.avif", alt: "A lareira quadrada de pedra subindo pela cobertura da Casa Kvaløya, coberta de neve." },
   },
   camera: {
     azimuth: -30,

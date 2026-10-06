@@ -34,14 +34,14 @@ test.describe("on the live path", () => {
     await page.goto(isMobile ? "/?scene=mobile" : "/?scene=lean");
     await expect(threshold(page)).toBeVisible();
     await expect(threshold(page)).toContainText("atrium");
-    await expect(threshold(page)).toContainText("Atrium is an architecture studio in Tromsø, Norway");
+    await expect(threshold(page)).toContainText("A Atrium é um estúdio de arquitetura em Tromsø, na Noruega");
     // the stage's own ground is the zenith sky
     const sky = await page
       .locator('[data-slot="scene-stage"]')
       .evaluate((el) => getComputedStyle(el).backgroundColor);
     await expect(threshold(page)).toHaveCSS("background-color", sky);
-    const bar = threshold(page).getByRole("progressbar", { name: "Loading the Scene" });
-    await expect(bar).toHaveText(/Loading scene · \d+%/i);
+    const bar = threshold(page).getByRole("progressbar", { name: "Carregando a Cena" });
+    await expect(bar).toHaveText(/Carregando a cena · \d+%/i);
     await expect(header(page)).toBeHidden();
   });
 

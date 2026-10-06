@@ -4,21 +4,21 @@ import { expectReachableByTab } from "./keyboard";
 import { HOME, openHomeOnStill } from "./paths";
 
 const projects = [
-  { name: "Lyngen House", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "320 m²"] },
-  { name: "Senja House", slug: "senja", data: ["Senja, Troms", "+25 m", "2018", "220 m²"] },
-  { name: "Kvaløya House", slug: "kvaloya", data: ["Kvaløya, Troms", "+15 m", "2023", "160 m²"] },
-  { name: "Reine House", slug: "reine", data: ["Reine, Nordland", "+12 m", "2025", "235 m²"] },
+  { name: "Casa Lyngen", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "320 m²"] },
+  { name: "Casa Senja", slug: "senja", data: ["Senja, Troms", "+25 m", "2018", "220 m²"] },
+  { name: "Casa Kvaløya", slug: "kvaloya", data: ["Kvaløya, Troms", "+15 m", "2023", "160 m²"] },
+  { name: "Casa Reine", slug: "reine", data: ["Reine, Nordland", "+12 m", "2025", "235 m²"] },
 ];
 
 const depths = [
-  { label: "Projects", id: "projects", readout: "▽ −1.00" },
-  { label: "Studio", id: "studio", readout: "▽ −2.00" },
-  { label: "Approach", id: "approach", readout: "▽ −3.00" },
-  { label: "Contact", id: "contact", readout: "▽ −4.00" },
+  { label: "Projetos", id: "projects", readout: "▽ −1.00" },
+  { label: "Estúdio", id: "studio", readout: "▽ −2.00" },
+  { label: "Abordagem", id: "approach", readout: "▽ −3.00" },
+  { label: "Contato", id: "contact", readout: "▽ −4.00" },
 ];
 
 const statement =
-  "Atrium designs houses around northern ground, winter light and the weather coming off the sea.";
+  "A Atrium projeta casas a partir do chão do norte, da luz do inverno e do tempo que vem do mar.";
 
 const indexRows = (page: Page) => page.locator("#projects").getByRole("listitem");
 const readout = (page: Page) => page.locator('[data-slot="depth-readout"]');
@@ -50,16 +50,16 @@ test("the Studio, Approach and Contact Depths carry their content", async ({ pag
   const studio = page.locator("#studio");
   await expect(studio.getByText(statement)).toBeVisible();
   for (const [label, value] of [
-    ["Founded", "2014"],
-    ["Based", "Tromsø, Norway"],
-    ["Projects", "4"],
+    ["Fundação", "2014"],
+    ["Sede", "Tromsø, Noruega"],
+    ["Projetos", "4"],
   ]) {
     await expect(studio.locator("dt", { hasText: label }).locator("+ dd")).toHaveText(value);
   }
 
   const approach = page.locator("#approach").getByRole("listitem");
   await expect(approach).toHaveCount(3);
-  for (const [i, label] of ["01 Site", "02 Light", "03 Material"].entries()) {
+  for (const [i, label] of ["01 Terreno", "02 Luz", "03 Material"].entries()) {
     await expect(approach.nth(i)).toContainText(label);
     await expect(approach.nth(i).getByRole("heading", { level: 3 })).toBeVisible();
     await expect(approach.nth(i).getByRole("img")).toBeVisible();
@@ -84,7 +84,7 @@ test.describe("desktop", () => {
   test("header anchors scroll to each Depth and the readout follows", async ({ page }) => {
     await openHomeOnStill(page);
     await expect(readout(page)).toHaveText("±0.00");
-    const nav = page.getByRole("banner").getByRole("navigation", { name: "Site" });
+    const nav = page.getByRole("banner").getByRole("navigation", { name: "Principal" });
 
     // Down the section, then back up to the first Depth.
     for (const depth of [...depths, depths[0]]) {
@@ -98,7 +98,7 @@ test.describe("desktop", () => {
 
   test("the header and the Index are keyboard reachable", async ({ page }) => {
     await page.goto(HOME);
-    const nav = page.getByRole("banner").getByRole("navigation", { name: "Site" });
+    const nav = page.getByRole("banner").getByRole("navigation", { name: "Principal" });
     for (const { label } of depths) {
       await expectReachableByTab(page, nav.getByRole("link", { name: label }));
     }
@@ -121,7 +121,7 @@ test.describe("desktop", () => {
   test("a row sets its data in columns beside the name", async ({ page }) => {
     await page.goto(HOME);
     const link = indexRows(page).first().getByRole("link");
-    const name = await link.getByText("Lyngen House").boundingBox();
+    const name = await link.getByText("Casa Lyngen").boundingBox();
     const year = await link.getByText("2021").boundingBox();
     expect(Math.abs(name!.y + name!.height / 2 - (year!.y + year!.height / 2))).toBeLessThan(12);
   });
@@ -134,7 +134,7 @@ test.describe("mobile", () => {
     await page.goto(HOME);
     const row = indexRows(page).first();
     await expect(row.locator('[data-slot="index-thumbnail"]')).toBeHidden();
-    const name = await row.getByText("Lyngen House").boundingBox();
+    const name = await row.getByText("Casa Lyngen").boundingBox();
     const location = await row.getByText("Lyngen, Troms").boundingBox();
     const area = await row.getByText("320 m²").boundingBox();
     expect(location!.y).toBeGreaterThan(name!.y + name!.height - 1);

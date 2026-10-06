@@ -108,7 +108,7 @@ The Project page's plan and section are **massing drawings**: volume outlines as
 
 The same parts in four compositions. Dimensions are written when each record is authored; the validator keeps them within the m² range.
 
-- **Lyngen House** (L0–L1, ~300 m²): the reference, translated. A low west wing with a timber garage door, the stone chimney, a main volume glazed two floors up, the lounge below a curtained loft, under a large cantilevered roof slab, and an upper east frame with a recessed terrace, behind which is a library.
-- **Senja House** (L-1–L0, ~220 m²): set into the slope. A lower volume glazed toward the fjord across the half of its front by the stone wall, and an upper long bar cantilevering about 4 m past it with a glazed end face. A long stone wall runs perpendicular to the bar.
-- **Kvaløya House** (L0, ~160 m²): low and wide. Three volumes pinwheel around a stone hearth under one continuous roof slab with deep overhangs; a `void` opening makes a covered cut-through to the view.
-- **Reine House** (L0–L2, ~240 m²): a compact stack. Volumes shift their offsets Level by Level, balcony slabs with glass balustrades sit on the overhangs, and a full-height stone wall runs up one side.
+- **Casa Lyngen** (L0–L1, ~300 m²): the reference, translated. A low west wing with a timber garage door, the stone chimney, a main volume glazed two floors up, the lounge below a curtained loft, under a large cantilevered roof slab, and an upper east frame with a recessed terrace, behind which is a library.
+- **Casa Senja** (L-1–L0, ~220 m²): set into the slope. A lower volume glazed toward the fjord across the half of its front by the stone wall, and an upper long bar cantilevering about 4 m past it with a glazed end face. A long stone wall runs perpendicular to the bar.
+- **Casa Kvaløya** (L0, ~160 m²): low and wide. Three volumes pinwheel around a stone hearth under one continuous roof slab with deep overhangs; a `void` opening makes a covered cut-through to the view.
+- **Casa Reine** (L0–L2, ~240 m²): a compact stack. Volumes shift their offsets Level by Level, balcony slabs with glass balustrades sit on the overhangs, and a full-height stone wall runs up one side.

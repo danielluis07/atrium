@@ -4,18 +4,18 @@ import type { Project } from "@/content/schema";
 
 export const studio = {
   name: "Atrium",
-  location: "Tromsø, Norway",
+  location: "Tromsø, Noruega",
   email: "studio@atrium.example",
   founded: 2014,
   /** The one-line description: the site's meta description and the Threshold's line. */
-  description: "Atrium is an architecture studio in Tromsø, Norway, designing houses for Arctic sites.",
+  description: "A Atrium é um estúdio de arquitetura em Tromsø, na Noruega, que projeta casas para terrenos do Ártico.",
   /** The Studio Depth's display statement, and the home page description. */
   statement:
-    "Atrium designs houses around northern ground, winter light and the weather coming off the sea.",
+    "A Atrium projeta casas a partir do chão do norte, da luz do inverno e do tempo que vem do mar.",
   paragraphs: [
-    "The studio was founded in Tromsø in 2014. Our four completed houses stand across Troms and Nordland, close to the water and open weather.",
-    "We begin with the ground. Winter drifts, wind direction and the low path of the sun settle the section before the rooms take shape.",
-    "Concrete carries the houses, stone anchors them and timber lines the sheltered parts. Clear glass opens the main rooms to the water; curtains close the rest.",
+    "O estúdio foi fundado em Tromsø, em 2014. Nossas quatro casas concluídas ficam entre Troms e Nordland, junto à água e ao tempo aberto.",
+    "Começamos pelo terreno. Os acúmulos de neve, a direção do vento e a trajetória baixa do sol definem o corte antes de os ambientes ganharem forma.",
+    "O concreto sustenta as casas, a pedra as ancora e a madeira reveste as partes abrigadas. O vidro transparente abre os ambientes principais para a água; as cortinas fecham o resto.",
   ],
 } as const;
 
@@ -30,45 +30,45 @@ type Crop = {
 /** The Approach Depth's rows, in order. */
 export const approach: { label: string; head: string; paragraph: string; crop: Crop }[] = [
   {
-    label: "Site",
-    head: "Let the ground set the section.",
+    label: "Terreno",
+    head: "Deixe o terreno definir o corte.",
     paragraph:
-      "Each house meets the slope on a plinth. Low walls, paths and steps carry the same level out into the snow and shelter the ground beside the rooms.",
+      "Cada casa encontra a encosta sobre um plinto. Muros baixos, caminhos e degraus levam o mesmo nível para dentro da neve e abrigam o chão ao lado dos ambientes.",
     crop: { project: "lyngen", image: "site", focus: "50% 75%" },
   },
   {
-    label: "Light",
-    head: "Open the rooms to winter light.",
+    label: "Luz",
+    head: "Abra os ambientes à luz do inverno.",
     paragraph:
-      "Low sun reaches beneath the roof slabs. At blue hour, clear glass shows the main room while curtains turn the other windows into a softer light.",
+      "O sol baixo chega por baixo das lajes da cobertura. Na hora azul, o vidro transparente revela o ambiente principal, enquanto as cortinas transformam as outras janelas numa luz mais suave.",
     crop: { project: "senja", image: "light", focus: "50% 70%" },
   },
   {
     label: "Material",
-    head: "Build with a short palette.",
+    head: "Construa com uma paleta enxuta.",
     paragraph:
-      "Board-formed concrete carries the volumes. Stone holds the hearth, chimney or ground, while timber warms the soffits beneath dark metal edges.",
+      "O concreto aparente de fôrma de tábuas sustenta os volumes. A pedra marca a lareira, a chaminé ou o chão, e a madeira aquece os forros sob bordas de metal escuro.",
     crop: { project: "kvaloya", image: "material", focus: "50% 60%" },
   },
 ];
 
 export const contact = {
-  line: "Tell us about your site in the north.",
+  line: "Conte-nos sobre o seu terreno no norte.",
 } as const;
 
 /** The home page Depths the header links to, in page order. */
 export const depths = [
-  { id: "projects", label: "Projects", depth: -1 },
-  { id: "studio", label: "Studio", depth: -2 },
-  { id: "approach", label: "Approach", depth: -3 },
-  { id: "contact", label: "Contact", depth: -4 },
+  { id: "projects", label: "Projetos", depth: -1 },
+  { id: "studio", label: "Estúdio", depth: -2 },
+  { id: "approach", label: "Abordagem", depth: -3 },
+  { id: "contact", label: "Contato", depth: -4 },
 ] as const;
 
 export const footer = {
-  line: "Atrium is a fictional studio.",
+  line: "A Atrium é um estúdio fictício.",
 } as const;
 
 export const notFound = {
-  line: "Nothing is built here.",
-  link: "See the Projects",
+  line: "Nada foi construído aqui.",
+  link: "Ver os projetos",
 } as const;

@@ -24,7 +24,7 @@ export function Contact() {
       </div>
       <DataBlock
         className="col-span-12 self-start md:col-span-3 md:col-start-10"
-        items={[{ label: "Based", value: studio.location }]}
+        items={[{ label: "Sede", value: studio.location }]}
       />
     </Depth>
   );

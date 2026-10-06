@@ -63,7 +63,7 @@ export function ProjectPanel({
           <>
             <SheetHeader className="gap-0 px-6 pt-6 pb-10 in-data-[side=bottom]:pb-6">
               <p className={labelClass}>
-                Project {formatIndex(shown + 1)} / {formatIndex(projects.length)}
+                Projeto {formatIndex(shown + 1)} / {formatIndex(projects.length)}
               </p>
               <SheetTitle className="mt-10 font-heading in-data-[side=bottom]:mt-4 text-[clamp(2rem,3vw,2.75rem)] leading-[1.05] font-light tracking-[-0.02em]">
                 {project.name}
@@ -72,10 +72,10 @@ export function ProjectPanel({
             <DataBlock
               className="mx-6"
               items={[
-                { label: "Location", value: project.location },
-                { label: "Elevation", value: formatElevation(project.elevation) },
-                { label: "Year", value: project.year },
-                { label: "Area", value: formatArea(project.floorArea) },
+                { label: "Localização", value: project.location },
+                { label: "Altitude", value: formatElevation(project.elevation) },
+                { label: "Ano", value: project.year },
+                { label: "Área", value: formatArea(project.floorArea) },
               ]}
             />
             <SheetDescription className="px-6 pt-8 text-base text-foreground in-data-[side=bottom]:pt-6">{project.lede}</SheetDescription>
@@ -87,7 +87,7 @@ export function ProjectPanel({
                   "h-11 w-full justify-between px-4 font-mono text-xs tracking-[0.12em] uppercase",
                   focusClass,
                 )}>
-                View project <span aria-hidden="true">→</span>
+                Ver projeto <span aria-hidden="true">→</span>
               </Link>
             </div>
           </>

@@ -3,13 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { getProject } from "@/content";
 
 const projects = [
-  { name: "Lyngen House", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "320 m²"] },
-  { name: "Senja House", slug: "senja", data: ["Senja, Troms", "+25 m", "2018", "220 m²"] },
-  { name: "Kvaløya House", slug: "kvaloya", data: ["Kvaløya, Troms", "+15 m", "2023", "160 m²"] },
-  { name: "Reine House", slug: "reine", data: ["Reine, Nordland", "+12 m", "2025", "235 m²"] },
+  { name: "Casa Lyngen", slug: "lyngen", data: ["Lyngen, Troms", "+40 m", "2021", "320 m²"] },
+  { name: "Casa Senja", slug: "senja", data: ["Senja, Troms", "+25 m", "2018", "220 m²"] },
+  { name: "Casa Kvaløya", slug: "kvaloya", data: ["Kvaløya, Troms", "+15 m", "2023", "160 m²"] },
+  { name: "Casa Reine", slug: "reine", data: ["Reine, Nordland", "+12 m", "2025", "235 m²"] },
 ];
 
-const labels = ["Location", "Elevation", "Year", "Area"];
+const labels = ["Localização", "Altitude", "Ano", "Área"];
 
 /** Copy still being drafted is read from Content, so the tests follow it. */
 const copy = (slug: string) => getProject(slug)!;
@@ -22,7 +22,7 @@ for (const [i, { name, slug, data }] of projects.entries()) {
     const block = titleBlock(page);
     await expect(block.getByRole("heading", { level: 1 })).toHaveText(name);
     await expect(block).toContainText(copy(slug).lede);
-    await expect(block).toContainText(`Project 0${i + 1} / 04`);
+    await expect(block).toContainText(`Projeto 0${i + 1} / 04`);
     for (const [j, label] of labels.entries()) {
       await expect(block.locator("dt", { hasText: label }).locator("+ dd")).toHaveText(data[j]);
     }
@@ -33,11 +33,11 @@ for (const [i, { name, slug, data }] of projects.entries()) {
     expect(await hero.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   });
 
-  test(`the ${name} page has the Site, Light and Material write-up with its images`, async ({ page }) => {
+  test(`the ${name} page has the Terreno, Luz and Material write-up with its images`, async ({ page }) => {
     await page.goto(`/projects/${slug}`);
     for (const [part, count] of [
-      ["01 Site", 1],
-      ["02 Light", 2],
+      ["01 Terreno", 1],
+      ["02 Luz", 2],
       ["03 Material", 1],
     ] as const) {
       const section = page.getByRole("region", { name: part });
@@ -48,10 +48,10 @@ for (const [i, { name, slug, data }] of projects.entries()) {
 
   test(`the ${name} page has its massing plan and section`, async ({ page }) => {
     await page.goto(`/projects/${slug}`);
-    const drawings = page.getByRole("region", { name: "04 Drawings" });
+    const drawings = page.getByRole("region", { name: "04 Desenhos" });
     for (const [label, caption] of [
-      [`Massing plan of ${name}, cut at the entrance Level`, "Plan at ±0.00"],
-      [`Section through ${name}, marking each Level`, "Section A–A"],
+      [`Planta de volumetria da ${name}, cortada no nível de entrada`, "Planta em ±0.00"],
+      [`Corte pela ${name}, indicando cada nível`, "Corte A–A"],
     ]) {
       const figure = drawings.getByRole("figure", { name: caption });
       const drawing = figure.getByRole("img", { name: label });
@@ -66,14 +66,14 @@ test("the next-Project row follows the Project order and wraps from the last to 
   for (const [i, { slug }] of projects.entries()) {
     const next = projects[(i + 1) % projects.length];
     await page.goto(`/projects/${slug}`);
-    const link = page.getByRole("navigation", { name: "Next project" }).getByRole("link");
-    await expect(link).toHaveAccessibleName(new RegExp(`Next project:\\s*${next.name}`, "i"));
+    const link = page.getByRole("navigation", { name: "Próximo projeto" }).getByRole("link");
+    await expect(link).toHaveAccessibleName(new RegExp(`Próximo projeto:\\s*${next.name}`, "i"));
     await expect(link).toHaveAttribute("href", `/projects/${next.slug}`);
   }
 
-  await page.getByRole("navigation", { name: "Next project" }).getByRole("link").click();
+  await page.getByRole("navigation", { name: "Próximo projeto" }).getByRole("link").click();
   await expect(page).toHaveURL(/\/projects\/lyngen$/);
-  await expect(titleBlock(page).getByRole("heading", { level: 1 })).toHaveText("Lyngen House");
+  await expect(titleBlock(page).getByRole("heading", { level: 1 })).toHaveText("Casa Lyngen");
 });
 
 test("each Project page sets its title, description and OG image", async ({ page, request }) => {
@@ -99,14 +99,14 @@ test("an unknown Project slug returns the styled 404", async ({ page }) => {
   const response = await page.goto("/projects/nowhere");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("main").getByText("▽ −∞")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: "Nothing is built here." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Nada foi construído aqui." })).toBeVisible();
 });
 
 const depths = [
-  { label: "Projects", id: "projects", readout: "▽ −1.00" },
-  { label: "Studio", id: "studio", readout: "▽ −2.00" },
-  { label: "Approach", id: "approach", readout: "▽ −3.00" },
-  { label: "Contact", id: "contact", readout: "▽ −4.00" },
+  { label: "Projetos", id: "projects", readout: "▽ −1.00" },
+  { label: "Estúdio", id: "studio", readout: "▽ −2.00" },
+  { label: "Abordagem", id: "approach", readout: "▽ −3.00" },
+  { label: "Contato", id: "contact", readout: "▽ −4.00" },
 ];
 
 test.describe("desktop", () => {
@@ -115,7 +115,7 @@ test.describe("desktop", () => {
   for (const depth of depths) {
     test(`the header's ${depth.label} link lands on that home Depth`, async ({ page }) => {
       await page.goto("/projects/senja");
-      await page.getByRole("banner").getByRole("navigation", { name: "Site" }).getByRole("link", { name: depth.label }).click();
+      await page.getByRole("banner").getByRole("navigation", { name: "Principal" }).getByRole("link", { name: depth.label }).click();
       await expectOnHomeDepth(page, depth);
     });
   }

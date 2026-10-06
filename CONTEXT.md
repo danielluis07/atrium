@@ -15,7 +15,7 @@ The Studio's official geometric brand symbol: offset modernist volumes arranged 
 _Avoid_: house icon, home icon, loading icon
 
 **Project**:
-One house the studio designed, named "<Place> House" after the real Arctic place it stands in (e.g. Lyngen House). It has a location, elevation, year, floor area, a one-sentence lede and a write-up in three parts: Site, Light and Material. It has no coordinates. Each Project is shown as exactly one House in the Scene.
+One house the studio designed, named "Casa <Place>" (Portuguese for "house") after the real Arctic place it stands in (e.g. Casa Lyngen). It has a location, elevation, year, floor area, a one-sentence lede and a write-up in three parts: Site, Light and Material. It has no coordinates. Each Project is shown as exactly one House in the Scene.
 _Avoid_: work, case study, build, property
 
 ### Site
